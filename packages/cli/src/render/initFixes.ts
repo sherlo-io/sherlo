@@ -191,6 +191,34 @@ export function renderStorybookTooOld({
 }
 
 /**
+ * The app's Storybook is one of the releases that demand exact versions of two packages the app
+ * already has at others, and npm stopped Sherlo's install on it. The way out is the Storybook
+ * upgrade those releases' successors made loose again; the goal is named with no command, for the
+ * reason the too-old refusal gives. Like any upgrade, an agent makes it only with the user's OK.
+ */
+export function renderStorybookPinsExactVersions({
+  current,
+  firstLooseVersion,
+  pinnedPackages,
+  reader = 'person',
+}: {
+  current: string;
+  /** The first release after the pinning ones, e.g. 10.6.2. */
+  firstLooseVersion: string;
+  /** The packages those releases pin, e.g. react-native-safe-area-context. */
+  pinnedPackages: string[];
+  reader?: FeedbackReader;
+}): InitRefusal {
+  return refusal(`Storybook ${current} demands exact versions of ${pinnedPackages.join(' and ')}`, [
+    ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK."), ''] : []),
+    words(
+      `Upgrade Storybook to ${firstLooseVersion} or newer, with every @storybook/* package on the same version.`
+    ),
+    ...rerun(),
+  ]);
+}
+
+/**
  * The Metro config's export is not a call setup can wrap, so the one edit is the person's: the
  * lines are shown whole, for a CommonJS and an ES module config.
  */

@@ -26,7 +26,7 @@ vi.mock('../../../../helpers/spinner', () => ({
 vi.mock('../../../../seams/workstation', () => ({ workstation: () => workstationAnswers }));
 
 import installPods from '../installPods';
-import installSherlo from '../installSherlo';
+import installSherlo, { storybookPinsExactPeers } from '../installSherlo';
 
 const LAST_LINES_SHOWN = 15;
 
@@ -105,5 +105,58 @@ describe('a failed install', () => {
       message.indexOf("Sherlo couldn't be installed")
     );
     expect(message).toContain(`Full output: ${logFile}`);
+  });
+});
+
+describe('npm stopping on the exact versions some Storybook releases demand', () => {
+  const ERESOLVE_OUTPUT = [
+    'npm error code ERESOLVE',
+    'npm error ERESOLVE could not resolve',
+    'npm error Found: react-native-safe-area-context@5.11.1',
+    'npm error peer react-native-safe-area-context@"5.8.0" from @storybook/react-native@10.6.1',
+  ].join('\n');
+
+  async function installStorybook(version: string): Promise<void> {
+    const folder = path.join(projectRoot.path, 'node_modules', '@storybook', 'react-native');
+    await fs.promises.mkdir(folder, { recursive: true });
+    await fs.promises.writeFile(
+      path.join(folder, 'package.json'),
+      JSON.stringify({ name: '@storybook/react-native', version }),
+      'utf-8'
+    );
+  }
+
+  it('Storybook 10.6.1: the refusal says to upgrade Storybook, not to install Sherlo by hand', async () => {
+    await installStorybook('10.6.1');
+    workstationAnswers.addPackage.mockRejectedValue(
+      Object.assign(new Error('Command failed'), { output: ERESOLVE_OUTPUT, logFile: 'log' })
+    );
+
+    const message = await messageOfRefusal(installSherlo);
+
+    expect(message).toContain(
+      'Storybook 10.6.1 demands exact versions of react-native-safe-area-context and react-native-reanimated'
+    );
+    expect(message).toContain('Upgrade Storybook to 10.6.2 or newer');
+    expect(message).not.toContain('npm install @sherlo/react-native-storybook');
+  });
+
+  it('Storybook 10.6.2 pins nothing: the same failure is the usual install refusal', async () => {
+    await installStorybook('10.6.2');
+    workstationAnswers.addPackage.mockRejectedValue(
+      Object.assign(new Error('Command failed'), { output: ERESOLVE_OUTPUT, logFile: 'log' })
+    );
+
+    const message = await messageOfRefusal(installSherlo);
+
+    expect(message).toContain("Sherlo couldn't be installed");
+  });
+
+  it('the pinning releases are 10.5.2 to 10.6.1', () => {
+    expect(
+      ['10.5.1', '10.5.2', '10.6.0', '10.6.1', '10.6.2', '9.6.1', '11.5.2'].filter(
+        storybookPinsExactPeers
+      )
+    ).toEqual(['10.5.2', '10.6.0', '10.6.1']);
   });
 });

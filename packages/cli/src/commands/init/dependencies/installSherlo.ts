@@ -1,7 +1,10 @@
 import { readFile } from 'fs/promises';
 import { type Agent, detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
-import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
+import {
+  SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
+  STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
+} from '../../../constants';
 import {
   getCwd,
   getErrorWithCustomMessage,
@@ -9,10 +12,27 @@ import {
   throwError,
 } from '../../../helpers';
 import { version as cliVersion } from '../../../../package.json';
-import { renderInstallFailed } from '../../../render/initFixes';
+import { renderInstallFailed, renderStorybookPinsExactVersions } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { printLines } from '../helpers';
+import getPackageVersion from '../requirements/getPackageVersion';
+
+/**
+ * Storybook for React Native 10.5.2 to 10.6.1 demand these peers at one exact version each
+ * (react-native-safe-area-context 5.8.0, react-native-reanimated 4.5.1, per `npm view`); 10.6.2
+ * made them loose again.
+ */
+const STORYBOOK_EXACT_PEERS = ['react-native-safe-area-context', 'react-native-reanimated'];
+const STORYBOOK_FIRST_LOOSE_VERSION = '10.6.2';
+
+export function storybookPinsExactPeers(version: string): boolean {
+  // A prerelease tag after the patch number is not read.
+  const [major, minor, patch] = version.split(/[.-]/).map(Number);
+  const isAtLeast10_5_2 = major === 10 && (minor > 5 || (minor === 5 && patch >= 2));
+  const isAtMost10_6_1 = major === 10 && (minor < 6 || (minor === 6 && patch <= 1));
+  return isAtLeast10_5_2 && isAtMost10_6_1;
+}
 
 async function installSherlo(): Promise<void> {
   const spinner = createSpinner('Installing Sherlo...').start();
@@ -63,9 +83,32 @@ async function installSherlo(): Promise<void> {
     spinner.stop();
     printLines(renderFailedStepLine('Installing Sherlo failed'));
 
+    const { output, logFile } = error as InstallFailure;
+
+    // npm alone refuses a peer it cannot meet (Yarn, pnpm and Bun warn and go on), so only npm
+    // stops on the exact versions these Storybook releases demand, and installing Sherlo again would
+    // stop the same way: the way out is Storybook's.
+    const storybookVersion = getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME);
+    if (
+      tool === 'npm' &&
+      storybookVersion !== null &&
+      storybookPinsExactPeers(storybookVersion) &&
+      output.includes('ERESOLVE') &&
+      STORYBOOK_EXACT_PEERS.some((peer) => output.includes(peer))
+    ) {
+      throwError({
+        ...renderStorybookPinsExactVersions({
+          current: storybookVersion,
+          firstLooseVersion: STORYBOOK_FIRST_LOOSE_VERSION,
+          pinnedPackages: STORYBOOK_EXACT_PEERS,
+          reader: process.stdout.isTTY ? 'person' : 'agent',
+        }),
+        errorToReport: error,
+      });
+    }
+
     // The fix line names the package with no version: a version that failed to download fails
     // again when copied, and the bare name installs the newest.
-    const { output, logFile } = error as InstallFailure;
     throwError({
       ...renderInstallFailed({
         command: addCommand(tool, [SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]),
