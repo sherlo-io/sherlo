@@ -536,11 +536,23 @@ describe('app builder, iOS', () => {
     expect(args).toEqual(expect.arrayContaining(['-workspace', 'App.xcworkspace']));
     expect(args).toEqual(expect.arrayContaining(['-scheme', 'App']));
     expect(args).toEqual(expect.arrayContaining(['-configuration', 'Release']));
-    expect(args).toEqual(expect.arrayContaining(['-sdk', 'iphonesimulator']));
     expect(args).toContain('ARCHS=arm64');
     expect(args).toContain('CODE_SIGNING_ALLOWED=NO');
     // A derived data path would move Xcode's compilation cache out of its own folder.
     expect(args).not.toContain('-derivedDataPath');
+  });
+
+  it('the iOS build asks for a generic iOS Simulator destination, never one SDK for every target', async () => {
+    await compileIos();
+    const settingsCall = callsOf('xcodebuild').find((call) =>
+      call.args.includes('-showBuildSettings')
+    );
+    for (const args of [xcodebuildBuildCall().args, settingsCall?.args]) {
+      expect(args).toEqual(
+        expect.arrayContaining(['-destination', 'generic/platform=iOS Simulator'])
+      );
+      expect(args).not.toContain('-sdk');
+    }
   });
 
   it("builds iOS in the scheme's archive configuration when the project has no Release and no configuration is set", async () => {

@@ -590,8 +590,9 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       ios.scheme,
       '-configuration',
       configuration,
-      '-sdk',
-      'iphonesimulator',
+      // A destination, not -sdk: each target of the scheme (a Watch app too) gets its own simulator SDK.
+      '-destination',
+      'generic/platform=iOS Simulator',
       'ARCHS=arm64',
       'CODE_SIGNING_ALLOWED=NO',
       'COMPILATION_CACHE_ENABLE_CACHING=YES',
