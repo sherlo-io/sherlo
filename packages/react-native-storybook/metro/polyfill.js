@@ -687,8 +687,9 @@ var exactUndo = require('../src/mocking/exactUndo');
   //   story: { module: 'global', method: 'notFromThePhone', args: [name, ...], kind: 'sync' }.
   // - What the quick check needs beyond the calls, each a note of module 'global' that answers
   //   nothing of itself: a global that cannot be replaced as its 'shape' ('laidAfter' when native
-  //   code laid it as a run of it ended) with what lies below it left unread as 'shapeCut'
-  //   ['unread'] [handle, ...] (keepShape), the read of a module's method
+  //   code laid it as a run of it ended), each function member's own 'shape' by its handle, and
+  //   what lies below them left unread as 'shapeCut' ['unread'] [handle, ...] (keepShape), the
+  //   read of a module's method
   //   as 'memberRead' [module, key], and a lookup a story made as 'lookedUp' [lookup, name] with
   //   its answer, the last two once for every story read from then on.
   // - Each use of a native value: module is the value's handle, method the operation, args its
@@ -2106,7 +2107,8 @@ var exactUndo = require('../src/mocking/exactUndo');
     // Data is written down, an object or function is named by where it hangs, a getter as one.
     // Neither the global nor its members can be stood in for: native reads the members back by
     // name, past every crossing the recorder sees, and would meet a stand-in, not its own value.
-    function shapeOf(name, value) {
+    // Each member that is a function is put in `functions` by its handle, when it is given.
+    function shapeOf(name, value, functions) {
       var members = {};
       Object.getOwnPropertyNames(value).forEach(function (key) {
         var member = Object.getOwnPropertyDescriptor(value, key);
@@ -2114,12 +2116,28 @@ var exactUndo = require('../src/mocking/exactUndo');
         if (!('value' in member)) {
           members[key] = { $: 'accessor' };
         } else if (safeWrapping.isObjectOrFunction(member.value)) {
-          members[key] = { $: 'native', handle: name + '.' + key, type: typeof member.value };
+          var handle = name + '.' + key;
+          members[key] = { $: 'native', handle: handle, type: typeof member.value };
+          if (functions && typeof member.value === 'function') functions[handle] = member.value;
         } else {
           members[key] = serialised(member.value);
         }
       });
       return { $: 'shape', type: typeof value, members: members };
+    }
+
+    // The shapes of a global that cannot be replaced, [name, shape] each: its own, then one level
+    // below it the own shape of each member that is a function, by its handle. A function is never
+    // an object native answers as it is asked: a native side's function keeps its members as the
+    // engine keeps any function's, so reading their descriptions asks native nothing. An object
+    // member may be one, so it is never read. Nothing below the functions' own members is read.
+    function shapesOf(name, value) {
+      var functions = {};
+      var shapes = [[name, shapeOf(name, value, functions)]];
+      Object.keys(functions).forEach(function (handle) {
+        shapes.push([handle, shapeOf(handle, functions[handle], null)]);
+      });
+      return shapes;
     }
 
     // The globals that cannot be replaced, by name: the value, its road and its shape as noted.
@@ -2131,44 +2149,55 @@ var exactUndo = require('../src/mocking/exactUndo');
     // `laidAfter`, the order of the last entry kept before that run began: the global was not
     // there at that entry, and is from the end of that run on.
     //
-    // What lies below the global is never read: an object native answers as it is asked (a host
-    // object) answers the list of its keys and the description of each member itself, and the
-    // language tells it from a plain object by no look that does not ask it. So the recorder
-    // asks nothing of an object below a shaped global that the app did not ask for itself, and
-    // notes each member it left unread, by its handle, once with the shape, for the quick check
-    // to read a miss there: { module: 'global', method: 'shapeCut', args: ['unread'], kind:
-    // 'sync', answer: [handle, ...] }.
+    // What lies below the global is read only as shapesOf says: an object native answers as it is
+    // asked (a host object) answers the list of its keys and the description of each member
+    // itself, and the language tells it from a plain object by no look that does not ask it. So
+    // the recorder asks nothing of an object below a shaped global that the app did not ask for
+    // itself, and notes each member it left unread, by its handle, once with the shapes, for the
+    // quick check to read a miss there: { module: 'global', method: 'shapeCut', args: ['unread'],
+    // kind: 'sync', answer: [handle, ...] }. A member whose own shape is noted is not unread.
+    // Each function member's shape is a 'shape' note of its handle, with the global's `laidAfter`.
     function keepShape(name, value, road, laidAfter) {
-      var shape = shapeOf(name, value);
-      shapesKept[name] = { value: value, road: road, written: JSON.stringify(shape) };
-      var note = { module: 'global', method: 'shape', args: [name], kind: 'sync', answer: shape };
-      if (laidAfter !== undefined) note.laidAfter = laidAfter;
-      keep('nativeCalls', note, true);
-      var unread = Object.keys(shape.members).filter(function (key) {
-        return shape.members[key] !== null && shape.members[key].$ === 'native';
+      var shapes = shapesOf(name, value);
+      shapesKept[name] = { value: value, road: road, written: JSON.stringify(shapes) };
+      var shaped = {};
+      shapes.forEach(function (named) {
+        shaped[named[0]] = true;
+        var note = {
+          module: 'global',
+          method: 'shape',
+          args: [named[0]],
+          kind: 'sync',
+          answer: named[1],
+        };
+        if (laidAfter !== undefined) note.laidAfter = laidAfter;
+        keep('nativeCalls', note, true);
+      });
+      var unread = [];
+      shapes.forEach(function (named) {
+        var members = named[1].members;
+        Object.keys(members).forEach(function (key) {
+          var member = members[key];
+          if (member !== null && member.$ === 'native' && !shaped[member.handle]) {
+            unread.push(member.handle);
+          }
+        });
       });
       if (unread.length === 0) return;
       keep(
         'nativeCalls',
-        {
-          module: 'global',
-          method: 'shapeCut',
-          args: ['unread'],
-          kind: 'sync',
-          answer: unread.map(function (key) {
-            return shape.members[key].handle;
-          }),
-        },
+        { module: 'global', method: 'shapeCut', args: ['unread'], kind: 'sync', answer: unread },
         true
       );
     }
 
-    // A global that cannot be replaced whose members changed since its shape was noted: what the
-    // story read of it may not be the shape, so the story's road through it is unseen.
+    // A global that cannot be replaced whose members, or whose function members' own, changed
+    // since its shapes were noted: what the story read of it may not be the shapes, so the
+    // story's road through it is unseen.
     function noteChangedShapes() {
       Object.keys(shapesKept).forEach(function (name) {
         var kept = shapesKept[name];
-        if (JSON.stringify(shapeOf(name, kept.value)) === kept.written) return;
+        if (JSON.stringify(shapesOf(name, kept.value)) === kept.written) return;
         keepBlindRoadOnce('jsiGlobal', kept.road, false);
       });
     }

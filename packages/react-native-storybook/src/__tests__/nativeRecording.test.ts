@@ -602,6 +602,20 @@ describe('what the app records for each story', () => {
           },
         },
       }),
+      // Each function member's own shape, one level below the global's.
+      expect.objectContaining({
+        args: ['appCore.Emitter'],
+        answer: {
+          $: 'shape',
+          type: 'function',
+          members: {
+            length: 0,
+            name: 'Emitter',
+            prototype: ref('appCore.Emitter.prototype', 'object'),
+          },
+        },
+      }),
+      expect.objectContaining({ args: ['appCore.ping'] }),
     ]);
     // The shape stands for the global in every story: no story is named unseen for it, so the
     // quick check judges each by what its own draw asks beyond the shape.
@@ -664,7 +678,8 @@ describe('what the app records for each story', () => {
       storyRecordingOf(storyId)
         ?.nativeCalls.filter(({ module, method }) => module === 'global' && method === 'shapeCut')
         .map(({ args, answer }) => [args, answer]);
-    expect(unread('core--first')).toEqual([[['unread'], ['appCore.modules', 'appCore.ping']]]);
+    // A function member's own members are read through their descriptions; an object's never.
+    expect(unread('core--first')).toEqual([[['unread'], ['appCore.modules']]]);
     expect(unread('core--second')).toEqual(unread('core--first'));
 
     // The app's own read asks native, as it would with no recorder.
@@ -1002,7 +1017,7 @@ describe('what the app records for each story', () => {
     app.fakeGlobal.nativeModulesOfTheTest = {
       get Installer() {
         Object.defineProperty(app.fakeGlobal, 'appCore', {
-          value: { ping: nativeFunction(() => 'pong') },
+          value: { ping: nativeFunction(() => 'pong'), modules: {} },
           enumerable: true,
           writable: false,
         });
@@ -1014,16 +1029,17 @@ describe('what the app records for each story', () => {
 
     startStoryRecording('core--laid');
     // The global was not there at the lookup's own entry, the last one kept before native ran,
-    // and is from the lookup's end on.
+    // and is from the lookup's end on; so was its function member, whose shape says the same.
     const calls = storyRecordingOf('core--laid')?.nativeCalls ?? [];
     expect(
       calls
-        .slice(-3)
+        .slice(-4)
         .map(({ method, args, order, laidAfter }: any) => [method, args, order, laidAfter])
     ).toEqual([
       ['lookup', ['Installer'], 5, undefined],
       ['shape', ['appCore'], 6, 5],
-      ['shapeCut', ['unread'], 7, undefined],
+      ['shape', ['appCore.ping'], 7, 5],
+      ['shapeCut', ['unread'], 8, undefined],
     ]);
   });
 
