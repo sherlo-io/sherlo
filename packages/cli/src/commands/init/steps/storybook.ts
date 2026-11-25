@@ -49,12 +49,13 @@ async function storybook({
   // takes the wait for a hang.
   const spinner = createSpinner('Installing Storybook...').start();
 
+  let updatedPnpmSettings = false;
   try {
     // Only `--json` lets Yarn 2+ tell an error from a warning (../../../render/installOutput).
-    await workstation().installStorybook({
+    ({ updatedPnpmSettings } = await workstation().installStorybook({
       command: tool === 'yarn@berry' ? `${command} --json` : command,
       projectRoot,
-    });
+    }));
   } catch (error) {
     spinner.stop();
     printLines(renderFailedStepLine('Installing Storybook failed'));
@@ -82,6 +83,16 @@ async function storybook({
         STORYBOOK_REACT_NATIVE_PACKAGE_NAME
       )}`,
     }),
+    // A file of the person's that setup changed is named, as metro.config.js is.
+    ...(updatedPnpmSettings
+      ? [
+          renderStepLine({
+            outcome: 'done',
+            name: 'Updated pnpm settings',
+            detail: 'pnpm-workspace.yaml',
+          }),
+        ]
+      : []),
   ]);
 
   return { installedNow: true };

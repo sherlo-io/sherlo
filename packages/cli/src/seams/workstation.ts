@@ -68,13 +68,15 @@ export type Workstation = {
 
   /**
    * Set Storybook's lite setup up in a project that has none: install its packages, and write its
-   * config folder, its example stories and its Metro wrapper into the project.
+   * config folder, its example stories and its Metro wrapper into the project. Answers whether it
+   * wrote pnpm's `allowBuilds` answer for esbuild into `pnpm-workspace.yaml`, without which pnpm
+   * stops the install, so the checklist can say the person's pnpm settings changed.
    */
   installStorybook(params: {
     /** The whole command line, e.g. `yarn add @storybook/react-native@10.7.2 ...`. */
     command: string;
     projectRoot: string;
-  }): Promise<void>;
+  }): Promise<{ updatedPnpmSettings: boolean }>;
 
   /** Run `pod install` in the project's iOS folder. */
   installPods(params: {
@@ -171,9 +173,11 @@ export const liveWorkstation: Workstation = {
   },
 
   // BUILD DEBT (init-for-agents decision 2): adds the packages only; build writes `.rnstorybook`
-  // from the templates kept in the CLI once they are installed.
+  // from the templates kept in the CLI once they are installed, and on pnpm writes `allowBuilds:
+  // esbuild: false` into `pnpm-workspace.yaml` before the install.
   installStorybook: async ({ command, projectRoot }) => {
     await runInstall({ command, projectRoot });
+    return { updatedPnpmSettings: false };
   },
 
   // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` when no locale is
@@ -417,7 +421,7 @@ export function posedWorkstation(
           'the project has no Storybook, so the command set Storybook up - say what it wrote ' +
             'in `"storybook": {"wrote": {...}}` in the workstation of the pose'
         );
-        return;
+        return { updatedPnpmSettings: false };
       }
 
       // A failed install of Storybook's packages ends the way addPackage's failed install does.
@@ -433,6 +437,8 @@ export function posedWorkstation(
           typeof content === 'string' ? content : `${JSON.stringify(content, null, 2)}\n`
         );
       }
+
+      return { updatedPnpmSettings: 'pnpm-workspace.yaml' in posed.storybook.wrote };
     },
 
     installPods: async ({ command, sherloBuildUnset }) => {
