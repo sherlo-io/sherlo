@@ -133,9 +133,15 @@ export type Workstation = {
  */
 export type InstallFailure = Error & { output: string; logFile: string };
 
-/** Setup's log of a failed install: in the system's temp folder, one per run. */
+let runLogFolder: string | undefined;
+
+/**
+ * Setup's log of a failed install, one per run: in a folder of the run's own under the system's
+ * temp folder, made the first time an install fails, so two runs at once never share a path.
+ */
 function installLogFile(): string {
-  return path.join(os.tmpdir(), `sherlo-init-${process.pid}.log`);
+  runLogFolder ??= fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-init-'));
+  return path.join(runLogFolder, 'install.log');
 }
 
 function installFailure(

@@ -90,7 +90,7 @@ describe('a failed install', () => {
 
   it('a failed SDK install with no line marked as an error shows its last 20 lines and names the log', async () => {
     const UNMARKED_LINES_SHOWN = 20;
-    const logFile = path.join(os.tmpdir(), 'sherlo-init-1.log');
+    const logFile = path.join(os.tmpdir(), 'sherlo-init-a1B2c3', 'install.log');
     workstationAnswers.addPackage.mockRejectedValue(
       Object.assign(new Error('Command failed'), { output: numberedLines(40), logFile })
     );

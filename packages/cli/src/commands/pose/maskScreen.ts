@@ -168,11 +168,11 @@ function foldMachinePaths(screen: string, { projectRoot, configPath }: MaskConte
 }
 
 /**
- * Setup's log of a failed install: it lives in this machine's temp folder and is named by the
- * process that wrote it (../../seams/workstation), so both move between runs.
+ * Setup's log of a failed install: it lives in a folder the run made under this machine's temp
+ * folder, with a random suffix (../../seams/workstation), so both move between runs.
  */
 function foldSetupLogFile(screen: string): string {
-  return screen.replace(/[^\s'"`\u001b]*sherlo-init-\d+\.log/g, '<LOG_FILE>');
+  return screen.replace(/[^\s'"`\u001b]*sherlo-init-[A-Za-z0-9]+[\\/]install\.log/g, '<LOG_FILE>');
 }
 
 /**
