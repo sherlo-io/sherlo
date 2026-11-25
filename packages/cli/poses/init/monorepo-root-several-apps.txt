@@ -18,7 +18,7 @@ Setting up Sherlo...
 
 [0mApps found:[0m
 [36m  apps/admin[39m
-[36m  apps/shop[39m
+[36m  apps/mobile[39m
 
 [0mGo to the one to test and run setup again:[0m
 [36m  cd <your app folder>[39m
