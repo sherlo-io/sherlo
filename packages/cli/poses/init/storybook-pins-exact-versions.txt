@@ -21,7 +21,8 @@ Setting up Sherlo...
 
 [31mERROR: Storybook 10.6.1 demands exact versions of react-native-safe-area-context and react-native-reanimated[39m
 
-[0mUpgrade Storybook to 10.6.2 or newer, with every @storybook/* package on the same version.[0m
+[0mUpgrade Storybook:[0m
+[36m  npm i @storybook/react-native@^10 storybook@^10[39m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

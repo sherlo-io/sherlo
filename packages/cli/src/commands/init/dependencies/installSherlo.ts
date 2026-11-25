@@ -17,6 +17,7 @@ import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps'
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { printLines } from '../helpers';
 import getPackageVersion from '../requirements/getPackageVersion';
+import storybookUpgradeSpecs from '../requirements/storybookUpgradeSpecs';
 
 /**
  * Storybook for React Native 10.5.2 to 10.6.1 demand these peers at one exact version each
@@ -24,7 +25,6 @@ import getPackageVersion from '../requirements/getPackageVersion';
  * made them loose again.
  */
 const STORYBOOK_EXACT_PEERS = ['react-native-safe-area-context', 'react-native-reanimated'];
-const STORYBOOK_FIRST_LOOSE_VERSION = '10.6.2';
 
 export function storybookPinsExactPeers(version: string): boolean {
   // A prerelease tag after the patch number is not read.
@@ -99,8 +99,13 @@ async function installSherlo(): Promise<void> {
       throwError({
         ...renderStorybookPinsExactVersions({
           current: storybookVersion,
-          firstLooseVersion: STORYBOOK_FIRST_LOOSE_VERSION,
           pinnedPackages: STORYBOOK_EXACT_PEERS,
+          upgradeCommand: addCommand(
+            tool,
+            storybookUpgradeSpecs(
+              Object.keys({ ...packageJson.dependencies, ...packageJson.devDependencies })
+            )
+          ),
           reader: process.stdout.isTTY ? 'person' : 'agent',
         }),
         errorToReport: error,

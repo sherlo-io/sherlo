@@ -16,7 +16,10 @@ export default hasDependency;
 
 /* ========================================================================== */
 
-async function readAllDependencies(packageJsonPath: string): Promise<Record<string, string>> {
+/** A package.json's dependencies and devDependencies in one map, name to version range. */
+export async function readAllDependencies(
+  packageJsonPath: string
+): Promise<Record<string, string>> {
   let packageJson;
 
   try {

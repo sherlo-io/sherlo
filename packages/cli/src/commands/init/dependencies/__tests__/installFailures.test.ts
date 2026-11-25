@@ -137,7 +137,8 @@ describe('npm stopping on the exact versions some Storybook releases demand', ()
     expect(message).toContain(
       'Storybook 10.6.1 demands exact versions of react-native-safe-area-context and react-native-reanimated'
     );
-    expect(message).toContain('Upgrade Storybook to 10.6.2 or newer');
+    expect(message).toContain('Upgrade Storybook:');
+    expect(message).toContain('npm i storybook@^10');
     expect(message).not.toContain('npm install @sherlo/react-native-storybook');
   });
 

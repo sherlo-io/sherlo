@@ -13,7 +13,8 @@ import {
   REACT_NATIVE_PACKAGE_NAME,
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
 } from '../../../constants';
-import { isPackageVersionCompatible, throwError } from '../../../helpers';
+import { detect } from 'package-manager-detector';
+import { getCwd, isPackageVersionCompatible, throwError } from '../../../helpers';
 import {
   renderPackagesNotInstalled,
   renderReactNativeTooOld,
@@ -25,7 +26,9 @@ import readConfig from '../config/readConfig';
 import { packageManagerCommand, printLines } from '../helpers';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import getPackageVersion from '../requirements/getPackageVersion';
-import hasDependency from '../requirements/hasDependency';
+import { addCommand } from '../dependencies/installSherlo';
+import hasDependency, { readAllDependencies } from '../requirements/hasDependency';
+import storybookUpgradeSpecs from '../requirements/storybookUpgradeSpecs';
 import validateHasReactNative from '../requirements/validateHasReactNative';
 import refuseUnreadableMetroConfig from '../requirements/refuseUnreadableMetroConfig';
 import validateProjectContext from '../requirements/validateProjectContext';
@@ -99,6 +102,11 @@ async function checkTheApp(): Promise<CheckedProject> {
         renderStorybookTooOld({
           current: installedStorybook,
           min: MIN_STORYBOOK_REACT_NATIVE_VERSION,
+          upgradeCommand: addCommand(
+            (await detect({ cwd: getCwd() }))?.agent ?? 'npm',
+            storybookUpgradeSpecs(Object.keys(current ? await readAllDependencies(current) : {}))
+          ),
+          reader: process.stdout.isTTY ? 'person' : 'agent',
         })
       );
     }

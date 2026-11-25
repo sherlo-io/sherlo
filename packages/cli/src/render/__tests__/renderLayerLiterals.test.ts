@@ -149,6 +149,21 @@ const PINS: Pin[] = [
     prints: [['Signed in through GitHub as acme-mobile/shop-app'], []],
   },
   {
+    kind: 'until-connected-notice',
+    what: 'the GitHub Actions notice a push prints when its repository is not connected to the team',
+    segment: {
+      kind: 'until-connected-notice',
+      repository: 'acme-mobile/shop-app',
+      teamName: "Anna's team",
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        "::notice title=Sherlo skipped this run::acme-mobile/shop-app is not connected to the team Anna's team, so Sherlo did not test this run. Connect GitHub in the project's settings in the Sherlo web app: https://sherlo.io/docs/integrations/github",
+      ],
+    ],
+  },
+  {
     kind: 'platform-bundle-start',
     what: "the android bundle-start line as a log shows it - a step in progress, plain, printed once (a terminal shows the same words as a spinner's)",
     segment: { kind: 'platform-bundle-start', platform: 'android' },

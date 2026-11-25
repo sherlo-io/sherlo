@@ -125,7 +125,7 @@ export function renderPackagesNotInstalled({
  * React Native is older than Sherlo supports. An upgrade changes the whole app, so the person
  * decides it: an agent reads one more line saying it upgrades only with the user's OK. The commands
  * are Expo's and React Native's own, and both land on the oldest supported version: the smallest
- * jump breaks the least, as Storybook's guide upgrades one version at a time.
+ * jump breaks the least.
  */
 export function renderReactNativeTooOld({
   current,
@@ -171,57 +171,64 @@ export function renderReactNativeTooOld({
 }
 
 /**
- * Storybook is older than Sherlo supports: the one way out is upgrading it. Removing it for setup
- * to install afresh is not offered, as it could delete the app's stories.
- *
- * NO UPGRADE COMMAND: one `add` moves one package, and "latest" on each does not land them on one
- * version (from 7.6.20 it gave 10.7.0 for the React Native ones and 10.6.5 for @storybook/react), so
- * the goal is named, with Storybook for React Native's own migration guide: it upgrades by hand, one
- * major version at a time, each with steps of its own (new native packages for 8, the folder rename
- * for 9), as the React Native refusal names React Native's Upgrade Helper.
+ * The Storybook upgrade both Storybook refusals end on: one `add` in the app's own package manager
+ * (../commands/init/requirements/storybookUpgradeSpecs), after which no file needs a change by hand.
+ * Like any upgrade, an agent makes it only with the user's OK.
+ */
+function upgradeStorybook(upgradeCommand: string, reader: FeedbackReader): string[] {
+  return [
+    ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK."), ''] : []),
+    words('Upgrade Storybook:'),
+    code(upgradeCommand),
+    ...rerun(),
+  ];
+}
+
+/**
+ * Storybook is older than Sherlo supports: the one way out is upgrading it, with the command that
+ * does it. Removing it for setup to install afresh is not offered, as it could delete the app's
+ * stories.
  */
 export function renderStorybookTooOld({
   current,
   min,
+  upgradeCommand,
+  reader = 'person',
 }: {
   current: string;
   min: string;
+  /** The project's package manager adding the newest Storybook, e.g. `yarn add @storybook/react-native@^10 storybook@^10`. */
+  upgradeCommand: string;
+  reader?: FeedbackReader;
 }): InitRefusal {
-  return refusal(`Storybook ${current} is too old: Sherlo needs ${min} or newer`, [
-    words('Upgrade Storybook, with every @storybook/* package on the same version.'),
-    '',
-    words("Follow Storybook for React Native's migration guide, one version at a time:"),
-    code('https://github.com/storybookjs/react-native/blob/next/MIGRATION.md'),
-    ...rerun(),
-  ]);
+  return refusal(
+    `Storybook ${current} is too old: Sherlo needs ${min} or newer`,
+    upgradeStorybook(upgradeCommand, reader)
+  );
 }
 
 /**
  * The app's Storybook is one of the releases that demand exact versions of two packages the app
- * already has at others, and npm stopped Sherlo's install on it. The way out is the Storybook
- * upgrade those releases' successors made loose again; the goal is named with no command, for the
- * reason the too-old refusal gives. Like any upgrade, an agent makes it only with the user's OK.
+ * already has at others, and npm stopped Sherlo's install on it. The way out is the same Storybook
+ * upgrade as for a too-old one: the newest releases made those versions loose again.
  */
 export function renderStorybookPinsExactVersions({
   current,
-  firstLooseVersion,
   pinnedPackages,
+  upgradeCommand,
   reader = 'person',
 }: {
   current: string;
-  /** The first release after the pinning ones, e.g. 10.6.2. */
-  firstLooseVersion: string;
   /** The packages those releases pin, e.g. react-native-safe-area-context. */
   pinnedPackages: string[];
+  /** The project's package manager adding the newest Storybook, e.g. `npm i @storybook/react-native@^10 storybook@^10`. */
+  upgradeCommand: string;
   reader?: FeedbackReader;
 }): InitRefusal {
-  return refusal(`Storybook ${current} demands exact versions of ${pinnedPackages.join(' and ')}`, [
-    ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK."), ''] : []),
-    words(
-      `Upgrade Storybook to ${firstLooseVersion} or newer, with every @storybook/* package on the same version.`
-    ),
-    ...rerun(),
-  ]);
+  return refusal(
+    `Storybook ${current} demands exact versions of ${pinnedPackages.join(' and ')}`,
+    upgradeStorybook(upgradeCommand, reader)
+  );
 }
 
 /**
