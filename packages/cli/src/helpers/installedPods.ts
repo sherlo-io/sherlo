@@ -14,8 +14,8 @@ export function readTextIfThere(filePath: string): string | undefined {
  * Whether the installed pods link Sherlo into a configuration. CocoaPods writes, for each
  * configuration, `Pods/Target Support Files/Pods-<target>/Pods-<target>.<configuration lowercased>.xcconfig`
  * with the libraries that configuration links. It is the file Xcode builds with, and CocoaPods
- * leaves a pod a configuration does not carry out of it, so the pod's library naming the file is
- * the real answer (the Pods project's own pbxproj lists the pod target for every configuration).
+ * leaves a pod a configuration does not carry out of its OTHER_LDFLAGS, so the pod's library named
+ * there is the real answer (its search paths name it in every configuration, so they never count) (the Pods project's own pbxproj lists the pod target for every configuration).
  */
 export function podsLinkSherloInto(iosFolder: string, configuration: string): boolean {
   return xcconfigsLinkingSherlo(iosFolder).some(
@@ -36,9 +36,27 @@ function xcconfigsLinkingSherlo(iosFolder: string): { folder: string; file: stri
         .filter((file) => file.endsWith('.xcconfig'))
         .map((file) => ({ folder, file }))
         .filter(({ file }) =>
-          SHERLO_POD_NAME.test(readTextIfThere(path.join(supportFiles, folder, file)) ?? '')
+          SHERLO_POD_NAME.test(
+            linkerFlagsOf(readTextIfThere(path.join(supportFiles, folder, file)) ?? '')
+          )
         )
     );
+}
+
+/**
+ * The part of an xcconfig that says what it links: its lines without the other settings.
+ * CocoaPods writes every pod's header and framework search paths into every configuration, also
+ * for a pod limited to another one, and filters only OTHER_LDFLAGS by configuration. So a line
+ * that sets anything but OTHER_LDFLAGS (`KEY = value`) never counts; a line of no setting does.
+ */
+function linkerFlagsOf(xcconfig: string): string {
+  return xcconfig
+    .split('\n')
+    .filter(
+      (line) =>
+        /^\s*OTHER_LDFLAGS\s*=/.test(line) || !/^\s*[A-Za-z_]\w*(\[[^\]]*\])*\s*=/.test(line)
+    )
+    .join('\n');
 }
 
 /**
