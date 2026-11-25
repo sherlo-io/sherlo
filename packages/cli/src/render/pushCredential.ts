@@ -61,3 +61,17 @@ export function renderRepositoryNotConnected(
     learnMoreLink: DOCS_LINK.integrationsGithub,
   };
 }
+
+/**
+ * The same missing connection, in a job whose workflow asked for `SHERLO_UNTIL_CONNECTED: notice`
+ * (the one setup writes, ./initWorkflow): the job ends green with this one line. It is a GitHub
+ * workflow command, so GitHub shows it as a notice on the run's summary, not as a log line nobody
+ * opens, and it says where the connection is made.
+ */
+export function renderUntilConnectedNotice(repository: string, teamName: string): string {
+  return [
+    '::notice title=Sherlo skipped this run::',
+    `${repository} is not connected to the team ${teamName}, so Sherlo did not test this run. `,
+    `Connect GitHub in the project's settings in the Sherlo web app: ${DOCS_LINK.integrationsGithub}`,
+  ].join('');
+}

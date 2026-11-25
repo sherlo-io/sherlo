@@ -48,7 +48,7 @@ import {
   renderTestNotice,
 } from './pushSpine';
 import { renderStepInProgress } from './stepInProgress';
-import { renderSignedInThroughGitHub } from './pushCredential';
+import { renderSignedInThroughGitHub, renderUntilConnectedNotice } from './pushCredential';
 import {
   renderFinishedUnderTheTestRow,
   renderPlatformRow,
@@ -164,6 +164,12 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: [[renderSignedInThroughGitHub(segment.repository)], []],
+      };
+
+    case 'until-connected-notice':
+      return {
+        stream: 'stdout',
+        prints: [[renderUntilConnectedNotice(segment.repository, segment.teamName)]],
       };
 
     // A STEP IN PROGRESS, as a log shows it: one plain line, printed once when the step starts (a

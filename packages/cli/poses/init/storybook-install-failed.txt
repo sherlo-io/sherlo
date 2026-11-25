@@ -25,10 +25,7 @@ Setting up Sherlo...
 
 [0mFull output: <LOG_FILE>[0m
 
-[0mFix the error, or install Storybook's packages yourself:[0m
-[36m  yarn add @storybook/react-native@10.7.2 @storybook/react-native-ui-lite@10.7.2 storybook@10.6.8[39m
-
-[0mThen run setup again. It picks up where it stopped:[0m
+[0mFix the error, then run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

@@ -35,9 +35,10 @@ async function teamAndProject(
   { teamFlag, projectFlag }: { teamFlag: string | undefined; projectFlag: string | undefined }
 ): Promise<SettledProject> {
   // `--project` is how the web app's setup line connects init to a project made there; it wins over
-  // a config's, which it then replaces. Either is looked up, never made again.
+  // a config's, which it then replaces. Either is looked up, never made again. A typed `--team` wins
+  // over a config's project the same way: the project is made in that team, and replaces it.
   const flagProject = projectFlag ? parseProject(projectFlag) : undefined;
-  const existingProject = flagProject ?? (await readProjectFromConfig());
+  const existingProject = flagProject ?? (teamFlag ? undefined : await readProjectFromConfig());
   if (existingProject) {
     await showProjectInConfig(existingProject, person, flagProject ? 'flag' : 'config');
     return settled(existingProject);
@@ -121,6 +122,19 @@ async function chooseTeam(
   if (team) {
     printLines([renderStepLine({ outcome: 'done', name: 'Using team', detail: team.name })]);
     return { teamId: team.id, login };
+  }
+
+  // IN NO TEAM, A TEAM ID CAN'T BE RIGHT: there is no list to pick from, and setup without `--team`
+  // makes the person's first team itself.
+  if (teamFlag && teams.length === 0) {
+    printLines(renderFailedStepLine('Choosing a team failed'));
+    throwError({
+      message: "You're not in any team yet",
+      below:
+        '\n' +
+        chalk.reset('Run setup without a team, and it creates your first one:\n') +
+        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+    });
   }
 
   if (teamFlag || teams.length > 1) {

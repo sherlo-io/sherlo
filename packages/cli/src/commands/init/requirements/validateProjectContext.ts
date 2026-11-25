@@ -1,10 +1,14 @@
 import fastGlob from 'fast-glob';
 import { readFile } from 'fs/promises';
+// js-yaml ships no types of its own. Build adds @types/js-yaml to devDependencies (a task of
+// init-for-agents), and this line goes then.
+// @ts-expect-error
+import { load } from 'js-yaml';
 import { dirname, join } from 'path';
 import { REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, throwError } from '../../../helpers';
 import { renderMonorepoRoot, renderNotInAnApp } from '../../../render/initFixes';
-import findPackageJsonPaths from './findPackageJsonPaths';
+import findPackageJsonPaths, { pnpmWorkspaceFile } from './findPackageJsonPaths';
 import hasDependency from './hasDependency';
 
 async function validateProjectContext(): Promise<void> {
@@ -26,7 +30,8 @@ export default validateProjectContext;
 
 /**
  * The workspaces that list react-native, relative to the root, so the refusal names the folder to
- * go to. The workspaces are the root package.json's `workspaces` (npm, yarn, bun).
+ * go to. The workspaces are the root package.json's `workspaces` (npm, yarn, bun) and
+ * pnpm-workspace.yaml's `packages` (pnpm).
  */
 async function findAppFolders(rootFolder: string): Promise<string[]> {
   const workspaceFolders = await fastGlob(await workspacePatterns(rootFolder), {
@@ -46,10 +51,24 @@ async function findAppFolders(rootFolder: string): Promise<string[]> {
 }
 
 async function workspacePatterns(rootFolder: string): Promise<string[]> {
-  // BUILD DEBT (init-for-agents): read pnpm-workspace.yaml's `packages` too; the CLI lists js-yaml
-  // but has no types for it yet.
   const { workspaces } = (await readPackageJson(join(rootFolder, 'package.json'))) ?? {};
-  return Array.isArray(workspaces) ? workspaces : (workspaces?.packages ?? []);
+  const packageJsonPatterns = Array.isArray(workspaces) ? workspaces : (workspaces?.packages ?? []);
+
+  return [...packageJsonPatterns, ...(await pnpmWorkspacePatterns(rootFolder))];
+}
+
+/** pnpm-workspace.yaml's `packages`. No file, or one that does not parse, lists none. */
+async function pnpmWorkspacePatterns(rootFolder: string): Promise<string[]> {
+  try {
+    const { packages } = (load(await readFile(pnpmWorkspaceFile(rootFolder), 'utf-8')) ?? {}) as {
+      packages?: unknown;
+    };
+    return Array.isArray(packages)
+      ? packages.filter((pattern): pattern is string => typeof pattern === 'string')
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 type PackageJson = {

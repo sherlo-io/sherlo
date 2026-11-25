@@ -35,6 +35,7 @@ import { serverCalls } from '../../../seams/serverCalls';
 import { savedLogins } from '../../../seams/savedLogins';
 import { InvalidatedConfig, PushCredential } from '../../../types';
 import { getEndpointUrl } from '../../buildStatusRequest';
+import exitAfterOutput from '../../exitAfterOutput';
 import getTokenParts from '../../getTokenParts';
 import isPersonalToken from '../../isPersonalToken';
 import isValidToken from '../../isValidToken';
@@ -100,6 +101,13 @@ async function spendGitHubIdToken(config: InvalidatedConfig): Promise<PushCreden
   const trade = await serverCalls().tradeGitHubIdToken({ repository, teamId });
 
   if (trade.status === 'not-connected') {
+    // The workflow setup writes asks for a green job and one notice until GitHub is connected
+    // (../../../render/initWorkflow); a workflow written by hand fails as it always did.
+    if (process.env.SHERLO_UNTIL_CONNECTED === 'notice') {
+      emit({ kind: 'until-connected-notice', repository, teamName: trade.teamName });
+      await exitAfterOutput(0);
+    }
+
     throwError(renderRepositoryNotConnected(repository, trade.teamName));
   }
 

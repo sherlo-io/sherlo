@@ -68,6 +68,9 @@ export function renderFailedStepLine(name: string): string[] {
  *   - `old-setup`: Storybook renders from the app's own root. Two equal choices, the recommended one
  *     first: move to the default setup, on any supported Storybook, or keep the
  *     old setup and render Storybook in Sherlo's testing mode - each with its code on the screen.
+ *   - `example-stories` and `old-setup-example-stories`: the same as `default-setup` and
+ *     `old-setup`, but the only stories are Storybook's examples, so the next step is to replace
+ *     them with the app's own.
  *
  * The person reads "the default setup" and "the old setup", the same names everywhere.
  *
@@ -85,7 +88,12 @@ export function renderNextSteps({
   isExpo,
   reader,
 }: {
-  storybook: 'installed' | 'default-setup' | 'example-stories' | 'old-setup';
+  storybook:
+    | 'installed'
+    | 'default-setup'
+    | 'example-stories'
+    | 'old-setup'
+    | 'old-setup-example-stories';
   /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
   isExpo: boolean;
   reader: FeedbackReader;
@@ -206,6 +214,10 @@ export function renderNextSteps({
     'example-stories': [replaceExampleStoriesStep],
     'old-setup': [
       openStorybookStep("Storybook starts from your app's code, so Sherlo can't open it alone."),
+    ],
+    'old-setup-example-stories': [
+      openStorybookStep("Storybook starts from your app's code, so Sherlo can't open it alone."),
+      replaceExampleStoriesStep,
     ],
   };
 

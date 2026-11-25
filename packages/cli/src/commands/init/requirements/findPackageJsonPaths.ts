@@ -71,8 +71,10 @@ async function isMonorepoRoot(packageJsonPath: string): Promise<boolean> {
   // Check for workspaces in package.json (npm/yarn/bun)
   if (packageJson.workspaces) return true;
 
-  // Check for pnpm-workspace.yaml
-  const pnpmWorkspacePath = join(dirname(packageJsonPath), 'pnpm-workspace.yaml');
+  return existsSync(pnpmWorkspaceFile(dirname(packageJsonPath)));
+}
 
-  return existsSync(pnpmWorkspacePath);
+/** pnpm lists a monorepo's workspaces in this file beside the root package.json, not in it. */
+export function pnpmWorkspaceFile(rootFolder: string): string {
+  return join(rootFolder, 'pnpm-workspace.yaml');
 }

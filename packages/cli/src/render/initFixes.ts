@@ -84,7 +84,13 @@ export function renderMonorepoRoot({ appFolders }: { appFolders: string[] }): In
             code('cd <your app folder>'),
             code(INIT_COMMAND),
           ]
-        : goTo("your app's folder", '<your app folder>');
+        : // NO APP IN ANY WORKSPACE: a folder placeholder would send the reader looking for one
+          // here, so the screen says none was found and where setup runs instead.
+          [
+            words("No React Native app was found in this workspace's packages."),
+            words("Run setup inside your React Native app's folder:"),
+            code(INIT_COMMAND),
+          ];
 
   return refusal('This folder is a monorepo root', fix);
 }
@@ -281,35 +287,44 @@ export type FailedInstall = {
 };
 
 /**
- * The package manager's cause, picked by ./installOutput, then where the whole output is, then the
- * command to run alone - the same one setup ran, so a person who fixes the cause can check it.
+ * The package manager's cause, picked by ./installOutput, then where the whole output is. Sherlo's
+ * refusal then gives the command to run alone - the same one setup ran, so a person who fixes the
+ * cause can check it.
  */
-function installFailed(title: string, packages: string, failed: FailedInstall): InitRefusal {
+function installOutput(failed: FailedInstall): string[] {
   const { lines, toolLogFiles } = pickInstallOutput(failed);
   const toolName = failed.tool.split('@')[0];
 
-  return refusal(title, [
+  return [
     ...(lines.length > 0 ? [chalk.dim(lines.join('\n')), ''] : []),
     words(`Full output: ${failed.logFile}`),
     ...toolLogFiles.map((logFile) => words(`${toolName}'s own log: ${logFile}`)),
+  ];
+}
+
+/** The package manager adding Sherlo failed. */
+export function renderInstallFailed(failed: FailedInstall): InitRefusal {
+  return refusal("Sherlo couldn't be installed", [
+    ...installOutput(failed),
     '',
-    words(`Fix the error, or install ${packages} yourself:`),
+    words('Fix the error, or install Sherlo yourself:'),
     code(failed.command),
     ...rerun(),
   ]);
 }
 
-/** The package manager adding Sherlo failed. */
-export function renderInstallFailed(failed: FailedInstall): InitRefusal {
-  return installFailed("Sherlo couldn't be installed", 'Sherlo', failed);
-}
-
 /**
- * The package manager adding Storybook's packages failed, before setup wrote any Storybook file,
- * so the rerun starts Storybook over.
+ * The package manager adding Storybook's packages failed. NO INSTALLING THEM BY HAND: setup writes
+ * `.rnstorybook` only for a project with no Storybook, so a rerun after a hand install would find
+ * Storybook and never write it. The one fix is the error, and the rerun installs Storybook again.
  */
 export function renderStorybookInstallFailed(failed: FailedInstall): InitRefusal {
-  return installFailed("Storybook couldn't be installed", "Storybook's packages", failed);
+  return refusal("Storybook couldn't be installed", [
+    ...installOutput(failed),
+    '',
+    words('Fix the error, then run setup again. It picks up where it stopped:'),
+    code(INIT_COMMAND),
+  ]);
 }
 
 /** A JSON file setup reads is not valid JSON; `reason` is the parser's own "line 12 column 3". */

@@ -24,6 +24,7 @@
       "devices": [{ "id": "pixel.7.pro", "osVersion": "13" }]
     },
     ".github/workflows/sherlo.yml": "name: Sherlo\n",
+    "src/Button.stories.tsx": "import { Button } from './Button';\n\nexport default { component: Button };\n\nexport const Default = { args: { title: 'Default' } };\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",
       "version": "0.88.1",

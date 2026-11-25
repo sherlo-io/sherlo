@@ -1,0 +1,115 @@
+{
+  "pose": 1,
+  "argv": ["init", "--team", "tm000001"],
+  "files": {
+    "package.json": {
+      "name": "acme-shop",
+      "version": "1.0.0",
+      "private": true,
+      "main": "index.ts",
+      "dependencies": {
+        "@sherlo/react-native-storybook": "3.0.0-alpha.0",
+        "@storybook/react-native": "^10.6.0",
+        "expo": "~58.0.26",
+        "react": "19.3.0",
+        "react-native": "0.88.1",
+        "storybook": "^10.6.0"
+      },
+      "packageManager": "yarn@4.3.1"
+    },
+    "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');\n\nconst config = getDefaultConfig(__dirname);\n\nmodule.exports = withStorybook(config);\n",
+    "sherlo.config.json": {
+      "project": "k7m2p9qx/1",
+      "devices": [{ "id": "pixel.7.pro", "osVersion": "13" }]
+    },
+    ".github/workflows/sherlo.yml": "name: Sherlo\n",
+    "src/Button.stories.tsx": "import { Button } from './Button';\n\nexport default { component: Button };\n\nexport const Default = { args: { title: 'Default' } };\n",
+    "node_modules/react-native/package.json": {
+      "name": "react-native",
+      "version": "0.88.1",
+      "main": "index.js"
+    },
+    "node_modules/react-native/index.js": "",
+    "node_modules/expo/package.json": { "name": "expo", "version": "58.0.26", "main": "index.js" },
+    "node_modules/expo/index.js": "",
+    "node_modules/@storybook/react-native/package.json": {
+      "name": "@storybook/react-native",
+      "version": "10.6.0",
+      "main": "index.js"
+    },
+    "node_modules/@storybook/react-native/index.js": "",
+    "node_modules/@sherlo/react-native-storybook/package.json": {
+      "name": "@sherlo/react-native-storybook",
+      "version": "3.0.0-alpha.0",
+      "main": "index.js"
+    },
+    "node_modules/@sherlo/react-native-storybook/index.js": ""
+  },
+  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": {
+    "branch": "main",
+    "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+    "dirty": false,
+    "remote": "git@github.com:acme/acme-shop.git"
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "trackCliInit",
+      "with": { "event": "0_init" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "1_requirements" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": [
+          { "id": "k7m2p9qx", "name": "Anna's team", "projectCount": 1, "role": "owner" },
+          { "id": "tm000001", "name": "Storefront", "projectCount": 4, "role": "member" }
+        ]
+      }
+    },
+    {
+      "call": "createProject",
+      "with": { "teamId": "tm000001", "name": "Acme Shop" },
+      "answer": {
+        "name": "Acme Shop",
+        "index": 5,
+        "projectToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaak7m2p9qx1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "5_config" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "2_dependencies" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "3_metro_config" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "7_testing" },
+      "answer": { "sessionId": "init-session-1" }
+    }
+  ],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
+}

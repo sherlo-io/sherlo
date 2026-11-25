@@ -24,6 +24,7 @@ import { renderLoginNotFinished } from '../../render/initFixes';
 import { renderFailedStepLine } from '../../render/initSteps';
 import { renderLoginWaitingSpinner } from '../../render/login';
 import { printLines } from '../init/helpers';
+import refuseFailedServiceCall from '../init/project/refuseFailedServiceCall';
 import { browser } from '../../seams/browser';
 import {
   hasExpired,
@@ -68,13 +69,20 @@ export async function logInThroughTheBrowser(
   serviceAddress: string,
   { insideSetup = false }: { insideSetup?: boolean } = {}
 ): Promise<SavedLogin> {
+  const refuseFailedCall = (error: Error) => refuseFailedLoginCall(error, { insideSetup });
+
   const pendingLogin =
-    savedLogins().readPending(serviceAddress) ?? (await startNewLogin(serviceAddress));
+    savedLogins().readPending(serviceAddress) ??
+    (await startNewLogin(serviceAddress).catch(refuseFailedCall));
 
   emit({ kind: 'login-link', authorizeUrl: pendingLogin.authorizeUrl });
   await browser().open(pendingLogin.authorizeUrl);
 
-  const answer = await whileShowingTheWait(() => waitForTheAnswer(pendingLogin));
+  // Caught once the wait is gone, so the red step line sits under the wait, as for a login that
+  // ended unfinished.
+  const answer = await whileShowingTheWait(() => waitForTheAnswer(pendingLogin)).catch(
+    refuseFailedCall
+  );
 
   // Collected, cancelled, expired or used: the pending login is spent in every one of them.
   savedLogins().removePending(serviceAddress);
@@ -114,9 +122,7 @@ async function serviceAcceptsToken(personalToken: string): Promise<boolean> {
  * that is killed while it waits leaves it for the next run.
  */
 async function startNewLogin(serviceAddress: string): Promise<PendingLogin> {
-  const pendingLogin = await serverCalls()
-    .startCliLogin()
-    .catch((error: Error) => throwError({ message: error.message, errorToReport: error }));
+  const pendingLogin = await serverCalls().startCliLogin();
 
   savedLogins().savePending(serviceAddress, pendingLogin);
 
@@ -158,9 +164,7 @@ async function waitForTheAnswer(pendingLogin: PendingLogin): Promise<FinishedLog
   const { loginId, pollSecret } = pendingLogin;
 
   for (;;) {
-    const answer = await serverCalls()
-      .pollCliLogin({ loginId, pollSecret })
-      .catch((error: Error) => throwError({ message: error.message, errorToReport: error }));
+    const answer = await serverCalls().pollCliLogin({ loginId, pollSecret });
 
     if (answer.status === 'approved') return answer;
     if (answer.status !== 'pending') return { status: answer.status };
@@ -169,6 +173,17 @@ async function waitForTheAnswer(pendingLogin: PendingLogin): Promise<FinishedLog
 
     await surroundings().sleep(POLL_INTERVAL_MS);
   }
+}
+
+/**
+ * A login call the service refused or could not answer. INSIDE SETUP, LIKE EVERY STOP THERE: the
+ * step is marked red, and a call that never reached the service says so, in the words setup's
+ * other service calls use (../init/project/refuseFailedServiceCall).
+ */
+function refuseFailedLoginCall(error: Error, { insideSetup }: { insideSetup: boolean }): never {
+  if (insideSetup) refuseFailedServiceCall(error, 'Logging in failed');
+
+  throwError({ message: error.message, errorToReport: error });
 }
 
 /** A login that ended without a token: the person cancelled it, or nobody answered in time. */

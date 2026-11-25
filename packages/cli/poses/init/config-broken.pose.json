@@ -53,11 +53,6 @@
       "call": "trackCliInit",
       "with": { "event": "0_init" },
       "answer": { "sessionId": "init-session-1" }
-    },
-    {
-      "call": "trackCliInit",
-      "with": { "event": "1_requirements" },
-      "answer": { "sessionId": "init-session-1" }
     }
   ],
   "masks": {},

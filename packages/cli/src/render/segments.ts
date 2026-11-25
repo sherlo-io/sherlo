@@ -64,6 +64,11 @@ export type TranscriptSegment =
   /** `Signed in through GitHub as acme-mobile/shop-app` - the credential was GitHub's ID token. */
   | { kind: 'signed-in-through-github'; repository: string }
   /**
+   * `::notice title=Sherlo skipped this run::...` - GitHub is not connected yet and the workflow
+   * asked for a notice instead of a failure (`SHERLO_UNTIL_CONNECTED: notice`). The run ends green.
+   */
+  | { kind: 'until-connected-notice'; repository: string; teamName: string }
+  /**
    * `Bundling the JavaScript for 🤖 Android...` - a step in progress (./stepInProgress): a spinner
    * in a terminal, which simply goes when the bundle is made, and one plain line in a log.
    */

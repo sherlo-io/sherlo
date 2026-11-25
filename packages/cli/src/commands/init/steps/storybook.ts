@@ -60,8 +60,7 @@ async function storybook({
     spinner.stop();
     printLines(renderFailedStepLine('Installing Storybook failed'));
 
-    // THE FIX LINE KEEPS THE VERSIONS, unlike Sherlo's: Storybook's latest is not the one Sherlo
-    // tested, and the three packages do not share one version.
+    // The command, with the versions Sherlo tested, picks the package manager's output and log.
     const { output, logFile } = error as InstallFailure;
     throwError({
       ...renderStorybookInstallFailed({
