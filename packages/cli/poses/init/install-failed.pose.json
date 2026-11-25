@@ -7,11 +7,24 @@
       "version": "1.0.0",
       "private": true,
       "main": "index.ts",
-      "scripts": { "android": "expo run:android", "ios": "expo run:ios", "start": "expo start" },
-      "dependencies": { "expo": "~58.0.26", "react": "19.3.0", "react-native": "0.88.1" },
+      "scripts": {
+        "android": "expo run:android",
+        "ios": "expo run:ios",
+        "start": "expo start"
+      },
+      "dependencies": {
+        "expo": "~58.0.26",
+        "react": "19.3.0",
+        "react-native": "0.88.1"
+      },
       "packageManager": "yarn@4.3.1"
     },
-    "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "app.json": {
+      "expo": {
+        "name": "Acme Shop",
+        "slug": "acme-shop"
+      }
+    },
     "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\n\nmodule.exports = getDefaultConfig(__dirname);\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",
@@ -19,10 +32,16 @@
       "main": "index.js"
     },
     "node_modules/react-native/index.js": "",
-    "node_modules/expo/package.json": { "name": "expo", "version": "58.0.26", "main": "index.js" },
+    "node_modules/expo/package.json": {
+      "name": "expo",
+      "version": "58.0.26",
+      "main": "index.js"
+    },
     "node_modules/expo/index.js": ""
   },
-  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "env": {
+    "SHERLO_API_URL": "https://api.sherlo.io/graphql"
+  },
   "git": {
     "branch": "main",
     "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
@@ -33,13 +52,21 @@
   "api": [
     {
       "call": "trackCliInit",
-      "with": { "event": "0_init" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "0_init"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "1_requirements" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "1_requirements"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     },
     {
       "call": "startCliLogin",
@@ -52,27 +79,46 @@
     },
     {
       "call": "pollCliLogin",
-      "with": { "loginId": "lg7Qm2Xa" },
+      "with": {
+        "loginId": "lg7Qm2Xa"
+      },
       "answer": {
         "status": "approved",
         "email": "anna@example.com",
         "token": "sht_poselogintoken00000000000000000"
       }
     },
-    { "call": "listTeams", "with": {}, "answer": { "teams": [] } },
+    {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": []
+      }
+    },
     {
       "call": "whoAmI",
       "with": {},
-      "answer": { "name": "Anna Kowalska", "email": "anna@example.com" }
+      "answer": {
+        "name": "Anna Kowalska",
+        "email": "anna@example.com"
+      }
     },
     {
       "call": "createTeam",
-      "with": { "name": "Anna's team" },
-      "answer": { "id": "k7m2p9qx", "name": "Anna's team" }
+      "with": {
+        "name": "Anna's team"
+      },
+      "answer": {
+        "id": "k7m2p9qx",
+        "name": "Anna's team"
+      }
     },
     {
       "call": "createProject",
-      "with": { "teamId": "k7m2p9qx", "name": "Acme Shop" },
+      "with": {
+        "teamId": "k7m2p9qx",
+        "name": "Acme Shop"
+      },
       "answer": {
         "name": "Acme Shop",
         "index": 1,
@@ -81,17 +127,23 @@
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "5_config" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "5_config"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     }
   ],
   "masks": {},
-  "browser": { "opened": true },
+  "browser": {
+    "opened": true
+  },
   "workstation": {
     "install": {
       "package": "@sherlo/react-native-storybook@2.0.2",
       "failed": {
-        "stdout": "➤ YN0000: · Yarn 4.3.1\n➤ YN0000: ┌ Resolution step\n➤ YN0035: │ @sherlo/react-native-storybook: Package not found\n➤ YN0035: │   Response Code: 404 (Not Found)\n➤ YN0035: │   Request Method: GET\n➤ YN0035: │   Request URL: https://registry.yarnpkg.com/@sherlo%2freact-native-storybook\n➤ YN0000: └ Completed in 0s 512ms\n➤ YN0000: · Failed with errors in 0s 518ms\n",
+        "stdout": "{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"┌ Resolution step\"}\n{\"type\":\"error\",\"name\":82,\"displayName\":\"YN0082\",\"indent\":\"│ \",\"data\":\"@sherlo/react-native-storybook@npm:2.0.2: No candidates found\"}\n{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"└ Completed in 0s 512ms\"}\n{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"· Failed with errors in 0s 518ms\"}\n",
         "stderr": ""
       }
     },
@@ -113,7 +165,9 @@
             "expo": "~58.0.26",
             "react": "19.3.0",
             "react-native": "0.88.1",
+            "react-native-reanimated": "4.7.1",
             "react-native-safe-area-context": "~5.11.1",
+            "react-native-worklets": "0.13.0",
             "storybook": "10.6.8"
           },
           "packageManager": "yarn@4.3.1"

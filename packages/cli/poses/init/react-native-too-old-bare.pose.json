@@ -6,13 +6,13 @@
       "name": "acme-shop",
       "version": "1.0.0",
       "private": true,
-      "dependencies": { "react": "19.1.0", "react-native": "0.81.5" },
+      "dependencies": { "react": "19.1.0", "react-native": "0.81.6" },
       "packageManager": "yarn@4.3.1"
     },
     "app.json": { "name": "AcmeShop", "displayName": "Acme Shop" },
     "node_modules/react-native/package.json": {
       "name": "react-native",
-      "version": "0.81.5",
+      "version": "0.81.6",
       "main": "index.js"
     },
     "node_modules/react-native/index.js": ""

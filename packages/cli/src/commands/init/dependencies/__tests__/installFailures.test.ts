@@ -88,19 +88,22 @@ describe('a failed install', () => {
     expect(message.indexOf(cause)).toBeLessThan(message.indexOf(warning));
   });
 
-  it('a failed SDK install shows the last lines the command printed under the refusal', async () => {
+  it('a failed SDK install with no line marked as an error shows its last 20 lines and names the log', async () => {
+    const UNMARKED_LINES_SHOWN = 20;
+    const logFile = path.join(os.tmpdir(), 'sherlo-init-1.log');
     workstationAnswers.addPackage.mockRejectedValue(
-      Object.assign(new Error('Command failed'), { stderr: '', stdout: numberedLines(40) })
+      Object.assign(new Error('Command failed'), { output: numberedLines(40), logFile })
     );
 
     const message = await messageOfRefusal(installSherlo);
 
     expect(message).toContain("Sherlo couldn't be installed");
     expect(message).toContain('line 40');
-    expect(message).toContain(`line ${40 - LAST_LINES_SHOWN + 1}`);
-    expect(message).not.toContain(`line ${40 - LAST_LINES_SHOWN}\n`);
+    expect(message).toContain(`line ${40 - UNMARKED_LINES_SHOWN + 1}`);
+    expect(message).not.toContain(`line ${40 - UNMARKED_LINES_SHOWN}\n`);
     expect(message.indexOf('line 40')).toBeGreaterThan(
       message.indexOf("Sherlo couldn't be installed")
     );
+    expect(message).toContain(`Full output: ${logFile}`);
   });
 });

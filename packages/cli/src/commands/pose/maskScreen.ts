@@ -62,6 +62,7 @@ export type MaskContext = {
 export function maskScreen(screen: string, context: MaskContext): string {
   let folded = foldMachinePaths(screen, context);
 
+  folded = foldSetupLogFile(folded);
   folded = foldTeamInSetupProject(folded);
   folded = foldTokens(folded);
   folded = foldBuildUrl(folded);
@@ -120,6 +121,7 @@ export default mask;
 export const CLASSES_THE_TOOL_FOLDS = [
   '<PROJECT_ROOT>',
   '<SHERLO_CONFIG_PATH>',
+  '<LOG_FILE>',
   '<MASKED>',
   '<APP_HOST>',
   '<TEAM>',
@@ -163,6 +165,14 @@ function foldMachinePaths(screen: string, { projectRoot, configPath }: MaskConte
   if (projectRoot) folded = folded.split(projectRoot).join('<PROJECT_ROOT>');
 
   return folded;
+}
+
+/**
+ * Setup's log of a failed install: it lives in this machine's temp folder and is named by the
+ * process that wrote it (../../seams/workstation), so both move between runs.
+ */
+function foldSetupLogFile(screen: string): string {
+  return screen.replace(/[^\s'"`\u001b]*sherlo-init-\d+\.log/g, '<LOG_FILE>');
 }
 
 /**

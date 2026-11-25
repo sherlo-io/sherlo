@@ -7,7 +7,11 @@
       "version": "1.0.0",
       "private": true,
       "main": "expo-router/entry",
-      "scripts": { "android": "expo run:android", "ios": "expo run:ios", "start": "expo start" },
+      "scripts": {
+        "android": "expo run:android",
+        "ios": "expo run:ios",
+        "start": "expo start"
+      },
       "dependencies": {
         "expo": "~58.0.26",
         "expo-router": "~58.0.32",
@@ -20,7 +24,9 @@
       "expo": {
         "name": "Acme Shop",
         "slug": "acme-shop",
-        "web": { "output": "server" },
+        "web": {
+          "output": "server"
+        },
         "plugins": ["expo-router"]
       }
     },
@@ -31,7 +37,11 @@
       "main": "index.js"
     },
     "node_modules/react-native/index.js": "",
-    "node_modules/expo/package.json": { "name": "expo", "version": "58.0.26", "main": "index.js" },
+    "node_modules/expo/package.json": {
+      "name": "expo",
+      "version": "58.0.26",
+      "main": "index.js"
+    },
     "node_modules/expo/index.js": "",
     "node_modules/expo-router/package.json": {
       "name": "expo-router",
@@ -40,7 +50,9 @@
     },
     "node_modules/expo-router/entry.js": ""
   },
-  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "env": {
+    "SHERLO_API_URL": "https://api.sherlo.io/graphql"
+  },
   "git": {
     "branch": "main",
     "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
@@ -51,13 +63,21 @@
   "api": [
     {
       "call": "trackCliInit",
-      "with": { "event": "0_init" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "0_init"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "1_requirements" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "1_requirements"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     },
     {
       "call": "startCliLogin",
@@ -70,27 +90,46 @@
     },
     {
       "call": "pollCliLogin",
-      "with": { "loginId": "lg7Qm2Xa" },
+      "with": {
+        "loginId": "lg7Qm2Xa"
+      },
       "answer": {
         "status": "approved",
         "email": "anna@example.com",
         "token": "sht_poselogintoken00000000000000000"
       }
     },
-    { "call": "listTeams", "with": {}, "answer": { "teams": [] } },
+    {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": []
+      }
+    },
     {
       "call": "whoAmI",
       "with": {},
-      "answer": { "name": "Anna Kowalska", "email": "anna@example.com" }
+      "answer": {
+        "name": "Anna Kowalska",
+        "email": "anna@example.com"
+      }
     },
     {
       "call": "createTeam",
-      "with": { "name": "Anna's team" },
-      "answer": { "id": "k7m2p9qx", "name": "Anna's team" }
+      "with": {
+        "name": "Anna's team"
+      },
+      "answer": {
+        "id": "k7m2p9qx",
+        "name": "Anna's team"
+      }
     },
     {
       "call": "createProject",
-      "with": { "teamId": "k7m2p9qx", "name": "Acme Shop" },
+      "with": {
+        "teamId": "k7m2p9qx",
+        "name": "Acme Shop"
+      },
       "answer": {
         "name": "Acme Shop",
         "index": 1,
@@ -99,29 +138,49 @@
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "5_config" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "5_config"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "2_dependencies" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "2_dependencies"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "3_metro_config" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "3_metro_config"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "7_testing" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "7_testing"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     }
   ],
   "masks": {},
-  "browser": { "opened": true },
+  "browser": {
+    "opened": true
+  },
   "workstation": {
-    "install": { "package": "@sherlo/react-native-storybook@2.0.2" },
+    "install": {
+      "package": "@sherlo/react-native-storybook@2.0.2"
+    },
     "storybook": {
       "wrote": {
         "package.json": {
@@ -141,7 +200,9 @@
             "expo-router": "~58.0.32",
             "react": "19.3.0",
             "react-native": "0.88.1",
+            "react-native-reanimated": "4.7.1",
             "react-native-safe-area-context": "~5.11.1",
+            "react-native-worklets": "0.13.0",
             "storybook": "10.6.8"
           },
           "packageManager": "yarn@4.3.1"

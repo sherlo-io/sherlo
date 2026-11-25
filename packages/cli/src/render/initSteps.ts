@@ -144,13 +144,18 @@ export function renderNextSteps({
       `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
     ],
   });
+  // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the example names that file: an Expo
+  // app's template keeps it in src/app/_layout.tsx, a bare app's in App.tsx beside .rnstorybook.
+  const rootComponent = isExpo
+    ? { file: 'src/app/_layout.tsx', storybookPath: '../../.rnstorybook' }
+    : { file: 'App.tsx', storybookPath: './.rnstorybook' };
   // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that
   // exports its routes for the server builds it too.
   const keepSetupChoice = [
     chalk.bold('b) In-app integration'),
-    '   At the top of your root component, add:',
+    `   At the top of your root component (e.g. ${rootComponent.file}), add:`,
     `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
-    `     ${renderCode("import Storybook from './.rnstorybook';")}`,
+    `     ${renderCode(`import Storybook from '${rootComponent.storybookPath}';`)}`,
     `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
   ];
 

@@ -1,28 +1,30 @@
 /**
  * STEP 5 - STORYBOOK. A project that has it keeps it as it is. One that has none gets Storybook's
- * lite setup: no heavy native library. Storybook's own installer has no lite option, so setup runs it
- * with `--skip-install` (it writes `.rnstorybook` with Storybook's example stories - the stories the
- * first test photographs until the project has stories of its own - and lists its packages without
- * installing them), then converts what it wrote: crosses off the heavy native packages it added and
- * the controls addon (which needs a date picker and a slider), switches `.rnstorybook/index.ts` to the
- * lite UI and turns lite on in the bundler config, and installs once. Sherlo keeps no copy of
- * Storybook's files.
+ * lite setup: no heavy native library. Storybook's own installer has no lite option, so setup does
+ * not run it (init-for-agents decision 2): it adds Storybook's packages itself with the project's
+ * package manager, each at the version Sherlo tested, and writes `.rnstorybook` - with the example
+ * stories the first test photographs until the project has stories of its own - from templates kept
+ * in the CLI.
  *
  * Its line names the package and version, as Sherlo's line does. It does not say "lite": that changes
  * nothing anyone does next, and the stories guide and `.rnstorybook/index.ts` say it where it matters.
  */
-import { detect, resolveCommand } from 'package-manager-detector';
+import { detect } from 'package-manager-detector';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
-import {
-  renderStorybookDownloadFailed,
-  renderStorybookInstallerFailed,
-} from '../../../render/initFixes';
+import { renderStorybookInstallFailed } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
-import { workstation } from '../../../seams/workstation';
-import getFailedCommandOutput from '../dependencies/getFailedCommandOutput';
+import { type InstallFailure, workstation } from '../../../seams/workstation';
+import { addCommand } from '../dependencies/installSherlo';
 import { printLines } from '../helpers';
 import getPackageVersion from '../requirements/getPackageVersion';
+
+/** Storybook's packages, each at the version Sherlo tested - never `@latest` at run time. */
+export const STORYBOOK_VERSIONS = {
+  '@storybook/react-native': '10.7.2',
+  '@storybook/react-native-ui-lite': '10.7.2',
+  storybook: '10.6.8',
+};
 
 /** Answers whether this run installed Storybook, which decides the example-stories next step. */
 async function storybook({
@@ -30,52 +32,43 @@ async function storybook({
 }: {
   hasStorybook: boolean;
 }): Promise<{ installedNow: boolean }> {
-  // A project's own Storybook prints no line: "Installed Storybook (already done)" would read as if
-  // setup had installed or changed it.
+  // A project's own Storybook prints no line: "Installed Storybook" would read as if setup had
+  // installed or changed it.
   if (hasStorybook) {
     return { installedNow: false };
   }
 
   const projectRoot = getCwd();
-  const packageManager = (await detect({ cwd: projectRoot }))?.name ?? 'npm';
-  const resolved = resolveCommand(packageManager, 'execute', [
-    'create-storybook@latest',
-    '--yes',
-    '--type',
-    'react_native',
-    '--no-dev',
-    '--disable-telemetry',
-  ]);
-  const command = resolved ? `${resolved.command} ${resolved.args.join(' ')}` : '';
-
-  // WHAT A PERSON TYPES AFTER A FAILED DOWNLOAD is the package manager's plain install: the files
-  // and the package list are already written.
-  // BUILD DEBT: the run below still installs the full setup in one call, so a failure cannot tell its
-  // two failure points apart (the real error always shows the installer screen). Build adds
-  // --skip-install, the lite conversion and one download, as two calls: the installer's failure
-  // throws the installer screen, the download's failure throws the download screen.
-  const plainInstall = resolveCommand(packageManager, 'install', []);
-  const downloadItYourself = plainInstall
-    ? `${plainInstall.command} ${plainInstall.args.join(' ')}`.trim()
-    : '';
+  const tool = (await detect({ cwd: projectRoot }))?.agent ?? 'npm';
+  const command = addCommand(
+    tool,
+    Object.entries(STORYBOOK_VERSIONS).map(([name, version]) => `${name}@${version}`)
+  );
 
   // The longest step: a spinner in a terminal, and one line for an agent reading a pipe, so neither
   // takes the wait for a hang.
   const spinner = createSpinner('Installing Storybook...').start();
 
   try {
-    await workstation().installStorybook({ command, projectRoot });
+    // Only `--json` lets Yarn 2+ tell an error from a warning (../../../render/installOutput).
+    await workstation().installStorybook({
+      command: tool === 'yarn@berry' ? `${command} --json` : command,
+      projectRoot,
+    });
   } catch (error) {
     spinner.stop();
     printLines(renderFailedStepLine('Installing Storybook failed'));
 
-    const failedOutput = getFailedCommandOutput(error);
-    const failedAtDownload = (error as { during?: string }).during === 'download';
-
+    // THE FIX LINE KEEPS THE VERSIONS, unlike Sherlo's: Storybook's latest is not the one Sherlo
+    // tested, and the three packages do not share one version.
+    const { output, logFile } = error as InstallFailure;
     throwError({
-      ...(failedAtDownload
-        ? renderStorybookDownloadFailed({ command: downloadItYourself, failedOutput })
-        : renderStorybookInstallerFailed({ failedOutput })),
+      ...renderStorybookInstallFailed({
+        command,
+        tool,
+        output,
+        logFile,
+      }),
       errorToReport: error as Error,
     });
   }

@@ -1,5 +1,5 @@
 import { readFile } from 'fs/promises';
-import { detect, resolveCommand } from 'package-manager-detector';
+import { type Agent, detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
 import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 import {
@@ -11,9 +11,8 @@ import {
 import { version as cliVersion } from '../../../../package.json';
 import { renderInstallFailed } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
-import { workstation } from '../../../seams/workstation';
+import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { printLines } from '../helpers';
-import getFailedCommandOutput from './getFailedCommandOutput';
 
 async function installSherlo(): Promise<void> {
   const spinner = createSpinner('Installing Sherlo...').start();
@@ -47,44 +46,32 @@ async function installSherlo(): Promise<void> {
 
   // Detected FROM THE PROJECT, not from wherever the process happens to be standing - the project
   // is what the manager will be run in, and it is what a pose lays out in `files`.
-  const packageManager = (await detect({ cwd: getCwd() }))?.name ?? 'npm';
-  const resolvedCommand = resolveCommand(packageManager, 'add', [packageSpec]);
-
-  if (!resolvedCommand) {
-    spinner.fail();
-
-    console.log();
-
-    throwError({
-      type: 'unexpected',
-      error: new Error(`Failed to resolve command for package manager: ${packageManager}`),
-    });
-  }
-
-  const { command, args } = resolvedCommand;
-  const commandToRun = `${command} ${args.join(' ')}`;
+  const tool = (await detect({ cwd: getCwd() }))?.agent ?? 'npm';
+  const commandToRun = addCommand(tool, [packageSpec]);
 
   try {
     // Through the workstation seam - the one place `sherlo init` acts on the machine it runs on -
     // so a posed run answers the install from its `workstation` and never starts a real manager.
     await workstation().addPackage({
       packageSpec,
-      command: commandToRun,
+      // Only `--json` lets Yarn 2+ tell an error from a warning (../../../render/installOutput).
+      command: tool === 'yarn@berry' ? `${commandToRun} --json` : commandToRun,
       projectRoot: getCwd(),
-      env: packageManager === 'yarn' ? { YARN_ENABLE_IMMUTABLE_INSTALLS: 'false' } : undefined,
+      env: tool.startsWith('yarn') ? { YARN_ENABLE_IMMUTABLE_INSTALLS: 'false' } : undefined,
     });
   } catch (error) {
     spinner.stop();
     printLines(renderFailedStepLine('Installing Sherlo failed'));
 
-    // BUILD DEBT (init-for-agents): the tool's marked error lines and the full log file, by the rule
-    // the plan settled, in place of the last lines of each stream.
     // The fix line names the package with no version: a version that failed to download fails
     // again when copied, and the bare name installs the newest.
+    const { output, logFile } = error as InstallFailure;
     throwError({
       ...renderInstallFailed({
-        command: commandToRun.replace(packageSpec, SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME),
-        failedOutput: getFailedCommandOutput(error),
+        command: addCommand(tool, [SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]),
+        tool,
+        output,
+        logFile,
       }),
       errorToReport: error,
     });
@@ -98,6 +85,13 @@ async function installSherlo(): Promise<void> {
       detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${cliVersion}`,
     }),
   ]);
+}
+
+/** The package manager's own `add` command line for these packages, as a person types it. */
+export function addCommand(tool: Agent, packageSpecs: string[]): string {
+  // `add` resolves for every manager package-manager-detector knows.
+  const { command, args } = resolveCommand(tool, 'add', packageSpecs)!;
+  return `${command} ${args.join(' ')}`;
 }
 
 /**

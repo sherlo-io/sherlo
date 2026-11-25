@@ -7,14 +7,27 @@
       "version": "1.0.0",
       "private": true,
       "main": "index.ts",
-      "dependencies": { "expo": "~58.0.26", "react": "19.3.0", "react-native": "0.88.1" },
-      "packageManager": "yarn@4.3.1"
+      "dependencies": {
+        "expo": "~58.0.26",
+        "react": "19.3.0",
+        "react-native": "0.88.1"
+      }
     },
     "sherlo.config.json": {
       "project": "k7m2p9qx/1",
-      "devices": [{ "id": "pixel.7.pro", "osVersion": "13" }]
+      "devices": [
+        {
+          "id": "pixel.7.pro",
+          "osVersion": "13"
+        }
+      ]
     },
-    "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "app.json": {
+      "expo": {
+        "name": "Acme Shop",
+        "slug": "acme-shop"
+      }
+    },
     "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\n\nmodule.exports = getDefaultConfig(__dirname);\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",
@@ -22,10 +35,23 @@
       "main": "index.js"
     },
     "node_modules/react-native/index.js": "",
-    "node_modules/expo/package.json": { "name": "expo", "version": "58.0.26", "main": "index.js" },
-    "node_modules/expo/index.js": ""
+    "node_modules/expo/package.json": {
+      "name": "expo",
+      "version": "58.0.26",
+      "main": "index.js"
+    },
+    "node_modules/expo/index.js": "",
+    "package-lock.json": {
+      "name": "acme-shop",
+      "version": "1.0.0",
+      "lockfileVersion": 3,
+      "requires": true,
+      "packages": {}
+    }
   },
-  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "env": {
+    "SHERLO_API_URL": "https://api.sherlo.io/graphql"
+  },
   "git": {
     "branch": "main",
     "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
@@ -36,26 +62,50 @@
   "api": [
     {
       "call": "trackCliInit",
-      "with": { "event": "0_init" },
-      "answer": { "sessionId": "init-session-1" }
-    },
-    {
-      "call": "trackCliInit",
-      "with": { "event": "1_requirements" },
-      "answer": { "sessionId": "init-session-1" }
-    },
-    {
-      "call": "listProjects",
-      "with": { "teamId": "k7m2p9qx" },
+      "with": {
+        "event": "0_init"
+      },
       "answer": {
-        "team": { "name": "Anna's team", "id": "k7m2p9qx" },
-        "projects": [{ "index": 1, "name": "Acme Shop", "buildCount": 0, "mainBranch": null }]
+        "sessionId": "init-session-1"
       }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "5_config" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "1_requirements"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "listProjects",
+      "with": {
+        "teamId": "k7m2p9qx"
+      },
+      "answer": {
+        "team": {
+          "name": "Anna's team",
+          "id": "k7m2p9qx"
+        },
+        "projects": [
+          {
+            "index": 1,
+            "name": "Acme Shop",
+            "buildCount": 0,
+            "mainBranch": null
+          }
+        ]
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "5_config"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     }
   ],
   "masks": {},
@@ -66,13 +116,14 @@
     }
   },
   "workstation": {
-    "install": { "package": "@sherlo/react-native-storybook@2.0.2" },
+    "install": {
+      "package": "@sherlo/react-native-storybook@2.0.2"
+    },
     "storybook": {
       "wrote": {},
       "failed": {
-        "during": "download",
-        "stdout": "➤ YN0000: · Yarn 4.3.1\n➤ YN0000: ┌ Resolution step\n➤ YN0001: │ RequestError: getaddrinfo ENOTFOUND registry.yarnpkg.com\n➤ YN0000: └ Completed in 30s 104ms\n➤ YN0000: · Failed with errors in 30s 110ms\n",
-        "stderr": ""
+        "stdout": "",
+        "stderr": "npm error code ENOTFOUND\nnpm error syscall getaddrinfo\nnpm error errno ENOTFOUND\nnpm error network request to https://registry.npmjs.org/@storybook%2freact-native failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org\nnpm error network This is a problem related to network connectivity.\nnpm error network In most cases you are behind a proxy or have bad network settings.\nnpm error network\nnpm error network If you are behind a proxy, please make sure that the 'proxy' config is set properly.  See: 'npm help config'\nnpm error A complete log of this run can be found in: /Users/anna/.npm/_logs/2026-10-01T12_00_00_000Z-debug-0.log\n"
       }
     }
   }

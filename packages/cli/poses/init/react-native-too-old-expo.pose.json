@@ -7,13 +7,13 @@
       "version": "1.0.0",
       "private": true,
       "main": "index.ts",
-      "dependencies": { "expo": "~54.0.36", "react": "19.1.0", "react-native": "0.81.5" },
+      "dependencies": { "expo": "~54.0.36", "react": "19.1.0", "react-native": "0.81.6" },
       "packageManager": "yarn@4.3.1"
     },
     "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
     "node_modules/react-native/package.json": {
       "name": "react-native",
-      "version": "0.81.5",
+      "version": "0.81.6",
       "main": "index.js"
     },
     "node_modules/react-native/index.js": "",

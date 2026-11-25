@@ -13,6 +13,7 @@
  * Pure, like everything under ./: state in, the `message` and `below` that `throwError` prints.
  */
 import chalk from 'chalk';
+import type { Agent } from 'package-manager-detector';
 import { LOGIN_COMMAND } from '../commands/login/constants';
 import {
   REJECTED_LOGIN_REASONS,
@@ -20,6 +21,7 @@ import {
 } from '../commands/shared/refuseRejectedLogin';
 import { renderCode } from './initLines';
 import type { FeedbackReader } from './initSteps';
+import { pickInstallOutput } from './installOutput';
 
 export type InitRefusal = { message: string; below: string };
 
@@ -238,61 +240,48 @@ export function renderNoAccessToProject({
   ]);
 }
 
-/**
- * The package manager adding Sherlo failed. `failedOutput` is its own last lines; the command is
- * shown so it can be run alone, which also shows its whole output.
- */
-export function renderInstallFailed({
-  command,
-  failedOutput,
-}: {
+/** A package install setup ran itself failed: what the screen needs of it. */
+export type FailedInstall = {
+  /** The package manager's command as a person types it, with no flag setup added for itself. */
   command: string;
-  /** Undefined when the tool printed nothing. */
-  failedOutput: string | undefined;
-}): InitRefusal {
-  return refusal("Sherlo couldn't be installed", [
-    ...(failedOutput ? [failedOutput, ''] : []),
-    words('Fix the error, or install Sherlo yourself:'),
-    code(command),
+  /** As package-manager-detector names it: Yarn 2 and newer is `yarn@berry`. */
+  tool: Agent;
+  /** Everything the package manager printed. */
+  output: string;
+  /** Setup's own log file, which holds that whole output. */
+  logFile: string;
+};
+
+/**
+ * The package manager's cause, picked by ./installOutput, then where the whole output is, then the
+ * command to run alone - the same one setup ran, so a person who fixes the cause can check it.
+ */
+function installFailed(title: string, packages: string, failed: FailedInstall): InitRefusal {
+  const { lines, toolLogFiles } = pickInstallOutput(failed);
+  const toolName = failed.tool.split('@')[0];
+
+  return refusal(title, [
+    ...(lines.length > 0 ? [chalk.dim(lines.join('\n')), ''] : []),
+    words(`Full output: ${failed.logFile}`),
+    ...toolLogFiles.map((logFile) => words(`${toolName}'s own log: ${logFile}`)),
+    '',
+    words(`Fix the error, or install ${packages} yourself:`),
+    code(failed.command),
     ...rerun(),
   ]);
 }
 
-/**
- * Storybook's installer failed, so nothing was written. `failedOutput` is the installer's own last
- * lines. No command to type but setup itself: setup runs the installer again.
- */
-export function renderStorybookInstallerFailed({
-  failedOutput,
-}: {
-  /** Undefined when the installer printed nothing. */
-  failedOutput: string | undefined;
-}): InitRefusal {
-  return refusal("Storybook's installer failed", [
-    ...(failedOutput ? [failedOutput, ''] : []),
-    words('Fix the error shown above, then run setup again:'),
-    code(INIT_COMMAND),
-  ]);
+/** The package manager adding Sherlo failed. */
+export function renderInstallFailed(failed: FailedInstall): InitRefusal {
+  return installFailed("Sherlo couldn't be installed", 'Sherlo', failed);
 }
 
 /**
- * The download of Storybook's packages failed after its files and package list were written.
- * `command` is the package manager's plain install, which shows the whole error when run alone.
+ * The package manager adding Storybook's packages failed, before setup wrote any Storybook file,
+ * so the rerun starts Storybook over.
  */
-export function renderStorybookDownloadFailed({
-  command,
-  failedOutput,
-}: {
-  command: string;
-  /** Undefined when the package manager printed nothing. */
-  failedOutput: string | undefined;
-}): InitRefusal {
-  return refusal("Storybook's packages couldn't be downloaded", [
-    ...(failedOutput ? [failedOutput, ''] : []),
-    words("Storybook's files are written. Download its packages yourself:"),
-    code(command),
-    ...rerun(),
-  ]);
+export function renderStorybookInstallFailed(failed: FailedInstall): InitRefusal {
+  return installFailed("Storybook couldn't be installed", "Storybook's packages", failed);
 }
 
 /** A JSON file setup reads is not valid JSON; `reason` is the parser's own "line 12 column 3". */

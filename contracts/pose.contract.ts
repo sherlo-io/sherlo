@@ -649,14 +649,12 @@ export type PosedWorkstation = {
   storybook?: {
     wrote: PosedFiles;
     /**
-     * What the installer printed when it failed, on each stream: stated, it writes nothing -
-     * unless `during` is `'download'`: the installer ran, and the package download after it
-     * failed.
+     * What the package manager printed when adding Storybook's packages failed, on each stream:
+     * stated, setup writes no Storybook file.
      */
     failed?: {
       stdout: string;
       stderr: string;
-      during?: 'download';
     };
   };
   /**

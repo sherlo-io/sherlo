@@ -43,6 +43,7 @@
  * a test that needs an answer installs a workstation of its own.
  */
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
@@ -68,11 +69,9 @@ export type Workstation = {
   /**
    * Set Storybook's lite setup up in a project that has none: install its packages, and write its
    * config folder, its example stories and its Metro wrapper into the project.
-   *
-   * BUILD DEBT: still shaped for Storybook's own installer, which cannot write the lite setup.
    */
   installStorybook(params: {
-    /** The whole command line, e.g. `npx create-storybook@latest --yes --type react_native`. */
+    /** The whole command line, e.g. `yarn add @storybook/react-native@10.7.2 ...`. */
     command: string;
     projectRoot: string;
   }): Promise<void>;
@@ -127,16 +126,54 @@ export type Workstation = {
 };
 
 /**
+ * What a failed package install throws, live or posed: everything the package manager printed,
+ * and setup's own log file that holds it.
+ */
+export type InstallFailure = Error & { output: string; logFile: string };
+
+/** Setup's log of a failed install: in the system's temp folder, one per run. */
+function installLogFile(): string {
+  return path.join(os.tmpdir(), `sherlo-init-${process.pid}.log`);
+}
+
+function installFailure(
+  error: Error,
+  { stdout, stderr }: { stdout?: string; stderr?: string }
+): InstallFailure {
+  // BUILD DEBT (init-for-agents decision 6): the two streams in the order they were printed;
+  // runShellCommand keeps them apart, so stdout comes first here.
+  const output = [stdout, stderr].filter((stream) => stream && stream.trim() !== '').join('\n');
+  return Object.assign(error, { output, logFile: installLogFile() });
+}
+
+/** Run a package install; a failure writes the whole output to setup's log file and throws it. */
+async function runInstall(params: {
+  command: string;
+  projectRoot: string;
+  env?: NodeJS.ProcessEnv;
+}): Promise<void> {
+  try {
+    await runShellCommand(params);
+  } catch (error) {
+    const failure = installFailure(error as Error, error as { stdout?: string; stderr?: string });
+    fs.writeFileSync(failure.logFile, `$ ${params.command}\n\n${failure.output}\n`);
+    throw failure;
+  }
+}
+
+/**
  * The shipped answers: the package manager and CocoaPods really run, and the keyboard is really
  * read.
  */
 export const liveWorkstation: Workstation = {
   addPackage: async ({ command, projectRoot, env }) => {
-    await runShellCommand({ command, projectRoot, env });
+    await runInstall({ command, projectRoot, env });
   },
 
+  // BUILD DEBT (init-for-agents decision 2): adds the packages only; build writes `.rnstorybook`
+  // from the templates kept in the CLI once they are installed.
   installStorybook: async ({ command, projectRoot }) => {
-    await runShellCommand({ command, projectRoot });
+    await runInstall({ command, projectRoot });
   },
 
   // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` when no locale is
@@ -273,10 +310,10 @@ export type PosedWorkstation = {
   storybook?: {
     wrote: PosedFiles;
     /**
-     * What the installer printed when it failed, on each stream: stated, it writes nothing - unless
-     * `during` is `'download'`: the installer ran, and the package download after it failed.
+     * What the package manager printed when adding Storybook's packages failed, on each stream:
+     * stated, setup writes no Storybook file.
      */
-    failed?: { stdout: string; stderr: string; during?: 'download' };
+    failed?: { stdout: string; stderr: string };
   };
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
@@ -365,9 +402,10 @@ export function posedWorkstation(
         return;
       }
 
-      // A failed install ends the way a real one does: an error carrying what each stream printed.
+      // A failed install ends the way a real one does: an error carrying what the manager printed
+      // and the log file a real run writes it to (a pose writes no file).
       if (posed.install.failed) {
-        throw Object.assign(new Error('the package manager failed'), posed.install.failed);
+        throw installFailure(new Error('the package manager failed'), posed.install.failed);
       }
     },
 
@@ -382,9 +420,9 @@ export function posedWorkstation(
         return;
       }
 
-      // A failed installer ends the way addPackage's failed install does.
+      // A failed install of Storybook's packages ends the way addPackage's failed install does.
       if (posed.storybook.failed) {
-        throw Object.assign(new Error('the Storybook installer failed'), posed.storybook.failed);
+        throw installFailure(new Error('the package manager failed'), posed.storybook.failed);
       }
 
       for (const [relativePath, content] of Object.entries(posed.storybook.wrote)) {

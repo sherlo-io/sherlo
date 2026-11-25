@@ -19,16 +19,22 @@ Setting up Sherlo...
 [32m✔[39m Created config         [2msherlo.config.json[22m [2m(already done)[22m
 [31m✖[39m Installing Storybook failed
 
-[31mERROR: Storybook's packages couldn't be downloaded[39m
+[31mERROR: Storybook couldn't be installed[39m
 
-[2m➤ YN0000: · Yarn 4.3.1[22m
-[2m➤ YN0000: ┌ Resolution step[22m
-[2m➤ YN0001: │ RequestError: getaddrinfo ENOTFOUND registry.yarnpkg.com[22m
-[2m➤ YN0000: └ Completed in 30s 104ms[22m
-[2m➤ YN0000: · Failed with errors in 30s 110ms[22m
+[2mnpm error code ENOTFOUND[22m
+[2mnpm error syscall getaddrinfo[22m
+[2mnpm error errno ENOTFOUND[22m
+[2mnpm error network request to https://registry.npmjs.org/@storybook%2freact-native failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org[22m
+[2mnpm error network This is a problem related to network connectivity.[22m
+[2mnpm error network In most cases you are behind a proxy or have bad network settings.[22m
+[2mnpm error network[22m
+[2mnpm error network If you are behind a proxy, please make sure that the 'proxy' config is set properly.  See: 'npm help config'[22m
 
-[0mStorybook's files are written. Download its packages yourself:[0m
-[36m  yarn install[39m
+[0mFull output: <LOG_FILE>[0m
+[0mnpm's own log: /Users/anna/.npm/_logs/2026-10-01T12_00_00_000Z-debug-0.log[0m
+
+[0mFix the error, or install Storybook's packages yourself:[0m
+[36m  npm i @storybook/react-native@10.7.2 @storybook/react-native-ui-lite@10.7.2 storybook@10.6.8[39m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m
