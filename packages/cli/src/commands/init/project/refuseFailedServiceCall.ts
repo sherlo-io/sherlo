@@ -25,9 +25,10 @@ export function isRefusedLogin(error: unknown): boolean {
 
 /** `failedStep` names the step that stopped, e.g. "Choosing a team failed". */
 function refuseFailedServiceCall(error: Error, failedStep: string): never {
-  // LIKE EVERY STOP, the step that stopped is marked red above the error.
+  // LIKE EVERY STOP, the step that stopped is marked red above the error, whatever the error.
+  printLines(renderFailedStepLine(failedStep));
+
   if (isRefusedLogin(error)) {
-    printLines(renderFailedStepLine(failedStep));
     throwError({ ...renderLoginRejected(), errorToReport: error });
   }
 
@@ -35,8 +36,6 @@ function refuseFailedServiceCall(error: Error, failedStep: string): never {
   // on its cause: the fix is the connection, said with that code, not a bug report.
   const { cause } = error as { cause?: { code?: string; hostname?: string } };
   if (cause?.code) {
-    // LIKE EVERY STOP, the step that stopped is marked red above the error.
-    printLines(renderFailedStepLine(failedStep));
     throwError({
       ...renderServiceUnreachable({ host: cause.hostname, code: cause.code }),
       errorToReport: error,

@@ -12,7 +12,8 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the app        [2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>[22m
+[31m✖[39m Checking the app failed
+
 [31mERROR: sherlo.config.json isn't valid JSON[39m
 
 [0mExpected double-quoted property name in JSON at position 102 (line 7 column 5)[0m

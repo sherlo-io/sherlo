@@ -20,6 +20,8 @@ import {
   renderStorybookTooOld,
 } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
+import hasConfigFile from '../config/hasConfigFile';
+import readConfig from '../config/readConfig';
 import { packageManagerCommand, printLines } from '../helpers';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import getPackageVersion from '../requirements/getPackageVersion';
@@ -102,6 +104,10 @@ async function checkTheApp(): Promise<CheckedProject> {
     }
     await refuseUnreadableMetroConfig();
   }
+
+  // A CONFIG THAT IS NOT VALID JSON is refused HERE, like a package.json that is not, so nothing is
+  // logged in, made or installed for an app whose config setup could not read.
+  if (hasConfigFile()) await readConfig();
 
   // Storybook the project already has shows here, with the versions it was checked at - never as an
   // install line, which would read as if setup had installed or changed it.

@@ -53,12 +53,12 @@ async function init(options: Options<THIS_COMMAND>) {
 
     // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
     const reader = process.stdout.isTTY ? 'person' : 'agent';
-    // A PERSON'S FIRST TEST WAITS for the app's own stories: with only Storybook's examples, the
-    // next step is to write them.
+    // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike: with only
+    // Storybook's examples, the next step is to write them.
     const storybookState = installedNow
       ? 'installed'
       : storybookSetup() === 'registers-root'
-        ? reader === 'person' && !hasStoriesOfItsOwn()
+        ? !hasStoriesOfItsOwn()
           ? 'example-stories'
           : 'default-setup'
         : 'old-setup';
