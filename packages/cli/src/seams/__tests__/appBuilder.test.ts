@@ -259,6 +259,28 @@ describe('app builder, Android', () => {
     expect(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).toBe(original);
   });
 
+  it("a failed expo prebuild shows the log's error lines, then its last lines", async () => {
+    const errorLine =
+      'Error: [android.dangerous]: withAndroidDangerousBaseMod: Path to google-services.json is not defined. Please specify the `expo.android.googleServicesFile` field in app.json.';
+    const prebuildFails: RunProcess = async (call) => {
+      fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+      const notes = Array.from({ length: 40 }, (_, index) => `note ${index}`);
+      fs.writeFileSync(
+        call.logPath,
+        [...notes, 'error: Prebuild failed', errorLine, 'npm notice done'].join('\n')
+      );
+      return 1;
+    };
+    const failure = await makeLiveAppBuilder(prebuildFails)
+      .generateNativeFolder({ platform: 'android', projectRoot, env: {} })
+      .catch((error: Error) => error);
+    if (!(failure instanceof Error)) throw new Error('prebuild did not fail');
+    const shown = failure.message.split('\n');
+    expect(shown[0]).toBe('error: Prebuild failed');
+    expect(shown).toContain(errorLine);
+    expect(shown.at(-1)).toBe('`expo prebuild` failed - see .sherlo/build-android.log');
+  });
+
   it("runs expo prebuild with the build's variables", async () => {
     fs.rmSync(path.join(projectRoot, 'android'), { recursive: true });
     await liveBuilder().generateNativeFolder({

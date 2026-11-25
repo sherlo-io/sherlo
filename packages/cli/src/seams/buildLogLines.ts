@@ -1,3 +1,15 @@
+import fs from 'fs';
+
+/** How many of a failed build's last lines the run shows. */
+const LAST_LINES_SHOWN = 30;
+
+/** The lines a failed build's log shows (errors first, then the last lines), from `fromByte` on. */
+export function lastLinesOf(logPath: string, fromByte = 0): string[] {
+  if (!fs.existsSync(logPath)) return [];
+  const log = fs.readFileSync(logPath).subarray(fromByte);
+  return buildLogLinesShown(log.toString('utf8'), LAST_LINES_SHOWN);
+}
+
 /**
  * The lines a failed build shows: the log's error lines first (a line with "error:", Gradle's
  * "* What went wrong:" block up to the next "* " heading, a "FAILED" task line), then the last

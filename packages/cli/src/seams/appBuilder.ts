@@ -43,7 +43,7 @@ import {
   sdkDirOfLocalProperties,
 } from './androidFlavors';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
-import { buildLogLinesShown } from './buildLogLines';
+import { lastLinesOf } from './buildLogLines';
 import { easBuildIdIn } from './easBuildId';
 import { schemeNamesInProject, schemesInXcodeList } from './iosScheme';
 import {
@@ -247,9 +247,6 @@ function easProfileEnv(projectRoot: string, profileName: string): Record<string,
 /* The live builder                                                           */
 /* ========================================================================== */
 
-/** How many of a failed build's last lines the run shows. */
-const LAST_LINES_SHOWN = 30;
-
 const MB_PER_GB = 1024;
 
 /**
@@ -422,13 +419,6 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     packageJsonBeforePrebuild.delete(key);
     fs.rmSync(path.join(projectRoot, platform), { recursive: true, force: true });
     fs.writeFileSync(path.join(projectRoot, 'package.json'), original);
-  }
-
-  /** The lines a failed build's log shows (errors first, then the last lines), from `fromByte` on. */
-  function lastLinesOf(logPath: string, fromByte = 0): string[] {
-    if (!fs.existsSync(logPath)) return [];
-    const log = fs.readFileSync(logPath).subarray(fromByte);
-    return buildLogLinesShown(log.toString('utf8'), LAST_LINES_SHOWN);
   }
 
   async function compileAndroid(params: CompileParams): Promise<CompiledApp> {
@@ -825,7 +815,12 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       });
       if (exitCode !== 0) {
         undoPrebuild(projectRoot, platform);
-        throw new Error(`\`expo prebuild\` failed - see ${buildLogPath(platform)}`);
+        // The one catcher is the command's error exit, which prints the message: the log's lines
+        // are in it, as a failed compile shows them, and the log's path comes after.
+        const shown = lastLinesOf(path.join(projectRoot, buildLogPath(platform)));
+        throw new Error(
+          [...shown, `\`expo prebuild\` failed - see ${buildLogPath(platform)}`].join('\n')
+        );
       }
     },
     compile: async (params) => {
