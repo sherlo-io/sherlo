@@ -90,6 +90,26 @@ describe('sherlo view and the list of stories', () => {
     expect(process.exitCode).toBeUndefined();
   });
 
+  it('prints the outcome, the cause code and the unanswered reads by kind of each story', async () => {
+    await runView({ json: true });
+
+    const stories = printedJson().platforms.ios.diffScopeStories as {
+      record: Record<string, unknown>;
+    }[];
+
+    expect(stories[0].record).toMatchObject({
+      outcome: 'captured',
+      verdictCause: 'nativeCallNotInRecording',
+      unansweredReads: [
+        { kind: 'not in the recording', count: 2 },
+        { kind: 'blind road', count: 1 },
+      ],
+    });
+    expect(stories[1].record).toMatchObject({ outcome: 'reused' });
+    expect(stories[1].record).not.toHaveProperty('verdictCause');
+    expect(stories[1].record).not.toHaveProperty('unansweredReads');
+  });
+
   it('reads no list without --json', async () => {
     await runView({});
 

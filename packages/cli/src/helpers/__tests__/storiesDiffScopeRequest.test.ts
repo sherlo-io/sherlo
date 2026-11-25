@@ -39,6 +39,19 @@ describe('the read of one page of stories (fetchStoriesDiffScopePage)', () => {
     expect(JSON.parse(init.body).query).toContain('getStoriesDiffScope(');
   });
 
+  it('asks for the outcome, the cause code and the unanswered reads by kind of each story', async () => {
+    answerWith(200, { data: { getStoriesDiffScope: WHOLE_PAGE } });
+
+    await fetchStoriesDiffScopePage('https://api.test', 'token', VARIABLES);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, { body: string }];
+    const { query } = JSON.parse(init.body);
+    expect(query).toContain('outcome');
+    expect(query).toContain('verdictCause');
+    expect(query).toMatch(/unansweredReads\s*{\s*count\s*kind\s*}/);
+    expect(query).not.toMatch(/obstacles\s*{[^}]*name/);
+  });
+
   it('answers null when the team has no Diff Scope viewer', async () => {
     answerWith(200, { data: { getStoriesDiffScope: null } });
 
