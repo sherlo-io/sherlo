@@ -2,6 +2,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { DEVICES } from '@sherlo/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installDeviceState, posedDeviceState } from '../deviceState';
 import { readLocalDevice } from '../localDevice';
@@ -23,6 +24,23 @@ function simulatorOf(model: string, runtime: string) {
   });
 }
 
+/** The API levels from Android 13 on, where the Android version is the API level minus 20. */
+const API_LEVELS = [33, 34, 35, 36];
+
+/** An API level the catalog holds for the Pixel 7 (`held`) and one it lacks (`lacking`). */
+function pixel7ApiLevels() {
+  const versions = DEVICES['pixel.7'].osVersions.map((supported) => supported.version);
+  const held = API_LEVELS.filter((api) => versions.includes(String(api - 20)));
+  const lacking = API_LEVELS.filter((api) => !held.includes(api));
+  return { held: held[0], lacking: lacking[0] };
+}
+
+/** An iOS major the catalog holds for the iPad Air 11-inch (M2) (`held`) and one above them all (`lacking`). */
+function ipadAirMajors() {
+  const majors = DEVICES['ipad.air.11.m2'].osVersions.map((supported) => Number(supported.version));
+  return { held: majors[0], lacking: Math.max(...majors) + 1 };
+}
+
 describe('the local device', () => {
   let undo: (() => void) | undefined;
   afterEach(() => {
@@ -31,25 +49,30 @@ describe('the local device', () => {
   });
 
   it('a simulator whose model and system Sherlo has is named by its Sherlo device', async () => {
-    undo = simulatorOf('iPad Air 11-inch (M2)', 'iOS-17-5');
+    undo = simulatorOf('iPad Air 11-inch (M2)', `iOS-${ipadAirMajors().held}-5`);
 
     const device = await readLocalDevice({ platform: 'ios', udid: 'SIM-1' });
 
-    expect(device).toEqual({ deviceId: expect.stringContaining('ipad'), os: 'iOS 17.5' });
+    expect(device).toEqual({ deviceId: 'ipad.air.11.m2', os: `iOS ${ipadAirMajors().held}.5` });
   });
 
   it('a simulator Sherlo does not have is named by its model and system as a local simulator', async () => {
-    undo = simulatorOf('iPad Air 11-inch (M2)', 'iOS-18-2');
+    undo = simulatorOf('iPad Air 11-inch (M2)', `iOS-${ipadAirMajors().lacking}-2`);
 
     const device = await readLocalDevice({ platform: 'ios', udid: 'SIM-1' });
 
-    expect(device).toEqual({ local: true, model: 'iPad Air 11-inch (M2)', os: 'iOS 18.2' });
+    expect(device).toEqual({
+      local: true,
+      model: 'iPad Air 11-inch (M2)',
+      os: `iOS ${ipadAirMajors().lacking}.2`,
+    });
   });
 
-  it('an emulator is matched by its device name and API level', async () => {
+  it('an emulator is matched by its device name and API level, and one at an API level the catalog lacks for that device stays local', async () => {
     const avdHome = fs.mkdtempSync(path.join(os.tmpdir(), 'avd-home-'));
     process.env.ANDROID_AVD_HOME = avdHome;
     fs.mkdirSync(path.join(avdHome, 'Pixel_7_API_33.avd'));
+    const { held, lacking } = pixel7ApiLevels();
     const writeConfig = (name: string, api: number) =>
       fs.writeFileSync(
         path.join(avdHome, 'Pixel_7_API_33.avd', 'config.ini'),
@@ -60,17 +83,17 @@ describe('the local device', () => {
       run: async () => 'Pixel_7_API_33\nOK\n',
     });
     try {
-      writeConfig('pixel_7', 33);
+      writeConfig('pixel_7', held);
       expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5554' })).toEqual({
-        deviceId: expect.stringContaining('pixel'),
-        os: 'Android 13',
+        deviceId: 'pixel.7',
+        os: `Android ${held - 20}`,
       });
 
-      writeConfig('pixel_7', 34);
+      writeConfig('pixel_7', lacking);
       expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5554' })).toEqual({
         local: true,
         model: 'pixel_7',
-        os: 'Android 14',
+        os: `Android ${lacking - 20}`,
       });
     } finally {
       fs.rmSync(avdHome, { recursive: true, force: true });
