@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../../constants';
 
 const projectRoot = vi.hoisted(() => ({ path: '' }));
-const workstationAnswers = vi.hoisted(() => ({ addPackage: vi.fn(), sherloVersion: () => '3.0.1' }));
+const workstationAnswers = vi.hoisted(() => ({
+  addPackage: vi.fn(),
+  sherloVersion: () => '3.0.1',
+}));
 
 vi.mock('../../../../helpers/getCwd', () => ({ default: () => projectRoot.path }));
 vi.mock('../../../../helpers/reporting', () => ({ default: { captureException: vi.fn() } }));
@@ -68,7 +71,7 @@ describe('installSherlo into an app with no SDK', () => {
     fs.rmSync(projectRoot.path, { recursive: true, force: true });
   });
 
-  it("a new install by CLI 3.0.1 asks for ^3, never its exact version", async () => {
+  it('a new install by CLI 3.0.1 asks for ^3, never its exact version', async () => {
     fs.writeFileSync(
       path.join(projectRoot.path, 'package.json'),
       JSON.stringify({ devDependencies: { typescript: '^5.0.0' } })

@@ -7,7 +7,10 @@ import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME as SDK } from '../../../../c
 const projectRoot = vi.hoisted(() => ({ path: '' }));
 /** The released CLI these tests run as, the day after the release before it (3.0.0). */
 const CLI = vi.hoisted(() => ({ today: '3.0.1', previous: '3.0.0', range: '^3' }));
-const workstationAnswers = vi.hoisted(() => ({ addPackage: vi.fn(), sherloVersion: () => CLI.today }));
+const workstationAnswers = vi.hoisted(() => ({
+  addPackage: vi.fn(),
+  sherloVersion: () => CLI.today,
+}));
 const printed = vi.hoisted(() => ({ lines: [] as string[] }));
 /** The SDK version in the app's node_modules; null when the app has none. */
 const installedSdk = vi.hoisted(() => ({ version: null as string | null }));
@@ -74,9 +77,7 @@ describe('the Sherlo step by what the app already has', () => {
     await sherloSdk();
 
     expect(workstationAnswers.addPackage).toHaveBeenCalledOnce();
-    expect(workstationAnswers.addPackage.mock.calls[0][0].packageSpec).toBe(
-      `${SDK}@${CLI.range}`
-    );
+    expect(workstationAnswers.addPackage.mock.calls[0][0].packageSpec).toBe(`${SDK}@${CLI.range}`);
     expect(printedText()).toContain(`Installed Sherlo`);
     expect(printedText()).toContain(`${SDK} ${CLI.today}`);
     expect(printedText()).not.toContain('already done');

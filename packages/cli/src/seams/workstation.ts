@@ -447,8 +447,7 @@ export function posedWorkstation(
       // The package lands in node_modules the way a real install leaves it, so what setup reads
       // back afterwards is the version the pose says the manager chose.
       const installedName = packageNameOfSpecifier(installedPackage);
-      const installedVersion =
-        installedPackage.slice(installedName.length + 1) || sherloVersion;
+      const installedVersion = installedPackage.slice(installedName.length + 1) || sherloVersion;
       const installedPackageFolder = path.join(projectRoot, 'node_modules', installedName);
       fs.mkdirSync(installedPackageFolder, { recursive: true });
       fs.writeFileSync(
