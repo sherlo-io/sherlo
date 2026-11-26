@@ -18,6 +18,7 @@ import logIn from './steps/logIn';
 import sherloSdk from './steps/sherloSdk';
 import storybook from './steps/storybook';
 import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
+import storybookFolder, { NEWEST_STORYBOOK_FOLDER } from './steps/storybookFolder';
 import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
 import { EXPO_PACKAGE_NAME, PROJECT_OPTION, TEAM_OPTION } from '../../constants';
@@ -68,6 +69,8 @@ async function init(options: Options<THIS_COMMAND>) {
     printLines(
       renderNextSteps({
         storybook: storybookState,
+        // A folder Storybook's installer just wrote is its newest default.
+        storybookFolder: storybookFolder() ?? NEWEST_STORYBOOK_FOLDER,
         isExpo: !!getPackageVersion(EXPO_PACKAGE_NAME),
         reader,
       })

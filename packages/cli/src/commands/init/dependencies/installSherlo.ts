@@ -17,7 +17,7 @@ import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps'
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { printLines } from '../helpers';
 import getPackageVersion from '../requirements/getPackageVersion';
-import storybookUpgradeSpecs from '../requirements/storybookUpgradeSpecs';
+import storybookUpgrade from '../requirements/storybookUpgrade';
 
 /**
  * Storybook for React Native 10.5.2 to 10.6.1 demand these peers at one exact version each
@@ -100,12 +100,7 @@ async function installSherlo(): Promise<void> {
         ...renderStorybookPinsExactVersions({
           current: storybookVersion,
           pinnedPackages: STORYBOOK_EXACT_PEERS,
-          upgradeCommand: addCommand(
-            tool,
-            storybookUpgradeSpecs(
-              Object.keys({ ...packageJson.dependencies, ...packageJson.devDependencies })
-            )
-          ),
+          upgrade: await storybookUpgrade(),
           reader: process.stdout.isTTY ? 'person' : 'agent',
         }),
         errorToReport: error,
@@ -137,8 +132,17 @@ async function installSherlo(): Promise<void> {
 
 /** The package manager's own `add` command line for these packages, as a person types it. */
 export function addCommand(tool: Agent, packageSpecs: string[]): string {
-  // `add` resolves for every manager package-manager-detector knows.
-  const { command, args } = resolveCommand(tool, 'add', packageSpecs)!;
+  return managerCommand(tool, 'add', packageSpecs);
+}
+
+/** The package manager's own line adding or removing these packages, as a person types it. */
+export function managerCommand(
+  tool: Agent,
+  intent: 'add' | 'uninstall',
+  packageSpecs: string[]
+): string {
+  // `add` and `uninstall` resolve for every manager package-manager-detector knows.
+  const { command, args } = resolveCommand(tool, intent, packageSpecs)!;
   return `${command} ${args.join(' ')}`;
 }
 

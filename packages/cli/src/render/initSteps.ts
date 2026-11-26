@@ -63,7 +63,7 @@ export function renderFailedStepLine(name: string): string[] {
  *     root itself, as the person or their agent picks how Sherlo reaches it, so the first step is the
  *     same two choices as `old-setup`, with nothing to remove. Its stories are
  *     Storybook's examples, so the next step is to replace them with the app's own.
- *   - `default-setup`: `.rnstorybook/index` registers the app's root, and Sherlo reaches Storybook
+ *   - `default-setup`: the Storybook folder's index registers the app's root, and Sherlo reaches Storybook
  *     with no change to the app - no Storybook step at all.
  *   - `old-setup`: Storybook renders from the app's own root. Two equal choices, the recommended one
  *     first: move to the default setup, on any supported Storybook, or keep the
@@ -85,6 +85,7 @@ export function renderFailedStepLine(name: string): string[] {
  */
 export function renderNextSteps({
   storybook,
+  storybookFolder,
   isExpo,
   reader,
 }: {
@@ -94,6 +95,11 @@ export function renderNextSteps({
     | 'example-stories'
     | 'old-setup'
     | 'old-setup-example-stories';
+  /**
+   * The app's Storybook folder as the Metro wrapper finds it (../commands/init/steps/storybookFolder):
+   * `.rnstorybook`, or `.storybook` kept by an app upgraded from Storybook 8.
+   */
+  storybookFolder: string;
   /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
   isExpo: boolean;
   reader: FeedbackReader;
@@ -131,7 +137,7 @@ export function renderNextSteps({
   const defaultSetupChoice = [
     // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up.
     chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
-    '   In .rnstorybook/index.ts, below StorybookUIRoot, add:',
+    `   In ${storybookFolder}/index.ts, below StorybookUIRoot, add:`,
     ...registerRoot.map((line) => `     ${line}`),
     ...removeOldRender,
   ];
@@ -148,10 +154,10 @@ export function renderNextSteps({
     ],
   });
   // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the example names that file: an Expo
-  // app's template keeps it in src/app/_layout.tsx, a bare app's in App.tsx beside .rnstorybook.
+  // app's template keeps it in src/app/_layout.tsx, a bare app's in App.tsx beside the Storybook folder.
   const rootComponent = isExpo
-    ? { file: 'src/app/_layout.tsx', storybookPath: '../../.rnstorybook' }
-    : { file: 'App.tsx', storybookPath: './.rnstorybook' };
+    ? { file: 'src/app/_layout.tsx', storybookPath: `../../${storybookFolder}` }
+    : { file: 'App.tsx', storybookPath: `./${storybookFolder}` };
   // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that
   // exports its routes for the server builds it too.
   const keepSetupChoice = [
@@ -174,7 +180,7 @@ export function renderNextSteps({
       "Right now Sherlo would test Storybook's examples, not your app.",
       // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
       // outside it drop out, so they need no deleting.
-      `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ${renderCode("['../src']")}.`,
+      `Set "stories" in ${storybookFolder}/main.ts to your code's folder, e.g. ${renderCode("['../src']")}.`,
       // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
       // found without reading the others.
       '',

@@ -1,0 +1,65 @@
+{
+  "pose": 1,
+  "argv": ["init"],
+  "workingFolder": "apps/mobile",
+  "files": {
+    ".git/HEAD": "ref: refs/heads/main\n",
+    "package.json": {
+      "name": "acme",
+      "private": true,
+      "workspaces": ["apps/*"],
+      "devDependencies": {
+        "@storybook/addon-essentials": "^8.6.4",
+        "@storybook/addon-ondevice-actions": "^8.6.4",
+        "@storybook/addon-ondevice-controls": "^8.6.4",
+        "@storybook/react-native": "^8.6.4",
+        "storybook": "^8.6.4"
+      }
+    },
+    "package-lock.json": { "name": "acme", "lockfileVersion": 3, "requires": true, "packages": {} },
+    "apps/mobile/package.json": {
+      "name": "acme-shop",
+      "version": "0.0.1",
+      "private": true,
+      "scripts": {
+        "android": "react-native run-android",
+        "ios": "react-native run-ios",
+        "start": "react-native start"
+      },
+      "dependencies": {
+        "react": "19.3.0",
+        "react-native": "0.88.1",
+        "react-native-safe-area-context": "^5.5.2"
+      }
+    },
+    "apps/mobile/app.json": { "name": "AcmeShop", "displayName": "Acme Shop" },
+    "node_modules/react-native/package.json": {
+      "name": "react-native",
+      "version": "0.88.1",
+      "main": "index.js"
+    },
+    "node_modules/react-native/index.js": "",
+    "node_modules/@storybook/react-native/package.json": {
+      "name": "@storybook/react-native",
+      "version": "8.6.4",
+      "main": "index.js"
+    },
+    "node_modules/@storybook/react-native/index.js": ""
+  },
+  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": {
+    "branch": "main",
+    "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+    "dirty": false,
+    "remote": "git@github.com:acme/acme.git"
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "trackCliInit",
+      "with": { "event": "0_init" },
+      "answer": { "sessionId": "init-session-1" }
+    }
+  ],
+  "masks": {}
+}

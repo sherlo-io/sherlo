@@ -17,7 +17,8 @@ Setting up Sherlo...
 [31mERROR: Storybook 8.6.4 is too old: Sherlo needs 9.0.0 or newer[39m
 
 [0mUpgrade Storybook:[0m
-[36m  yarn add @storybook/react-native@^10 storybook@^10[39m
+[36m  yarn remove @storybook/addon-actions @storybook/addon-controls @storybook/addon-essentials @storybook/addon-interactions @storybook/blocks storybook[39m
+[36m  yarn add @storybook/addon-ondevice-actions@^10 @storybook/addon-ondevice-controls@^10 @storybook/react@^10 @storybook/react-native@^10 storybook@^10[39m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

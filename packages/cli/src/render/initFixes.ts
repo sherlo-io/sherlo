@@ -171,15 +171,29 @@ export function renderReactNativeTooOld({
 }
 
 /**
- * The Storybook upgrade both Storybook refusals end on: one `add` in the app's own package manager
- * (../commands/init/requirements/storybookUpgradeSpecs), after which no file needs a change by hand.
- * Like any upgrade, an agent makes it only with the user's OK.
+ * The Storybook upgrade both Storybook refusals end on (../commands/init/requirements/storybookUpgrade):
+ * a remove and an add, or the add alone, in the app's own package manager.
  */
-function upgradeStorybook(upgradeCommand: string, reader: FeedbackReader): string[] {
+export type StorybookUpgrade = {
+  commands: string[];
+  /** Where to run them, relative to the app's folder; null when it is the app's folder itself. */
+  folder: string | null;
+};
+
+/**
+ * After the upgrade no file needs a change by hand. Like any upgrade, an agent makes it only with
+ * the user's OK. Storybook held in a workspace root's package.json is upgraded there, so the line
+ * names that folder.
+ */
+function upgradeStorybook({ commands, folder }: StorybookUpgrade, reader: FeedbackReader): string[] {
   return [
     ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK."), ''] : []),
-    words('Upgrade Storybook:'),
-    code(upgradeCommand),
+    words(
+      folder
+        ? `Upgrade Storybook in ${folder}, the folder whose package.json holds it:`
+        : 'Upgrade Storybook:'
+    ),
+    ...commands.map((command) => code(command)),
     ...rerun(),
   ];
 }
@@ -192,18 +206,17 @@ function upgradeStorybook(upgradeCommand: string, reader: FeedbackReader): strin
 export function renderStorybookTooOld({
   current,
   min,
-  upgradeCommand,
+  upgrade,
   reader = 'person',
 }: {
   current: string;
   min: string;
-  /** The project's package manager adding the newest Storybook, e.g. `yarn add @storybook/react-native@^10 storybook@^10`. */
-  upgradeCommand: string;
+  upgrade: StorybookUpgrade;
   reader?: FeedbackReader;
 }): InitRefusal {
   return refusal(
     `Storybook ${current} is too old: Sherlo needs ${min} or newer`,
-    upgradeStorybook(upgradeCommand, reader)
+    upgradeStorybook(upgrade, reader)
   );
 }
 
@@ -215,19 +228,18 @@ export function renderStorybookTooOld({
 export function renderStorybookPinsExactVersions({
   current,
   pinnedPackages,
-  upgradeCommand,
+  upgrade,
   reader = 'person',
 }: {
   current: string;
   /** The packages those releases pin, e.g. react-native-safe-area-context. */
   pinnedPackages: string[];
-  /** The project's package manager adding the newest Storybook, e.g. `npm i @storybook/react-native@^10 storybook@^10`. */
-  upgradeCommand: string;
+  upgrade: StorybookUpgrade;
   reader?: FeedbackReader;
 }): InitRefusal {
   return refusal(
     `Storybook ${current} demands exact versions of ${pinnedPackages.join(' and ')}`,
-    upgradeStorybook(upgradeCommand, reader)
+    upgradeStorybook(upgrade, reader)
   );
 }
 
