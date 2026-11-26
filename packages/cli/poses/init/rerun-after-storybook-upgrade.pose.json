@@ -2,6 +2,7 @@
   "pose": 1,
   "argv": ["init"],
   "files": {
+    "src/components/Button.tsx": "import { Text } from 'react-native';\n\nexport function Button({ title }: { title: string }) {\n  return <Text>{title}</Text>;\n}\n",
     "App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
     "package.json": {
       "name": "acme-shop",

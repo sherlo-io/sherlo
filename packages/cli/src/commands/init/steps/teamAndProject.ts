@@ -188,7 +188,7 @@ async function createProject(
           .catch((whoAmIError: Error) =>
             refuseFailedServiceCall(whoAmIError, 'Creating the project failed', null)
           );
-        return renderNoAccessToCreateProject({ team: team.name, email });
+        return renderNoAccessToCreateProject({ team: team.name, teamId: team.id, email });
       })
     );
 

@@ -18,7 +18,7 @@
     "app.json": {
       "expo": { "name": "Acme Shop", "slug": "acme-shop", "plugins": ["expo-router"] }
     },
-    "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\n\nmodule.exports = async () => {\n  const config = getDefaultConfig(__dirname);\n  config.resolver.unstable_enablePackageExports = true;\n  return config;\n};\n",
+    "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\n\nmodule.exports = () => {\n  const config = getDefaultConfig(__dirname);\n  config.transformer.babelTransformerPath = require.resolve('react-native-svg-transformer/expo');\n  config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');\n  config.resolver.sourceExts.push('svg');\n  return config;\n};\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",
       "version": "0.88.1",

@@ -21,14 +21,13 @@ ERROR: anna@example.com can't create projects in Anna's team
 
 a) Ask your team to create the project
    Someone who can creates it in the web app.
-   Then run the setup line its page shows, with the project's --project.
+   Then run setup with its projectIndex. It picks up where it stopped:
+     npx sherlo init --project k7m2p9qx/<projectIndex>
 
 b) Use another account
-   Log out, and log in with it when setup asks:
+   Log out, then run setup again and log in with it when setup asks:
      npx sherlo logout
-
-Then run setup again. It picks up where it stopped:
-  npx sherlo init
+     npx sherlo init
 
 AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.
 

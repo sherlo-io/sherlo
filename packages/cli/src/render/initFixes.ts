@@ -332,26 +332,33 @@ export function renderNoAccessToProject({
 /**
  * The service refused the new project while the login works: the person's role in the team they
  * are in does not let them create projects (sherlo-api personalTokenPolicy, `project:write` asks a
- * member). Someone who can makes it, and its page in the web app gives the setup line that uses it.
+ * member). Someone who can makes it, and setup is run again naming it.
+ *
+ * EACH WAY OUT ENDS ON ITS OWN SETUP LINE: the project a teammate makes is reached only through
+ * `--project`, so a shared closing line without it would start another try at creating one.
  */
 export function renderNoAccessToCreateProject({
   team,
+  teamId,
   email,
 }: {
   /** The team's name, as the Using team line printed it. */
   team: string;
+  /** The team's id, the first half of the `--project` the new project takes. */
+  teamId: string;
   /** The account this computer is signed in with. */
   email: string;
 }): InitRefusal {
   return refusal(`${email} can't create projects in ${team}`, [
     choiceName('a) Ask your team to create the project'),
     words('   Someone who can creates it in the web app.'),
-    words("   Then run the setup line its page shows, with the project's --project."),
+    words('   Then run setup with its projectIndex. It picks up where it stopped:'),
+    code(`   ${typedInitCommand()} --project ${teamId}/<projectIndex>`),
     '',
     choiceName('b) Use another account'),
-    words('   Log out, and log in with it when setup asks:'),
+    words('   Log out, then run setup again and log in with it when setup asks:'),
     code('   npx sherlo logout'),
-    ...rerun(),
+    code(`   ${typedInitCommand()}`),
   ]);
 }
 

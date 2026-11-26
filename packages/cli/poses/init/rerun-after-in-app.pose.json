@@ -6,18 +6,21 @@
       "name": "acme-shop",
       "version": "1.0.0",
       "private": true,
-      "main": "index.ts",
+      "main": "expo-router/entry",
       "dependencies": {
         "@sherlo/react-native-storybook": "3.0.0-alpha.0",
         "@storybook/react-native": "^10.6.0",
         "expo": "~58.0.26",
+        "expo-router": "~58.0.32",
         "react": "19.3.0",
         "react-native": "0.88.1",
         "storybook": "^10.6.0"
       },
       "packageManager": "yarn@4.3.1"
     },
-    "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "app.json": {
+      "expo": { "name": "Acme Shop", "slug": "acme-shop", "plugins": ["expo-router"] }
+    },
     "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');\n\nconst config = getDefaultConfig(__dirname);\n\nmodule.exports = withStorybook(config);\n",
     "sherlo.config.json": {
       "project": "k7m2p9qx/1",
@@ -36,6 +39,12 @@
     "node_modules/react-native/index.js": "",
     "node_modules/expo/package.json": { "name": "expo", "version": "58.0.26", "main": "index.js" },
     "node_modules/expo/index.js": "",
+    "node_modules/expo-router/package.json": {
+      "name": "expo-router",
+      "version": "58.0.32",
+      "main": "entry.js"
+    },
+    "node_modules/expo-router/entry.js": "",
     "node_modules/@storybook/react-native/package.json": {
       "name": "@storybook/react-native",
       "version": "10.6.0",

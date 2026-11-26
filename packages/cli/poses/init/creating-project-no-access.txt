@@ -21,14 +21,13 @@ Setting up Sherlo...
 
 [1ma) Ask your team to create the project[22m
 [0m   Someone who can creates it in the web app.[0m
-[0m   Then run the setup line its page shows, with the project's --project.[0m
+[0m   Then run setup with its projectIndex. It picks up where it stopped:[0m
+[36m     npx sherlo init --project k7m2p9qx/<projectIndex>[39m
 
 [1mb) Use another account[22m
-[0m   Log out, and log in with it when setup asks:[0m
+[0m   Log out, then run setup again and log in with it when setup asks:[0m
 [36m     npx sherlo logout[39m
-
-[0mThen run setup again. It picks up where it stopped:[0m
-[36m  npx sherlo init[39m
+[36m     npx sherlo init[39m
 
 [2m──────────[22m
 

@@ -29,6 +29,7 @@ If it doesn't open, use this link on any device:
 ✔ Created config         sherlo.config.json, one device: Pixel 7 Pro
 - Installing Storybook...
 ✔ Installed Storybook    @storybook/react-native <STORYBOOK_VERSION>
+✔ Added for Storybook    react-native-safe-area-context ~5.11.1
 - Installing Sherlo...
 ✔ Installed Sherlo       @sherlo/react-native-storybook <SHERLO_VERSION>
 ✔ Updated Metro config   metro.config.js
