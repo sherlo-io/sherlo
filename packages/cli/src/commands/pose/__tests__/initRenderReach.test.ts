@@ -29,18 +29,10 @@ const NO_FOLDER_YET =
   '(BUILD DEBT, init-for-agents decision 2); once it does, this branch is dead and is deleted';
 
 const NOT_YET_DRAWN: Record<string, string> = {
-  "initSteps.ts renderNextSteps: import { AppRegistry } from 'react-native';":
-    "a bare app whose native code opens a name other than app.json's (rootRegistration inAppJson false)",
-  "initSteps.ts renderNextSteps: AppRegistry.registerComponent('${}', () => StorybookUIRoot);":
-    "a bare app whose native code opens a name other than app.json's (rootRegistration inAppJson false)",
   'initSteps.ts renderNextSteps: <your Storybook folder>': NO_FOLDER_YET,
   'initSteps.ts renderNextSteps: Set "stories" in your Storybook folder\'s main file to your code\'s folder.':
     NO_FOLDER_YET,
   "initSteps.ts defaultSetupChoice: your Storybook folder's index file": NO_FOLDER_YET,
-  'initFixes.ts renderStorybookFolderMissing: Storybook is installed, but its folder ${} is missing':
-    "the Metro config's configPath names a folder that does not exist (checkProject)",
-  'initFixes.ts renderLoginRejected is never called':
-    'the service refuses a login that this same run made or already spent (refuseFailedServiceCall dead-login)',
 };
 
 type Range = { startOffset: number; endOffset: number; count: number };
