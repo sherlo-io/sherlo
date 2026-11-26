@@ -2,7 +2,7 @@
   "pose": 1,
   "argv": ["init"],
   "files": {
-    "App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
+    "App.tsx": "import { Text } from 'react-native';\n\nfunction App() {\n  return <Text>Acme Shop</Text>;\n}\n\nlet AppEntryPoint = App;\n\nif (process.env.STORYBOOK_ENABLED === 'true') {\n  AppEntryPoint = require('./src/storybook').default;\n}\n\nexport default AppEntryPoint;\n",
     "package.json": {
       "name": "acme-shop",
       "version": "1.0.0",

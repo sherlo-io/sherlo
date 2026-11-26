@@ -1069,13 +1069,14 @@ export type ApiError = {
   error: string;
   /**
    * The client's own error kind, where a command answers it apart: a team the person is not in, or
-   * a refusal of the team list or of a team's project list, a project name over the service's
-   * limit.
+   * a refusal of the team list, of a team's project list or of a new project, a project name over
+   * the service's limit.
    */
   errorName?:
     | 'TeamNotFoundError'
     | 'ListTeamsAuthError'
     | 'ListProjectsAuthError'
+    | 'CreateProjectAuthError'
     | 'CreateProjectNameTooLongError';
   /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
   cause?: {

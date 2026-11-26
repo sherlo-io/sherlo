@@ -43,7 +43,8 @@
       "main": "index.js"
     },
     "node_modules/@storybook/react-native/index.js": "",
-    ".rnstorybook/index.ts": "import { LiteUI } from '@storybook/react-native-ui-lite';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({\n  CustomUIComponent: LiteUI,\n  shouldPersistSelection: false,\n});\n\nexport default StorybookUIRoot;\n"
+    ".rnstorybook/index.ts": "import { LiteUI } from '@storybook/react-native-ui-lite';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({\n  CustomUIComponent: LiteUI,\n  shouldPersistSelection: false,\n});\n\nexport default StorybookUIRoot;\n",
+    ".rnstorybook/main.ts": "import type { StorybookConfig } from '@storybook/react-native';\n\nconst main: StorybookConfig = {\n  stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'],\n};\n\nexport default main;\n"
   },
   "env": {
     "SHERLO_API_URL": "https://api.sherlo.io/graphql"

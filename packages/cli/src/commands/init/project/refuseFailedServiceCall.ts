@@ -11,6 +11,7 @@
 import { throwError } from '../../../helpers';
 import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
 import {
+  type InitRefusal,
   renderLoginRejected,
   renderProjectNameTooLong,
   renderServiceFailed,
@@ -53,15 +54,19 @@ export async function whyRefused(
 /**
  * `failedStep` names the step that stopped, e.g. "Choosing a team failed". `personalToken` is the
  * login the call spent; null for a call that spent none - the browser login's own calls, made before
- * there is a login - and for one whose refusal the caller already told apart.
+ * there is a login - and for one whose refusal the caller already told apart. `noAccessScreen` is
+ * the call's own screen for a refusal while the login works, asked before the red line as it may
+ * call the service itself.
  */
 async function refuseFailedServiceCall(
   error: Error,
   failedStep: string,
-  personalToken: string | null
+  personalToken: string | null,
+  noAccessScreen?: () => Promise<InitRefusal>
 ): Promise<never> {
   // Asked BEFORE the red line: the question is a call of its own, and the line comes last.
   const refusal = personalToken === null ? null : await whyRefused(error, personalToken);
+  const noAccess = refusal === 'no-access' && noAccessScreen ? await noAccessScreen() : null;
 
   // LIKE EVERY STOP, the step that stopped is marked red above the error, whatever the error.
   printLines(renderFailedStepLine(failedStep));
@@ -69,6 +74,8 @@ async function refuseFailedServiceCall(
   if (refusal === 'dead-login') {
     throwError({ ...renderLoginRejected(), errorToReport: error });
   }
+
+  if (noAccess) throwError({ ...noAccess, errorToReport: error });
 
   // A project name over the service's limit, by the service's own code: the limit, and a shorter
   // name made the way that keeps the app's own.
@@ -87,9 +94,9 @@ async function refuseFailedServiceCall(
     });
   }
 
-  // BUILD DEBT (init-for-agents): a `no-access` refusal of a team the person picked from their own
-  // list (their role there changed in between) says the service's words; only a project a config
-  // names has its own screen (../steps/teamAndProject showProjectInConfig).
+  // BUILD DEBT (init-for-agents): a `no-access` refusal of a call with no screen of its own (a new
+  // team) says the service's words; a project a config names (../steps/teamAndProject
+  // showProjectInConfig) and a new project have theirs.
   return throwError({
     ...renderServiceFailed({ reason: error.message, passing: isPassingFailure(error) }),
     errorToReport: error,

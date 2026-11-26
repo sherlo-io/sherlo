@@ -2395,6 +2395,7 @@ function readApiError(value: unknown, path: string, problems: string[]): void {
           'TeamNotFoundError',
           'ListTeamsAuthError',
           'ListProjectsAuthError',
+          'CreateProjectAuthError',
           'CreateProjectNameTooLongError',
         ],
         at(path, 'errorName'),

@@ -22,12 +22,13 @@ Setting up Sherlo...
 [32m✔[39m Added GitHub workflow  [2m.github/workflows/sherlo.yml[22m
 
 
-[1m👉 Next step[22m
-[2m════════════[22m
+[1m👉 Next steps[22m
+[2m═════════════[22m
 
-Couldn't load .rnstorybook/main.js to see which stories it lists: TypeError: Cannot read properties of undefined (reading 'split')
+[1m1. Fix .rnstorybook/main.js[22m
+   Couldn't load .rnstorybook/main.js to see which stories it lists: TypeError: Cannot read properties of undefined (reading 'split')
 
-[1mRun your first visual test[22m
+[1m2. Run your first visual test[22m
    [36mnpx sherlo test[39m
 
 [exit 0]

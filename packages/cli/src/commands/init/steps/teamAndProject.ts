@@ -15,7 +15,7 @@ import path from 'path';
 import { FULL_INIT_COMMAND, TEAM_OPTION } from '../../../constants';
 import { getCwd, throwError } from '../../../helpers';
 import getAppDomain from '../../../helpers/getAppDomain';
-import { renderNoAccessToProject } from '../../../render/initFixes';
+import { renderNoAccessToCreateProject, renderNoAccessToProject } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { serverCalls } from '../../../seams/serverCalls';
 import type { SavedLogin } from '../../../seams/savedLogins';
@@ -47,8 +47,8 @@ async function teamAndProject(
 
   // The first call of either path goes through `spendTheLogin`: a saved login the service refuses
   // is not a stop, setup logs in again and goes on with the new login.
-  const { teamId, login } = await chooseTeam(person, teamFlag);
-  const project = await createProject(teamId, login);
+  const { team, login } = await chooseTeam(person, teamFlag);
+  const project = await createProject(team, login);
 
   return settled(project);
 }
@@ -107,7 +107,7 @@ async function showProjectInConfig(project: ProjectAddress, person: Person): Pro
 async function chooseTeam(
   person: Person,
   teamFlag: string | undefined
-): Promise<{ teamId: string; login: SavedLogin }> {
+): Promise<{ team: { id: string; name: string }; login: SavedLogin }> {
   const {
     answer: { teams },
     login,
@@ -124,7 +124,7 @@ async function chooseTeam(
 
   if (team) {
     printLines([renderStepLine({ outcome: 'done', name: 'Using team', detail: team.name })]);
-    return { teamId: team.id, login };
+    return { team, login };
   }
 
   // IN NO TEAM, A TEAM ID CAN'T BE RIGHT: there is no list to pick from, and setup without `--team`
@@ -168,21 +168,31 @@ async function chooseTeam(
     );
 
   printLines([renderStepLine({ outcome: 'done', name: 'Created team', detail: newTeam.name })]);
-  return { teamId: newTeam.id, login };
+  return { team: newTeam, login };
 }
 
-/** A new project in the team, named after the app. */
+/**
+ * A new project in the team, named after the app. A refusal while the login works is the person's
+ * role in the team, named with the account it is for.
+ */
 async function createProject(
-  teamId: string,
+  team: { id: string; name: string },
   { token: personalToken }: SavedLogin
 ): Promise<ProjectAddress> {
   const newProject = await serverCalls()
-    .createProject({ name: appName(), teamId, personalToken })
+    .createProject({ name: appName(), teamId: team.id, personalToken })
     .catch((error: Error) =>
-      refuseFailedServiceCall(error, 'Creating the project failed', personalToken)
+      refuseFailedServiceCall(error, 'Creating the project failed', personalToken, async () => {
+        const { email } = await serverCalls()
+          .whoAmI({ personalToken })
+          .catch((whoAmIError: Error) =>
+            refuseFailedServiceCall(whoAmIError, 'Creating the project failed', null)
+          );
+        return renderNoAccessToCreateProject({ team: team.name, email });
+      })
     );
 
-  const project = { teamId, projectIndex: newProject.index };
+  const project = { teamId: team.id, projectIndex: newProject.index };
 
   // Names only, for the team and the project alike: their ids are the config's business, and a
   // person reads names. The project token the service hands back is never printed: a token for CI

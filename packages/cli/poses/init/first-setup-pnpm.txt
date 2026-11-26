@@ -12,10 +12,10 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the app        [2mReact Native <REACT_NATIVE_VERSION>[22m
+[32m✔[39m Checked the app        [2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>[22m
 [32m✔[39m Logged in              [2manna@example.com[22m
 [32m✔[39m Using team             [2mAnna's team[22m
-[32m✔[39m Created project        [2macme-shop[22m
+[32m✔[39m Created project        [2mAcme Shop[22m
 [32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
 [32m✔[39m Installed Storybook    [2m@storybook/react-native <STORYBOOK_VERSION>[22m
 [32m✔[39m Created pnpm settings  [2mpnpm-workspace.yaml[22m
@@ -32,14 +32,13 @@ Setting up Sherlo...
 
    [1ma) Entry-point swapping (Storybook's default, recommended)[22m
       In .rnstorybook/index.ts, below StorybookUIRoot, add:
-        [35mimport[39m [2m{[22m [33mAppRegistry[39m [2m}[22m [35mfrom[39m [32m'react-native'[39m[2m;[22m
-        [35mimport[39m [2m{[22m name [35mas[39m appName [2m}[22m [35mfrom[39m [32m'../app.json'[39m[2m;[22m
-        [33mAppRegistry[39m[2m.[22m[32mregisterComponent[39m[2m([22mappName[2m,[22m [2m()[22m [2m=>[22m [33mStorybookUIRoot[39m[2m);[22m
+        [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
+        [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
 
    [1mb) In-app integration[22m
-      At the top of your root component (App.tsx), add:
+      At the top of your root component (src/app/_layout.tsx), add:
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
-        [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
+        [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'../../.rnstorybook'[39m[2m;[22m
         [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
 
 [1m2. Replace the example stories[22m

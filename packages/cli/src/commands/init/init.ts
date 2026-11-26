@@ -59,21 +59,27 @@ async function init(options: Options<THIS_COMMAND>) {
     // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike, on every
     // setup: with only Storybook's examples, the next step is to write them. An app whose code
     // already asks Sherlo's isStorybookMode (way b) is as ready as Storybook's default setup.
-    const ownStories = installedNow ? null : await hasStoriesOfItsOwn();
-    // A story list that could not be read says nothing of examples: the line naming why stands in.
-    const examplesOnly = !!ownStories && 'found' in ownStories && !ownStories.found;
-    const storybookState = installedNow
-      ? 'installed'
-      : storybookSetup() !== 'renders-in-app'
-        ? examplesOnly
-          ? 'example-stories'
-          : 'default-setup'
-        : examplesOnly
-          ? 'old-setup-example-stories'
-          : 'old-setup';
     // No folder found is named as none: a default name would send the reader to a folder the app
     // does not have.
     const folder = storybookFolder();
+    const ownStories = installedNow || !folder ? null : await hasStoriesOfItsOwn(folder);
+    // A story list that could not be read says nothing of examples: the line naming why stands in.
+    const examplesOnly = !!ownStories && 'found' in ownStories && !ownStories.found;
+    const setup = installedNow ? null : storybookSetup();
+    const storybookState =
+      setup === null
+        ? 'installed'
+        : setup === 'renders-in-app'
+          ? examplesOnly
+            ? 'old-setup-example-stories'
+            : 'old-setup'
+          : setup === 'not-started'
+            ? examplesOnly
+              ? 'not-started-example-stories'
+              : 'not-started'
+            : examplesOnly
+              ? 'example-stories'
+              : 'default-setup';
     printLines(
       renderNextSteps({
         storybook: storybookState,

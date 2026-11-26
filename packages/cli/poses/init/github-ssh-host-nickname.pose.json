@@ -23,6 +23,7 @@
     "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
     "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nmodule.exports = withStorybook(getDefaultConfig(__dirname));\n",
     ".rnstorybook/index.ts": "import { registerRootComponent } from 'expo';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({});\n\nregisterRootComponent(StorybookUIRoot);\n",
+    ".rnstorybook/main.ts": "import type { StorybookConfig } from '@storybook/react-native';\n\nconst main: StorybookConfig = {\n  stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'],\n};\n\nexport default main;\n",
     "src/Button.stories.tsx": "import { Button } from './Button';\n\nexport default { component: Button };\n\nexport const Default = { args: { title: 'Default' } };\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",

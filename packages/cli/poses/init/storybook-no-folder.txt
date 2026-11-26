@@ -12,35 +12,19 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the app        [2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>[22m
-[32m✔[39m Logged in              [2manna@example.com[22m
-[32m✔[39m Using team             [2mAnna's team[22m
-[32m✔[39m Created project        [2mAcme Shop[22m
-[32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
-[32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook <SHERLO_VERSION>[22m
-[32m✔[39m Updated Metro config   [2mmetro.config.js[22m
-[32m✔[39m Added GitHub workflow  [2m.github/workflows/sherlo.yml[22m
+[31m✖[39m Checking the app failed
 
+[31mERROR: Storybook is installed, but its folder is missing (.rnstorybook or .storybook)[39m
 
-[1m👉 Next steps[22m
-[2m═════════════[22m
+[0mRestore the folder, for example from version control.[0m
 
-[1m1. Let Sherlo open Storybook[22m
-   Storybook starts from your app's code, so Sherlo can't open it alone. Pick one:
+[0mThen run setup again. It picks up where it stopped:[0m
+[36m  npx sherlo init[39m
 
-   [1ma) Entry-point swapping (Storybook's default, recommended)[22m
-      In your Storybook folder's index file, below StorybookUIRoot, add:
-        [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
-        [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
-      Then remove your app's code that renders Storybook, and its import.
+[2m──────────[22m
 
-   [1mb) In-app integration[22m
-      At the top of your root component, add:
-        [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
-        [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'<your Storybook folder>'[39m[2m;[22m
-        [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
 
-[1m2. Run your first visual test[22m
-   [36mnpx sherlo test[39m
-
-[exit 0]
+[exit 1]

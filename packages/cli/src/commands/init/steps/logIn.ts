@@ -26,7 +26,7 @@ async function logIn(): Promise<Person> {
   const serviceAddress = getEndpointUrl();
 
   // A SAVED LOGIN'S LINE WAITS FOR THE SERVICE: printed now, a login the service then refuses would
-  // read "Logged in" right above "Your saved login has expired". `spendTheLogin` prints it.
+  // read "Logged in" right above "Your saved login no longer works". `spendTheLogin` prints it.
   const savedLogin = savedLogins().read(serviceAddress);
   if (savedLogin) return { login: savedLogin, isSaved: true };
 
@@ -89,7 +89,8 @@ async function logInAgain(): Promise<SavedLogin> {
  * again itself, so it does not list the causes the other commands' refusal names
  * (`REJECTED_LOGIN_MESSAGE`), whose reader must log in by hand.
  */
-const SETUP_REJECTED_LOGIN_SENTENCE = 'Your saved login has expired. Log in again to continue.';
+// WHAT IS KNOWN, NOT WHY: a 401 says the login no longer works, never that it expired.
+const SETUP_REJECTED_LOGIN_SENTENCE = 'Your saved login no longer works. Log in again to continue.';
 
 /** The blank line and the sentence `logInAgain` printed. */
 const LINES_OF_THE_REJECTED_LOGIN = 2;

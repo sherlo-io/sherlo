@@ -47,13 +47,14 @@ const THIN_SPACE = String.fromCodePoint(0x2009);
 
 /**
  * Colours, cursor moves and terminal links out; of a redrawn line, only what was drawn last. The thin
- * spaces pnpm pads its error code with go too: without the badge's colour they are only a gap.
+ * spaces pnpm pads its error code with become plain spaces: without the badge's colour they read as
+ * the gap pnpm's own log shows, two spaces between the code and the message.
  */
 function plainText(text: string): string {
   const withoutEscapes = text
     .replace(/\u001b\]8;[^\u0007\u001b]*(?:\u0007|\u001b\\)/g, '')
     .replace(/\u001b\[[0-9;?]*[A-Za-z]/g, '')
-    .replaceAll(THIN_SPACE, '');
+    .replaceAll(THIN_SPACE, ' ');
   return withoutEscapes.slice(withoutEscapes.lastIndexOf('\r') + 1).trim();
 }
 

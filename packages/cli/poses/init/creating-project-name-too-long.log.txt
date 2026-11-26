@@ -1,0 +1,38 @@
+
+             888                       888          
+             888                       888          
+             888                       888          
+    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
+    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
+    "Y8888b. 888  888 88888888 888     888 888  888 
+         X88 888  888 Y8b.     888     888 Y88..88P 
+    '88888P' 888  888  "Y8888  888     888  "Y88P"
+
+Make sure your mobile app looks perfect on every device
+
+Setting up Sherlo...
+
+✔ Checked the app        Expo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>
+✔ Logged in              anna@example.com
+✔ Using team             Anna's team
+✖ Creating the project failed
+
+ERROR: The project name "Acme Shop Customer Loyalty and Rewards Companion App for Retail Stores" is 70 characters, over Sherlo's limit of 64.
+
+Create the project under a shorter name:
+  npx sherlo project create --name "<shorter name>" --team k7m2p9qx
+
+Then run setup with the projectIndex it prints:
+  npx sherlo init --project k7m2p9qx/<projectIndex>
+
+AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.
+
+──────────
+
+Need help?
+➜ Discord: https://discord.gg/G7eqTBkWZt
+➜ Email: contact@sherlo.io
+
+AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: npx sherlo feedback --help
+
+[exit 1]

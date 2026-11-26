@@ -18,6 +18,7 @@
     },
     "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
     "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nmodule.exports = withStorybook(getDefaultConfig(__dirname));\n",
+    ".rnstorybook/main.ts": "import type { StorybookConfig } from '@storybook/react-native';\n\nconst main: StorybookConfig = {\n  stories: ['./stories/**/*.stories.?(ts|tsx|js|jsx)'],\n};\n\nexport default main;\n",
     "sherlo.config.json": {
       "project": "k7m2p9qx/1",
       "devices": [{ "id": "pixel.7.pro", "osVersion": "13" }]

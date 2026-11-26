@@ -288,6 +288,25 @@ export function renderMetroConfigUnreadable({ path }: { path: string }): InitRef
 }
 
 /**
+ * The app has Storybook among its packages, but not the folder Storybook runs from: the one its
+ * Metro config names, or with none named, either of Storybook's defaults. Setup stops before any
+ * change, as every later step and next step reads that folder.
+ */
+export function renderStorybookFolderMissing({
+  folder,
+}: {
+  /** The folder the Metro config names, or null when it names none and neither default exists. */
+  folder: string | null;
+}): InitRefusal {
+  return refusal(
+    folder
+      ? `Storybook is installed, but its folder ${folder} is missing`
+      : 'Storybook is installed, but its folder is missing (.rnstorybook or .storybook)',
+    [words('Restore the folder, for example from version control.'), ...rerun()]
+  );
+}
+
+/**
  * The person is signed in but cannot reach the project the config or `--project` names: a teammate
  * cloned a repo whose team has not invited them, or they signed in with another account. Starting a
  * project of their own is not offered: dropping the config's project could cut off a project that
@@ -306,6 +325,32 @@ export function renderNoAccessToProject({
     choiceName('a) Ask your team for access'),
     words('   They copy an invitation link in the web app (Users, "Copy invitation link").'),
     words(`   Open it signed in as ${email}.`),
+    '',
+    choiceName('b) Use another account'),
+    words('   Log out, and log in with it when setup asks:'),
+    code('   npx sherlo logout'),
+    ...rerun(),
+  ]);
+}
+
+/**
+ * The service refused the new project while the login works: the person's role in the team they
+ * are in does not let them create projects (sherlo-api personalTokenPolicy, `project:write` asks a
+ * member). Someone who can makes it, and its page in the web app gives the setup line that uses it.
+ */
+export function renderNoAccessToCreateProject({
+  team,
+  email,
+}: {
+  /** The team's name, as the Using team line printed it. */
+  team: string;
+  /** The account this computer is signed in with. */
+  email: string;
+}): InitRefusal {
+  return refusal(`${email} can't create projects in ${team}`, [
+    choiceName('a) Ask your team to create the project'),
+    words('   Someone who can creates it in the web app.'),
+    words("   Then run the setup line its page shows, with the project's --project."),
     '',
     choiceName('b) Use another account'),
     words('   Log out, and log in with it when setup asks:'),

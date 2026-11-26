@@ -15,9 +15,12 @@ import {
 } from '../../../constants';
 import { setupReader } from '../../feedback/runningAgent';
 import { getCwd, isPackageVersionCompatible, throwError } from '../../../helpers';
+import fs from 'fs';
+import path from 'path';
 import {
   renderPackagesNotInstalled,
   renderReactNativeTooOld,
+  renderStorybookFolderMissing,
   renderStorybookTooOld,
 } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
@@ -33,6 +36,7 @@ import storybookUpgrade from '../requirements/storybookUpgrade';
 import validateHasReactNative from '../requirements/validateHasReactNative';
 import refuseUnreadableMetroConfig from '../requirements/refuseUnreadableMetroConfig';
 import validateProjectContext from '../requirements/validateProjectContext';
+import storybookFolder from './storybookFolder';
 
 export type CheckedProject = {
   /** Whether the project already has Storybook for React Native among its dependencies. */
@@ -111,6 +115,12 @@ async function checkTheApp(): Promise<CheckedProject> {
       );
     }
     await refuseUnreadableMetroConfig();
+    // THE FOLDER STORYBOOK RUNS FROM must be there: which setup the app uses, which stories are its
+    // own and every next step read it, so a missing one stops here, before anything changes.
+    const folder = storybookFolder();
+    if (!folder || !fs.existsSync(path.join(getCwd(), folder))) {
+      throwError(renderStorybookFolderMissing({ folder }));
+    }
   }
 
   // A CONFIG THAT IS NOT VALID JSON is refused HERE, like a package.json that is not, so nothing is

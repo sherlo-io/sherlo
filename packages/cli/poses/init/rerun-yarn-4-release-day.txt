@@ -26,13 +26,12 @@ Setting up Sherlo...
 [2m═════════════[22m
 
 [1m1. Let Sherlo open Storybook[22m
-   Storybook starts from your app's code, so Sherlo can't open it alone. Pick one:
+   Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it. Pick one:
 
    [1ma) Entry-point swapping (Storybook's default, recommended)[22m
       In .rnstorybook/index.ts, below StorybookUIRoot, add:
         [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
         [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
-      Then remove your app's code that renders Storybook, and its import.
 
    [1mb) In-app integration[22m
       At the top of your root component (App.tsx), add:

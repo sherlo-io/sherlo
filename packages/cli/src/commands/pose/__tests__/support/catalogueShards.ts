@@ -7,7 +7,7 @@
  * together are the whole catalogue.
  */
 import fs from 'fs';
-import type { CataloguedPose } from '../../catalogue';
+import type { CataloguedPose, PoseReader } from '../../catalogue';
 import { renderPose } from '../../catalogue';
 import { runPose } from '../../pose';
 import { readPoseDocument } from '../../readPose';
@@ -29,29 +29,39 @@ export function shardTitle(shard: number): string {
 }
 
 /**
- * The poses of `poses` whose rendered bytes are not the committed ones, each with where. Under
- * `MINT_POSES=1` it writes the bytes instead and reports nothing.
+ * The poses of `poses` whose rendered bytes are not the committed ones, each with where: the
+ * person's screen, and an init pose's agent log too. Under `MINT_POSES=1` it writes the bytes
+ * instead and reports nothing.
  */
 export async function posesDivergingFromCommitted(poses: CataloguedPose[]): Promise<string[]> {
   const diverged: string[] = [];
 
-  for (const { name, posePath, screenPath } of poses) {
-    const rendered = await renderPose(posePath);
+  for (const { name, posePath, screenPath, agentLogPath } of poses) {
+    const renders: Array<{ reader: PoseReader; filePath: string; label: string }> = [
+      { reader: 'person', filePath: screenPath, label: name },
+      ...(agentLogPath
+        ? [{ reader: 'agent' as const, filePath: agentLogPath, label: `${name} (agent log)` }]
+        : []),
+    ];
 
-    if (process.env.MINT_POSES === '1') {
-      fs.writeFileSync(screenPath, rendered);
-      continue;
+    for (const { reader, filePath, label } of renders) {
+      const rendered = await renderPose(posePath, reader);
+
+      if (process.env.MINT_POSES === '1') {
+        fs.writeFileSync(filePath, rendered);
+        continue;
+      }
+
+      if (!fs.existsSync(filePath)) {
+        diverged.push(`${label} - no committed screen`);
+        continue;
+      }
+
+      const committed = fs.readFileSync(filePath, 'utf8');
+      if (rendered === committed) continue;
+
+      diverged.push(`${label} - ${describeFirstDivergence(rendered, committed)}`);
     }
-
-    if (!fs.existsSync(screenPath)) {
-      diverged.push(`${name} - no committed screen`);
-      continue;
-    }
-
-    const committed = fs.readFileSync(screenPath, 'utf8');
-    if (rendered === committed) continue;
-
-    diverged.push(`${name} - ${describeFirstDivergence(rendered, committed)}`);
   }
 
   return diverged;

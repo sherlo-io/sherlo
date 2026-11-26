@@ -62,7 +62,7 @@ describe('the lines a failed install shows', () => {
     ]);
   });
 
-  it('pnpm: its error block, its code freed of the padding, without the progress line', () => {
+  it('pnpm: its error block, its code padded as its log shows it, without the progress line', () => {
     const { lines } = pickInstallOutput({
       tool: 'pnpm',
       output: [
@@ -74,7 +74,7 @@ describe('the lines a failed install shows', () => {
     });
 
     expect(lines).toEqual([
-      'ERR_PNPM_NO_MATCHING_VERSION No matching version found for @sherlo/react-native-storybook@2.0.2 while fetching it from https://registry.npmjs.org/',
+      'ERR_PNPM_NO_MATCHING_VERSION  No matching version found for @sherlo/react-native-storybook@2.0.2 while fetching it from https://registry.npmjs.org/',
       'The latest release of @sherlo/react-native-storybook is "2.0.1".',
     ]);
   });

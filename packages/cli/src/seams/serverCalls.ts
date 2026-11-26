@@ -34,6 +34,7 @@ import authTokenFor from '../helpers/authTokenFor';
 import { ServiceRefusedTokenError, throwTokenRefusal } from './serviceRefusedToken';
 import liveGitHubTrade from './liveGitHubTrade';
 import createProjectRequest, {
+  CreateProjectAuthError,
   CreateProjectNameTooLongError,
 } from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
@@ -409,12 +410,14 @@ export type ApiError = {
   error: string;
   /**
    * The client's own error kind, where a command answers it apart: a team the person is not in, or
-   * a refusal of the team list or of a team's project list, a project name over the service's limit.
+   * a refusal of the team list, of a team's project list or of a new project, a project name over
+   * the service's limit.
    */
   errorName?:
     | 'TeamNotFoundError'
     | 'ListTeamsAuthError'
     | 'ListProjectsAuthError'
+    | 'CreateProjectAuthError'
     | 'CreateProjectNameTooLongError';
   /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
   cause?: { code: string; hostname?: string };
@@ -881,6 +884,9 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       }
       if (answer.errorName === 'ListProjectsAuthError') {
         throw new ListProjectsAuthError(String(answer.error));
+      }
+      if (answer.errorName === 'CreateProjectAuthError') {
+        throw new CreateProjectAuthError(String(answer.error));
       }
       // A name over the service's limit: setup says the limit and how to give a shorter name.
       if (answer.errorName === 'CreateProjectNameTooLongError') {

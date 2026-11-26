@@ -2,33 +2,52 @@
   "pose": 1,
   "argv": ["init"],
   "files": {
-    "App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
+    "src/app/_layout.tsx": "import { Stack } from 'expo-router';\n\nexport default function RootLayout() {\n  return <Stack />;\n}\n",
     "package.json": {
       "name": "acme-shop",
-      "version": "0.0.1",
+      "version": "1.0.0",
       "private": true,
+      "main": "expo-router/entry",
       "scripts": {
-        "android": "react-native run-android",
-        "ios": "react-native run-ios",
-        "start": "react-native start"
+        "android": "expo run:android",
+        "ios": "expo run:ios",
+        "start": "expo start"
       },
       "dependencies": {
-        "@react-native/new-app-screen": "0.88.1",
+        "expo": "~58.0.26",
+        "expo-router": "~58.0.32",
         "react": "19.3.0",
-        "react-native": "0.88.1",
-        "react-native-safe-area-context": "^5.5.2"
+        "react-native": "0.88.1"
       }
     },
     "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",
-    "app.json": { "name": "AcmeShop", "displayName": "Acme Shop" },
-    "android/app/src/main/java/com/acmeshop/MainActivity.kt": "package com.acmeshop\n\nimport com.facebook.react.ReactActivity\n\nclass MainActivity : ReactActivity() {\n  override fun getMainComponentName(): String = \"AcmeShop\"\n}\n",
-    "metro.config.js": "const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');\n\nconst config = {};\n\nmodule.exports = mergeConfig(getDefaultConfig(__dirname), config);\n",
+    "app.json": {
+      "expo": {
+        "name": "Acme Shop",
+        "slug": "acme-shop",
+        "web": { "output": "server" },
+        "plugins": ["expo-router"]
+      }
+    },
+    "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\n\nmodule.exports = getDefaultConfig(__dirname);\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",
       "version": "0.88.1",
       "main": "index.js"
     },
-    "node_modules/react-native/index.js": ""
+    "node_modules/react-native/index.js": "",
+    "node_modules/expo/package.json": {
+      "name": "expo",
+      "version": "58.0.26",
+      "main": "index.js"
+    },
+    "node_modules/expo/index.js": "",
+    "node_modules/expo-router/package.json": {
+      "name": "expo-router",
+      "version": "58.0.32",
+      "main": "entry.js"
+    },
+    "node_modules/expo-router/entry.js": ""
   },
   "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": {
@@ -64,9 +83,9 @@
     },
     {
       "call": "createProject",
-      "with": { "teamId": "k7m2p9qx", "name": "acme-shop" },
+      "with": { "teamId": "k7m2p9qx", "name": "Acme Shop" },
       "answer": {
-        "name": "acme-shop",
+        "name": "Acme Shop",
         "index": 1,
         "projectToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaak7m2p9qx1"
       }
@@ -99,25 +118,27 @@
       "wrote": {
         "package.json": {
           "name": "acme-shop",
-          "version": "0.0.1",
+          "version": "1.0.0",
           "private": true,
+          "main": "expo-router/entry",
           "scripts": {
-            "android": "react-native run-android",
-            "ios": "react-native run-ios",
-            "start": "react-native start"
+            "android": "expo run:android",
+            "ios": "expo run:ios",
+            "start": "expo start"
           },
           "dependencies": {
-            "@react-native/new-app-screen": "0.88.1",
             "@storybook/react-native": "10.7.2",
             "@storybook/react-native-ui-lite": "10.7.2",
+            "expo": "~58.0.26",
+            "expo-router": "~58.0.32",
             "react": "19.3.0",
             "react-native": "0.88.1",
-            "react-native-safe-area-context": "^5.5.2",
+            "react-native-safe-area-context": "~5.11.1",
             "storybook": "10.6.8"
           }
         },
         "pnpm-workspace.yaml": "allowBuilds:\n  # Added by Sherlo: Storybook brings esbuild, whose install script your app does not need.\n  # Without an answer here, pnpm stops the install.\n  esbuild: false\n",
-        "metro.config.js": "const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');\nconst { withStorybook } = require('@storybook/react-native/metro/withStorybook');\n\nconst config = {};\n\nmodule.exports = withStorybook(mergeConfig(getDefaultConfig(__dirname), config), { liteMode: true });\n",
+        "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nconst config = getDefaultConfig(__dirname);\n\nmodule.exports = withStorybook(config, { liteMode: true });\n",
         ".rnstorybook/index.ts": "import { LiteUI } from '@storybook/react-native-ui-lite';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({\n  CustomUIComponent: LiteUI,\n  shouldPersistSelection: false,\n});\n\nexport default StorybookUIRoot;\n",
         "node_modules/@storybook/react-native/package.json": {
           "name": "@storybook/react-native",

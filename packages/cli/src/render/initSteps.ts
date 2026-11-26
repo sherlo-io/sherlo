@@ -88,9 +88,11 @@ export function renderFailedStepLine(name: string): string[] {
  *   - `old-setup`: Storybook renders from the app's own root. Two equal choices, the recommended one
  *     first: move to the default setup, on any supported Storybook, or keep the
  *     old setup and render Storybook in Sherlo's testing mode - each with its code on the screen.
- *   - `example-stories` and `old-setup-example-stories`: the same as `default-setup` and
- *     `old-setup`, but the only stories are Storybook's examples, so the next step is to replace
- *     them with the app's own.
+ *   - `not-started`: Storybook was installed before, but no app file imports its folder, so nothing
+ *     starts it: the same two choices as `installed`, with nothing to remove.
+ *   - `example-stories`, `old-setup-example-stories` and `not-started-example-stories`: the same as
+ *     `default-setup`, `old-setup` and `not-started`, but the only stories are Storybook's
+ *     examples, so the next step is to replace them with the app's own.
  *
  * The person reads "the default setup" and "the old setup", the same names everywhere.
  *
@@ -118,7 +120,9 @@ export function renderNextSteps({
     | 'default-setup'
     | 'example-stories'
     | 'old-setup'
-    | 'old-setup-example-stories';
+    | 'old-setup-example-stories'
+    | 'not-started'
+    | 'not-started-example-stories';
   /**
    * Why the app's story list could not be read (../commands/init/steps/hasStoriesOfItsOwn), or
    * null. With it, setup cannot tell the app's stories from Storybook's examples, so the line is
@@ -174,28 +178,6 @@ export function renderNextSteps({
               `AppRegistry.registerComponent('${rootRegistration.name}', () => StorybookUIRoot);`
             ),
           ];
-  // A STORYBOOK SETUP JUST INSTALLED has no code of the app's own that renders Storybook, so there
-  // is nothing to remove. NO UPGRADE ON ANY SUPPORTED VERSION: Sherlo's withStorybook does the swap,
-  // so the registration opens Storybook on 9.0 as on 10 (proven on device, Expo and bare).
-  const isFreshInstall = storybook === 'installed';
-  const removeOldRender = isFreshInstall
-    ? []
-    : ["   Then remove your app's code that renders Storybook, and its import."];
-  // EACH CHOICE IS A BLOCK: its name bold and alone on its line, a blank line between the two, so
-  // the eye finds a) and b) before reading either.
-  const defaultSetupChoice = [
-    // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up.
-    chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
-    `   In ${storybookIndexFile ?? "your Storybook folder's index file"}, below StorybookUIRoot, add:`,
-    ...registerRoot.map((line) => `     ${line}`),
-    ...removeOldRender,
-  ];
-  // THE SAME TWO CHOICES after a fresh install and on the old setup; only the reason Sherlo can't
-  // open Storybook alone differs.
-  const openStorybookStep = (reason: string) => ({
-    title: 'Let Sherlo open Storybook',
-    content: [`${reason} Pick one:`, '', ...defaultSetupChoice, '', ...keepSetupChoice],
-  });
   // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the line names the file setup found,
   // never a guess. With none found it names no file, and a comment says which file the path is
   // from: the most common place, so the path is right for most apps and checkable for the rest.
@@ -211,6 +193,44 @@ export function renderNextSteps({
     `     ${renderCode(rootComponent.found || !storybookFolder ? storybookImport : `${storybookImport} // path from ${rootComponent.file}`)}`,
     `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
   ];
+  // EACH CHOICE IS A BLOCK: its name bold and alone on its line, a blank line between the two, so
+  // the eye finds a) and b) before reading either. NO UPGRADE ON ANY SUPPORTED VERSION: Sherlo's
+  // withStorybook does the swap, so the registration opens Storybook on 9.0 as on 10 (proven on
+  // device, Expo and bare).
+  const defaultSetupChoice = (removesOldRender: boolean) => [
+    // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up.
+    chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
+    `   In ${storybookIndexFile ?? "your Storybook folder's index file"}, below StorybookUIRoot, add:`,
+    ...registerRoot.map((line) => `     ${line}`),
+    ...(removesOldRender
+      ? ["   Then remove your app's code that renders Storybook, and its import."]
+      : []),
+  ];
+  // THE SAME TWO CHOICES whether or not the app starts Storybook; only the reason Sherlo can't open
+  // it alone differs, and code to remove exists only where an app file was seen importing the
+  // Storybook folder (../commands/init/steps/storybookSetup).
+  const openStorybookStep = (
+    reason: string,
+    { removesOldRender }: { removesOldRender: boolean }
+  ) => ({
+    title: 'Let Sherlo open Storybook',
+    content: [
+      `${reason} Pick one:`,
+      '',
+      ...defaultSetupChoice(removesOldRender),
+      '',
+      ...keepSetupChoice,
+    ],
+  });
+  // Just installed, or installed before and never started from the app: the same words.
+  const notStartedStep = openStorybookStep(
+    "Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it.",
+    { removesOldRender: false }
+  );
+  const oldSetupStep = openStorybookStep(
+    "Storybook starts from your app's code, so Sherlo can't open it alone.",
+    { removesOldRender: true }
+  );
 
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
   // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
@@ -249,27 +269,27 @@ export function renderNextSteps({
   // THE FIRST TEST COMES LAST, after the app's own stories, so it never photographs Storybook's
   // examples - and it is still listed, so an agent that wrote the stories knows what runs next.
   const storybookSteps: Record<typeof storybook, Array<{ title: string; content: string[] }>> = {
-    installed: [
-      openStorybookStep(
-        "Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it."
-      ),
-      replaceExampleStoriesStep,
-    ],
+    installed: [notStartedStep, replaceExampleStoriesStep],
     'default-setup': [],
     // The app's Storybook is the person's own and already opens, but the stories are still
     // Storybook's examples.
     'example-stories': [replaceExampleStoriesStep],
-    'old-setup': [
-      openStorybookStep("Storybook starts from your app's code, so Sherlo can't open it alone."),
-    ],
-    'old-setup-example-stories': [
-      openStorybookStep("Storybook starts from your app's code, so Sherlo can't open it alone."),
-      replaceExampleStoriesStep,
-    ],
+    'old-setup': [oldSetupStep],
+    'old-setup-example-stories': [oldSetupStep, replaceExampleStoriesStep],
+    'not-started': [notStartedStep],
+    'not-started-example-stories': [notStartedStep, replaceExampleStoriesStep],
   };
+
+  // A STORY LIST SETUP COULD NOT READ IS A STEP OF ITS OWN, right before the first test, which would
+  // fail on it too. The step names the file and the error; a story list is only unreadable in a
+  // folder setup found, so the file is always named.
+  const fixStoryListStep = storyListUnreadable
+    ? [{ title: `Fix ${storybookMainFile}`, content: [storyListUnreadable] }]
+    : [];
 
   const steps = [
     ...storybookSteps[storybook],
+    ...fixStoryListStep,
     {
       title: 'Run your first visual test',
       // THE WAIT IS FOR AGENTS ONLY: a build outlasts an agent's command time limit, so it is told
@@ -303,7 +323,6 @@ export function renderNextSteps({
     ...(steps.length === 1
       ? renderSectionTitle('👉 Next step', 12)
       : renderSectionTitle('👉 Next steps', 13)),
-    ...(storyListUnreadable ? [storyListUnreadable, ''] : []),
     // The last step's blank line goes: nothing follows it in this section.
     ...stepLines.slice(0, -1),
   ];

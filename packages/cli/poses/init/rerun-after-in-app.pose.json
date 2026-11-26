@@ -25,6 +25,7 @@
     },
     ".github/workflows/sherlo.yml": "name: Sherlo\n",
     ".rnstorybook/index.ts": "import { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({});\n\nexport default StorybookUIRoot;\n",
+    ".rnstorybook/main.ts": "import type { StorybookConfig } from '@storybook/react-native';\n\nconst main: StorybookConfig = {\n  stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'],\n};\n\nexport default main;\n",
     "src/app/_layout.tsx": "import { Stack } from 'expo-router';\nimport { isStorybookMode } from '@sherlo/react-native-storybook';\nimport Storybook from '../../.rnstorybook';\n\nexport default function RootLayout() {\n  if (isStorybookMode) return <Storybook />;\n\n  return <Stack />;\n}\n",
     "src/Button.stories.tsx": "import { Button } from './Button';\n\nexport default { component: Button };\n\nexport const Default = { args: { title: 'Default' } };\n",
     "node_modules/react-native/package.json": {
