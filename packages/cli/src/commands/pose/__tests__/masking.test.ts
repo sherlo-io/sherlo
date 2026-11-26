@@ -614,7 +614,7 @@ describe('the versions sherlo init shows', () => {
     );
   });
 
-  it("keeps another Sherlo SDK version and the range setup asks for: the picture shows them", () => {
+  it('keeps another Sherlo SDK version and the range setup asks for: the picture shows them', () => {
     const installed = [
       `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 2.9.9${ESC}[22m`,
       '  yarn add @sherlo/react-native-storybook@^3',
