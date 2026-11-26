@@ -144,7 +144,7 @@ async function checkTheApp(): Promise<CheckedProject> {
           folder && metroConfigPath
             ? {
                 folder,
-                wasInGit: await surroundings().wasEverInGit(getCwd(), folder),
+                deletedIn: await surroundings().commitThatDeleted(getCwd(), folder),
                 metroConfig: path.relative(getCwd(), metroConfigPath),
               }
             : null

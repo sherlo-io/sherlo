@@ -210,8 +210,14 @@ export type PosedGit =
       historyFetchRefused?: string;
       /** The address of every remote the repository names; left out for a repository that has none yet. */
       remotes?: string[];
-      /** Folders git's history held that are gone from the project now; left out when there are none. */
-      gone?: string[];
+      /**
+       * Folders git's history held that are gone from the project now, each with the short hash of the
+       * commit that deleted it; left out when there are none.
+       */
+      gone?: Array<{
+        folder: string;
+        deletedIn: string;
+      }>;
     };
 
 /** One platform's bundle as the bundler reports it. */

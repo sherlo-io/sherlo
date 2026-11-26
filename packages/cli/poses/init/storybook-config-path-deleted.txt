@@ -16,7 +16,8 @@ Setting up Sherlo...
 
 [31mERROR: Storybook is installed, but its folder .ondevice is missing[39m
 
-[0mGit held .ondevice before. Restore it from git.[0m
+[0mCommit 9c2e7b1 deleted .ondevice. Restore it from the commit before:[0m
+[36m  git checkout 9c2e7b1^ -- .ondevice[39m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

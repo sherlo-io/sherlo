@@ -311,7 +311,8 @@ export function renderStorybookConfigPathUnread({
  * Metro config names, or with none named, either of Storybook's defaults. Setup stops before any
  * change, as every later step and next step reads that folder.
  *
- * A folder git once held was deleted, so it is restored. A named folder git never held was never
+ * A folder git once held was deleted, so it is restored from the commit before the one that deleted
+ * it, with the exact command. A named folder git never held was never
  * there: the Metro config's configPath points at the wrong place, and restoring is no fix.
  */
 export function renderStorybookFolderMissing(
@@ -321,8 +322,8 @@ export function renderStorybookFolderMissing(
    */
   named: {
     folder: string;
-    /** Whether git's history held the folder. */
-    wasInGit: boolean;
+    /** The short hash of the commit that deleted the folder, or null when git never held it. */
+    deletedIn: string | null;
     /** The Metro config that names it, from the app's folder. */
     metroConfig: string;
   } | null
@@ -334,10 +335,14 @@ export function renderStorybookFolderMissing(
     );
   }
 
-  const { folder, wasInGit, metroConfig } = named;
+  const { folder, deletedIn, metroConfig } = named;
   const message = `Storybook is installed, but its folder ${folder} is missing`;
-  if (wasInGit) {
-    return refusal(message, [words(`Git held ${folder} before. Restore it from git.`), ...rerun()]);
+  if (deletedIn) {
+    return refusal(message, [
+      words(`Commit ${deletedIn} deleted ${folder}. Restore it from the commit before:`),
+      code(`git checkout ${deletedIn}^ -- ${folder}`),
+      ...rerun(),
+    ]);
   }
   return refusal(message, [
     words(`Git never held ${folder}, so there is nothing to restore.`),
