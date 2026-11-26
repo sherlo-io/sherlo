@@ -49,6 +49,7 @@ import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
 import { runningAgent } from '../commands/feedback/runningAgent';
 import { packageNameOfSpecifier } from '../commands/test/lockfilePackages';
+import { version as cliVersion } from '../../package.json';
 import { installedPodsAreCurrent } from '../helpers/installedPods';
 import runShellCommand from '../helpers/runShellCommand';
 import { decideScenesForProject, rememberedScenesFlag } from '../helpers/scenesFlag';
@@ -304,9 +305,11 @@ export type UnansweredAct = { call: string; problem: string };
 /** The acts `sherlo init` performs on the machine, as a pose states them. */
 export type PosedWorkstation = {
   /**
-   * What the package manager answered when asked to add Sherlo: the package it installed, version
-   * and all (`"@sherlo/react-native-storybook@2.0.2"`). Checked against the package the command
-   * actually asked for, so a pose cannot answer an install the command never made.
+   * What the package manager answered when asked to add Sherlo: the package it installed, with the
+   * version it chose (`"@sherlo/react-native-storybook@3.1.4"`), or the bare name for this CLI's own
+   * version, the one a manager takes on any day but the day it comes out. The name is checked
+   * against the package the command asked for, so a pose cannot answer an install the command
+   * never made, and the package is laid into the project's node_modules at that version.
    */
   install: {
     package: string;
@@ -394,7 +397,7 @@ export function posedWorkstation(
           ]
         : refusals,
 
-    addPackage: async ({ packageSpec }) => {
+    addPackage: async ({ packageSpec, projectRoot }) => {
       packageInstallWasAsked = true;
 
       if (!posed) {
@@ -422,6 +425,17 @@ export function posedWorkstation(
       if (posed.install.failed) {
         throw installFailure(new Error('the package manager failed'), posed.install.failed);
       }
+
+      // The package lands in node_modules the way a real install leaves it, so what setup reads
+      // back afterwards is the version the pose says the manager chose.
+      const installedName = packageNameOfSpecifier(installedPackage);
+      const installedVersion = installedPackage.slice(installedName.length + 1) || cliVersion;
+      const installedPackageFolder = path.join(projectRoot, 'node_modules', installedName);
+      fs.mkdirSync(installedPackageFolder, { recursive: true });
+      fs.writeFileSync(
+        path.join(installedPackageFolder, 'package.json'),
+        `${JSON.stringify({ name: installedName, version: installedVersion }, null, 2)}\n`
+      );
     },
 
     installStorybook: async ({ projectRoot, pnpmSettingsFile }) => {

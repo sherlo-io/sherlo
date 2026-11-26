@@ -29,14 +29,14 @@ Opening your browser to log in to Sherlo...
 [31mERROR: Sherlo couldn't be installed[39m
 
 [2mnpm error code ETARGET[22m
-[2mnpm error notarget No matching version found for @sherlo/react-native-storybook@<SHERLO_VERSION>[22m
+[2mnpm error notarget No matching version found for @sherlo/react-native-storybook@^3.[22m
 [2mnpm error notarget In most cases you or one of your dependencies are requesting a package version that doesn't exist.[22m
 
 [0mFull output: <LOG_FILE>[0m
 [0mnpm's own log: /Users/anna/.npm/_logs/2026-10-01T12_00_00_000Z-debug-0.log[0m
 
 [0mFix the error, or install Sherlo yourself:[0m
-[36m  npm i @sherlo/react-native-storybook[39m
+[36m  npm i @sherlo/react-native-storybook@^3[39m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

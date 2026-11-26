@@ -141,7 +141,7 @@
   },
   "workstation": {
     "install": {
-      "package": "@sherlo/react-native-storybook@2.0.2",
+      "package": "@sherlo/react-native-storybook",
       "failed": {
         "stdout": "yarn add v1.22.22\n[1/4] Resolving packages...\ninfo Visit https://yarnpkg.com/en/docs/cli/add for documentation about this command.\n",
         "stderr": "error Couldn't find any versions for \"@sherlo/react-native-storybook\" that matches \"2.0.2\"\n"

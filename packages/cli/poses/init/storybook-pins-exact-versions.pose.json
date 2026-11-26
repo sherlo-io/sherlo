@@ -96,7 +96,7 @@
   },
   "workstation": {
     "install": {
-      "package": "@sherlo/react-native-storybook@2.0.2",
+      "package": "@sherlo/react-native-storybook",
       "failed": {
         "stdout": "",
         "stderr": "npm error code ERESOLVE\nnpm error ERESOLVE could not resolve\nnpm error\nnpm error While resolving: @storybook/react-native@10.6.1\nnpm error Found: react-native-safe-area-context@5.11.1\nnpm error node_modules/react-native-safe-area-context\nnpm error   react-native-safe-area-context@\"~5.11.1\" from the root project\nnpm error\nnpm error Could not resolve dependency:\nnpm error peer react-native-safe-area-context@\"5.8.0\" from @storybook/react-native@10.6.1\nnpm error node_modules/@storybook/react-native\nnpm error   @storybook/react-native@\"10.6.1\" from the root project\nnpm error\nnpm error Fix the upstream dependency conflict, or retry\nnpm error this command with --force or --legacy-peer-deps\nnpm error to accept an incorrect (and potentially broken) dependency resolution.\nnpm error\nnpm error\nnpm error For a full report see:\nnpm error /Users/anna/.npm/_logs/2026-11-25T09_00_00_000Z-eresolve-report.txt\nnpm error A complete log of this run can be found in: /Users/anna/.npm/_logs/2026-11-25T09_00_00_000Z-debug-0.log\n"

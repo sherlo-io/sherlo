@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { describe, expect, it, vi } from 'vitest';
+import { version as cliVersion } from '../../../../package.json';
 import start from '../../../start';
 import { CLASSES_THE_TOOL_FOLDS, maskScreen } from '../maskScreen';
 import { applyMasks } from '../pose';
@@ -595,11 +596,12 @@ describe('the versions sherlo init shows', () => {
     );
   });
 
-  it('folds the Storybook and Sherlo versions setup installed', () => {
+  it("folds the Storybook version setup installed, and the Sherlo SDK at the CLI's own version", () => {
     const installed = [
       `${ESC}[32m✔${ESC}[39m Installed Storybook    ${ESC}[2m@storybook/react-native 10.6.2${ESC}[22m`,
-      `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 3.0.0-alpha.0${ESC}[22m`,
-      '  yarn add @sherlo/react-native-storybook@3.0.0',
+      `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook ${cliVersion}${ESC}[22m`,
+      `  yarn add @sherlo/react-native-storybook@${cliVersion}`,
+      'npm error notarget No matching version found for @sherlo/react-native-storybook@file:/tmp/sdk.tgz.',
     ].join('\n');
 
     expect(maskScreen(installed, {})).toBe(
@@ -607,8 +609,18 @@ describe('the versions sherlo init shows', () => {
         `${ESC}[32m✔${ESC}[39m Installed Storybook    ${ESC}[2m@storybook/react-native <STORYBOOK_VERSION>${ESC}[22m`,
         `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook <SHERLO_VERSION>${ESC}[22m`,
         '  yarn add @sherlo/react-native-storybook@<SHERLO_VERSION>',
+        'npm error notarget No matching version found for @sherlo/react-native-storybook@<SHERLO_VERSION>.',
       ].join('\n')
     );
+  });
+
+  it("keeps another Sherlo SDK version and the range setup asks for: the picture shows them", () => {
+    const installed = [
+      `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 2.9.9${ESC}[22m`,
+      '  yarn add @sherlo/react-native-storybook@^3',
+    ].join('\n');
+
+    expect(maskScreen(installed, {})).toBe(installed);
   });
 
   it('keeps the version a refusal names and the oldest supported one', () => {

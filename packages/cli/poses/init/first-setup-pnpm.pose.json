@@ -92,7 +92,7 @@
   ],
   "masks": {},
   "workstation": {
-    "install": { "package": "@sherlo/react-native-storybook@2.0.2" },
+    "install": { "package": "@sherlo/react-native-storybook" },
     "storybook": {
       "wrote": {
         "package.json": {

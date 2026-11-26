@@ -53,7 +53,8 @@ async function installSherlo(): Promise<void> {
   }
 
   // An SDK the app already depends on (the step before this one left it alone when it is at this
-  // tool's version) is at another version: it gets this tool's version, and the line says Updated.
+  // tool's version) is at another version: it gets the newest its range allows, and the line says
+  // Updated.
   const hadSdk = Boolean(
     packageJson.dependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME] ??
     packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]
@@ -107,11 +108,11 @@ async function installSherlo(): Promise<void> {
       });
     }
 
-    // The fix line names the package with no version: a version that failed to download fails
-    // again when copied, and the bare name installs the newest.
+    // The fix line names the same package the install asked for, so the person's retry gets what
+    // setup would have installed.
     throwError({
       ...renderInstallFailed({
-        command: addCommand(tool, [SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]),
+        command: commandToRun,
         tool,
         output,
         logFile,
@@ -120,12 +121,20 @@ async function installSherlo(): Promise<void> {
     });
   }
 
+  // The version the manager actually chose, read back from node_modules: on the day this CLI's
+  // version comes out, Yarn 4 refuses a version under a day old and installs the one before it.
+  // A project with no node_modules (Yarn Plug'n'Play) has nothing to read, so the line names the
+  // range that was asked for.
+  const installedVersion =
+    getPackageVersion(SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME) ??
+    packageSpec.slice(SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME.length + 1);
+
   spinner.stop();
   printLines([
     renderStepLine({
       outcome: 'done',
       name: hadSdk ? 'Updated Sherlo' : 'Installed Sherlo',
-      detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${cliVersion}`,
+      detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${installedVersion}`,
     }),
   ]);
 }
@@ -150,8 +159,9 @@ export function managerCommand(
  * The SDK a new install asks the package manager for. SHERLO_SDK_PATH (set e.g. by sherlo-tester)
  * installs from local source: a .tgz through file: (a real copy into node_modules, which Metro and
  * EAS need to resolve it), a directory through portal: (a symlink, for directory-based dev
- * iteration). SHERLO_SDK_VERSION names a published version. Otherwise it is the SDK version this
- * CLI ships with, so the two always match.
+ * iteration). SHERLO_SDK_VERSION names a published version. Otherwise it is a range on this CLI's
+ * major version (`^3`), never the exact version: Yarn 4 refuses a version under a day old when it
+ * is named exactly (YN0016), while from a range every manager takes the newest it allows.
  */
 export function sherloSdkPackageSpec(
   localSdkPath: string | undefined,
@@ -162,7 +172,7 @@ export function sherloSdkPackageSpec(
     return `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${localSdkProtocol}:${localSdkPath}`;
   }
 
-  return `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion || cliVersion}`;
+  return `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion || `^${cliVersion.split('.')[0]}`}`;
 }
 
 export default installSherlo;

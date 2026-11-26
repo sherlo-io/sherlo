@@ -101,5 +101,5 @@
       "token": "sht_poselogintoken00000000000000000"
     }
   },
-  "workstation": { "install": { "package": "@sherlo/react-native-storybook@3.0.0-alpha.0" } }
+  "workstation": { "install": { "package": "@sherlo/react-native-storybook" } }
 }

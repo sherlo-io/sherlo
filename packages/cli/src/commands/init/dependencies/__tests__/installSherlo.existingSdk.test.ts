@@ -58,16 +58,41 @@ afterEach(() => {
   fs.rmSync(projectRoot.path, { recursive: true, force: true });
 });
 
+/** The range setup asks the package manager for: this tool's major version. */
+const CLI_MAJOR_RANGE = `^${cliVersion.split('.')[0]}`;
+
+/** The package manager installs this version from the range it was asked for. */
+function managerInstalls(version: string): void {
+  workstationAnswers.addPackage.mockImplementation(async () => {
+    installedSdk.version = version;
+  });
+}
+
 describe('the Sherlo step by what the app already has', () => {
-  it("no SDK yet: installs this tool's version and says Installed", async () => {
+  it('no SDK yet: asks for the range, names the version installed and says Installed', async () => {
     writePackageJson({ dependencies: {} });
+    managerInstalls(cliVersion);
 
     await sherloSdk();
 
     expect(workstationAnswers.addPackage).toHaveBeenCalledOnce();
+    expect(workstationAnswers.addPackage.mock.calls[0][0].packageSpec).toBe(
+      `${SDK}@${CLI_MAJOR_RANGE}`
+    );
     expect(printedText()).toContain(`Installed Sherlo`);
     expect(printedText()).toContain(`${SDK} ${cliVersion}`);
     expect(printedText()).not.toContain('already done');
+  });
+
+  it("the day this tool's version comes out: the line names the older version installed", async () => {
+    writePackageJson({ dependencies: {} });
+    managerInstalls('2.9.9');
+
+    await sherloSdk();
+
+    expect(printedText()).toContain(`Installed Sherlo`);
+    expect(printedText()).toContain(`${SDK} 2.9.9`);
+    expect(printedText()).not.toContain(`${SDK} ${cliVersion}`);
   });
 
   it("the SDK at this tool's version: changes nothing and says already done", async () => {
@@ -82,9 +107,10 @@ describe('the Sherlo step by what the app already has', () => {
     expect(printedText()).toContain('(already done)');
   });
 
-  it("the SDK at another version: installs this tool's version and says Updated", async () => {
+  it('the SDK at another version: names the version installed and says Updated', async () => {
     writePackageJson({ devDependencies: { [SDK]: '2.0.2' } });
     installedSdk.version = '2.0.2';
+    managerInstalls(cliVersion);
 
     await sherloSdk();
 

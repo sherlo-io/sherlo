@@ -7,12 +7,17 @@
  * started with is what is read, and no `pod install` runs.
  *
  * The posed workstation's refusals: a `pods` answer the run never used is refused only when the run
- * reached the dependencies step.
+ * reached the dependencies step. Its install lays the package into node_modules at the version the
+ * pose answers.
  */
 import { EventEmitter } from 'node:events';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { defaultAgents } from 'agent-cli-detector';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ansiEscapes from 'ansi-escapes';
+import { version as cliVersion } from '../../../package.json';
 import waitForEnterPress from '../../commands/init/helpers/waitForEnterPress';
 import { forgetScenesFlag } from '../../helpers/scenesFlag';
 import { installSavedLogins, liveSavedLogins } from '../savedLogins';
@@ -145,13 +150,38 @@ describe('the posed workstation', () => {
       enter: 'pressed',
     });
 
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'posed-install-'));
     await posed.addPackage({
-      packageSpec: '@sherlo/react-native-storybook',
-      command: 'yarn add @sherlo/react-native-storybook',
-      projectRoot: '/nowhere',
+      packageSpec: '@sherlo/react-native-storybook@^3',
+      command: 'yarn add @sherlo/react-native-storybook@^3',
+      projectRoot,
     });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
 
     expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'installPods' })]);
+  });
+
+  it.each([
+    ['the version the pose names', '@sherlo/react-native-storybook@2.0.2', '2.0.2'],
+    ["the CLI's own version for the bare name", '@sherlo/react-native-storybook', cliVersion],
+  ])('a posed install lays the package into node_modules at %s', async (_, answer, version) => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'posed-install-'));
+    const posed = posedWorkstation({ install: { package: answer } });
+
+    await posed.addPackage({
+      packageSpec: '@sherlo/react-native-storybook@^3',
+      command: 'yarn add @sherlo/react-native-storybook@^3',
+      projectRoot,
+    });
+    const installed = JSON.parse(
+      fs.readFileSync(
+        path.join(projectRoot, 'node_modules/@sherlo/react-native-storybook/package.json'),
+        'utf-8'
+      )
+    );
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+
+    expect(installed).toEqual({ name: '@sherlo/react-native-storybook', version });
   });
 });
 

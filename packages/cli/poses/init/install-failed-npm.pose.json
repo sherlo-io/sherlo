@@ -147,10 +147,10 @@
   },
   "workstation": {
     "install": {
-      "package": "@sherlo/react-native-storybook@2.0.2",
+      "package": "@sherlo/react-native-storybook",
       "failed": {
         "stdout": "",
-        "stderr": "npm error code ETARGET\nnpm error notarget No matching version found for @sherlo/react-native-storybook@2.0.2.\nnpm error notarget In most cases you or one of your dependencies are requesting a package version that doesn't exist.\nnpm error A complete log of this run can be found in: /Users/anna/.npm/_logs/2026-10-01T12_00_00_000Z-debug-0.log\n"
+        "stderr": "npm error code ETARGET\nnpm error notarget No matching version found for @sherlo/react-native-storybook@^3.\nnpm error notarget In most cases you or one of your dependencies are requesting a package version that doesn't exist.\nnpm error A complete log of this run can be found in: /Users/anna/.npm/_logs/2026-10-01T12_00_00_000Z-debug-0.log\n"
       }
     },
     "storybook": {

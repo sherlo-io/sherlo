@@ -57,7 +57,7 @@ describe('installSherlo into an app with no SDK', () => {
     fs.rmSync(projectRoot.path, { recursive: true, force: true });
   });
 
-  it('a new install pins the SDK version this CLI ships with and adds it to dependencies', async () => {
+  it("a new install asks for a range on this CLI's major version, never its exact version", async () => {
     fs.writeFileSync(
       path.join(projectRoot.path, 'package.json'),
       JSON.stringify({ devDependencies: { typescript: '^5.0.0' } })
@@ -67,7 +67,8 @@ describe('installSherlo into an app with no SDK', () => {
 
     expect(workstationAnswers.addPackage).toHaveBeenCalledTimes(1);
     const [{ packageSpec, command }] = workstationAnswers.addPackage.mock.calls[0];
-    expect(packageSpec).toBe(`${PKG}@${cliVersion}`);
-    expect(command).toBe(`npm i ${PKG}@${cliVersion}`);
+    const majorRange = `^${cliVersion.split('.')[0]}`;
+    expect(packageSpec).toBe(`${PKG}@${majorRange}`);
+    expect(command).toBe(`npm i ${PKG}@${majorRange}`);
   });
 });

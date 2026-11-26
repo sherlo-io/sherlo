@@ -30,6 +30,7 @@
  */
 /* eslint-disable no-control-regex */
 import fs from 'fs';
+import { version as cliVersion } from '../../../package.json';
 import { GITHUB_SESSION_PREFIX } from '../../constants';
 import exitAfterOutput from '../../helpers/exitAfterOutput';
 import { foldAndroidBuild, foldIosBuild } from './foldNativeBuilds';
@@ -474,16 +475,20 @@ function foldInstalledStorybookVersion(screen: string): string {
 }
 
 /**
- * The SDK version `sherlo init` installs - a published number, a local tarball, whatever it is -
- * written after an `@` in a command, or after a space on the `Installed Sherlo` line.
+ * The SDK at this CLI's own version, or from a local tarball or folder, written after an `@` in a
+ * command or after a space on the `Installed Sherlo` line: both move with every release. Any other
+ * version (the older one a manager installs on the day this CLI's comes out) and the range setup
+ * asks for (`^3`) are what the picture shows, and stay.
  */
 function foldInstalledSdkVersion(screen: string): string {
-  return screen
-    .replace(/(@sherlo\/react-native-storybook)@[^\s"'`\u001b]+/g, '$1@<SHERLO_VERSION>')
-    .replace(
-      /(@sherlo\/react-native-storybook) (?:\d|file:|\/)[^\s\u001b]*/g,
-      '$1 <SHERLO_VERSION>'
-    );
+  const fold = (whole: string, name: string, separator: string, spec: string, dot: string) =>
+    spec === cliVersion || /^(?:file:|portal:|\/)/.test(spec)
+      ? `${name}${separator}<SHERLO_VERSION>${dot}`
+      : whole;
+  return screen.replace(
+    /(@sherlo\/react-native-storybook)([@ ])([^\s"'`\u001b]+?)(\.?)(?=[\s"'`\u001b]|$)/g,
+    fold
+  );
 }
 
 /**

@@ -28,12 +28,12 @@ Opening your browser to log in to Sherlo...
 
 [31mERROR: Sherlo couldn't be installed[39m
 
-[2mYN0082: @sherlo/react-native-storybook@<SHERLO_VERSION> No candidates found[22m
+[2mYN0082: @sherlo/react-native-storybook@npm:^3: No candidates found[22m
 
 [0mFull output: <LOG_FILE>[0m
 
 [0mFix the error, or install Sherlo yourself:[0m
-[36m  yarn add @sherlo/react-native-storybook[39m
+[36m  yarn add @sherlo/react-native-storybook@^3[39m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

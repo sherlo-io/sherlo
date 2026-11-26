@@ -141,9 +141,9 @@
   },
   "workstation": {
     "install": {
-      "package": "@sherlo/react-native-storybook@2.0.2",
+      "package": "@sherlo/react-native-storybook",
       "failed": {
-        "stdout": "\u2009ERR_PNPM_NO_MATCHING_VERSION\u2009 No matching version found for @sherlo/react-native-storybook@2.0.2 while fetching it from https://registry.npmjs.org/\n\nThe latest release of @sherlo/react-native-storybook is \"2.0.1\".\n\nIf you need the full list of all 97 published versions run \"pnpm view @sherlo/react-native-storybook versions\".\n",
+        "stdout": "\u2009ERR_PNPM_NO_MATCHING_VERSION\u2009 No matching version found for @sherlo/react-native-storybook@^3 while fetching it from https://registry.npmjs.org/\n\nThe latest release of @sherlo/react-native-storybook is \"2.0.1\".\n\nIf you need the full list of all 97 published versions run \"pnpm view @sherlo/react-native-storybook versions\".\n",
         "stderr": ""
       }
     },

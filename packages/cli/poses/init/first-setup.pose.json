@@ -179,7 +179,7 @@
   },
   "workstation": {
     "install": {
-      "package": "@sherlo/react-native-storybook@2.0.2"
+      "package": "@sherlo/react-native-storybook"
     },
     "storybook": {
       "wrote": {
