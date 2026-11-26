@@ -3,6 +3,7 @@
   "argv": ["init"],
   "workingFolder": "apps/mobile",
   "files": {
+    "apps/mobile/App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
     "package.json": { "name": "acme", "private": true },
     "pnpm-workspace.yaml": "packages:\n  - apps/*\n",
     "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",

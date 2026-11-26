@@ -9,8 +9,18 @@
  * Pure, like everything under ./: state in, print-call arguments out.
  */
 import chalk from 'chalk';
+import path from 'path';
 import { WRITING_STORIES_GUIDE } from '../constants';
 import { renderCode, renderSectionTitle } from './initLines';
+
+/**
+ * The file the app's root component is in, relative to the app's folder. `found` is false when the
+ * app has none of the usual files; `file` is then the most common place, the import path's base.
+ */
+export interface RootComponentFile {
+  file: string;
+  found: boolean;
+}
 
 /** How wide the step names are padded, so every step's detail starts in the same column. */
 const STEP_NAME_WIDTH = 22;
@@ -87,7 +97,7 @@ export function renderNextSteps({
   storybook,
   storybookFolder,
   isExpo,
-  hasExpoRouter,
+  rootComponent,
   reader,
 }: {
   storybook:
@@ -103,8 +113,8 @@ export function renderNextSteps({
   storybookFolder: string;
   /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
   isExpo: boolean;
-  /** An expo-router app keeps its root component in a route layout, not in App.tsx. */
-  hasExpoRouter: boolean;
+  /** The file the app's root component is in (../commands/init/steps/rootComponentFile). */
+  rootComponent: RootComponentFile;
   reader: FeedbackReader;
 }): string[] {
   // NOTHING LEFT BUT THE TEST, FOR A PERSON: setup starts it, so nobody leaves it for later. The
@@ -150,19 +160,26 @@ export function renderNextSteps({
     title: 'Let Sherlo open Storybook',
     content: [`${reason} Pick one:`, '', ...defaultSetupChoice, '', ...keepSetupChoice],
   });
-  // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the example names that file: an
-  // expo-router app's template keeps it in src/app/_layout.tsx (clean-expo-58), and an app without
-  // expo-router, Expo (clean-expo-55) or bare, in App.tsx beside the Storybook folder.
-  const rootComponent = hasExpoRouter
-    ? { file: 'src/app/_layout.tsx', storybookPath: `../../${storybookFolder}` }
-    : { file: 'App.tsx', storybookPath: `./${storybookFolder}` };
+  // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the line names the file setup found,
+  // never a guess. With none found it names no file, and a comment says which file the path is
+  // from: the most common place, so the path is right for most apps and checkable for the rest.
+  const relativeStorybookPath = path.posix.relative(
+    path.posix.dirname(rootComponent.file),
+    storybookFolder
+  );
+  const storybookPath = /^\.\.?\//.test(relativeStorybookPath)
+    ? relativeStorybookPath
+    : `./${relativeStorybookPath}`;
+  const storybookImport = `import Storybook from '${storybookPath}';`;
   // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that
   // exports its routes for the server builds it too.
   const keepSetupChoice = [
     chalk.bold('b) In-app integration'),
-    `   At the top of your root component (e.g. ${rootComponent.file}), add:`,
+    rootComponent.found
+      ? `   At the top of your root component (${rootComponent.file}), add:`
+      : '   At the top of your root component, add:',
     `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
-    `     ${renderCode(`import Storybook from '${rootComponent.storybookPath}';`)}`,
+    `     ${renderCode(rootComponent.found ? storybookImport : `${storybookImport} // path from ${rootComponent.file}`)}`,
     `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
   ];
 

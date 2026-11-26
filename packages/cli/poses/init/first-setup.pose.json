@@ -2,6 +2,7 @@
   "pose": 1,
   "argv": ["init"],
   "files": {
+    "src/app/_layout.tsx": "import { Stack } from 'expo-router';\n\nexport default function RootLayout() {\n  return <Stack />;\n}\n",
     "package.json": {
       "name": "acme-shop",
       "version": "1.0.0",

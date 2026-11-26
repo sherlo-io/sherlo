@@ -15,6 +15,7 @@ import metroConfig from './metroConfig';
 import checkProject from './steps/checkProject';
 import githubWorkflow from './steps/githubWorkflow';
 import logIn from './steps/logIn';
+import rootComponentFile from './steps/rootComponentFile';
 import sherloSdk from './steps/sherloSdk';
 import storybook from './steps/storybook';
 import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
@@ -77,7 +78,7 @@ async function init(options: Options<THIS_COMMAND>) {
         // A folder Storybook's installer just wrote is its newest default.
         storybookFolder: storybookFolder() ?? NEWEST_STORYBOOK_FOLDER,
         isExpo: !!getPackageVersion(EXPO_PACKAGE_NAME),
-        hasExpoRouter: !!getPackageVersion(EXPO_ROUTER_PACKAGE_NAME),
+        rootComponent: rootComponentFile(!!getPackageVersion(EXPO_ROUTER_PACKAGE_NAME)),
         reader,
       })
     );

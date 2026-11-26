@@ -2,6 +2,7 @@
   "pose": 1,
   "argv": ["init", "--project", "k7m2p9qx/2"],
   "files": {
+    "App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
     "package.json": {
       "name": "acme-shop",
       "version": "1.0.0",
