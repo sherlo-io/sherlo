@@ -45,7 +45,11 @@ const choiceName = (name: string): string => chalk.bold(name);
  * They say the rerun picks up where it stopped, so nobody undoes the steps already done first.
  */
 function rerun(): string[] {
-  return ['', words('Then run setup again. It picks up where it stopped:'), code(typedInitCommand())];
+  return [
+    '',
+    words('Then run setup again. It picks up where it stopped:'),
+    code(typedInitCommand()),
+  ];
 }
 
 function refusal(message: string, below: string[]): InitRefusal {
