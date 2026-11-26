@@ -630,11 +630,18 @@ export type PosedAppBuild = {
 /** The acts `sherlo init` performs on the machine, as a pose states them. */
 export type PosedWorkstation = {
   /**
+   * The version of the Sherlo CLI the pose runs as, e.g. `"3.0.1"`. Left out: the version this CLI
+   * really is. Stated, setup asks for the SDK this version asks for, so one pose holds every
+   * number of an install: the CLI's version, the range it asks for, and the version the manager
+   * chose.
+   */
+  cli?: string;
+  /**
    * What the package manager answered when asked to add Sherlo: the package it installed, with the
-   * version it chose (`"@sherlo/react-native-storybook@3.1.4"`), or the bare name for this CLI's
-   * own version, the one a manager takes on any day but the day it comes out. The name is checked
-   * against the package the command asked for, so a pose cannot answer an install the command
-   * never made, and the package is laid into the project's node_modules at that version.
+   * version it chose (`"@sherlo/react-native-storybook@3.1.4"`), or the bare name for the CLI's
+   * own version (`cli`), the one a manager takes on any day but the day it comes out. The name is
+   * checked against the package the command asked for, so a pose cannot answer an install the
+   * command never made, and the package is laid into the project's node_modules at that version.
    */
   install: {
     package: string;

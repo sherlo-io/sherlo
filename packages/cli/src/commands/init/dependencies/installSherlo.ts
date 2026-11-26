@@ -11,7 +11,6 @@ import {
   spinner as createSpinner,
   throwError,
 } from '../../../helpers';
-import { version as cliVersion } from '../../../../package.json';
 import { renderInstallFailed, renderStorybookPinsExactVersions } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { type InstallFailure, workstation } from '../../../seams/workstation';
@@ -62,7 +61,8 @@ async function installSherlo(): Promise<void> {
 
   const packageSpec = sherloSdkPackageSpec(
     process.env.SHERLO_SDK_PATH,
-    process.env.SHERLO_SDK_VERSION
+    process.env.SHERLO_SDK_VERSION,
+    workstation().sherloVersion()
   );
 
   // Detected FROM THE PROJECT, not from wherever the process happens to be standing - the project
@@ -159,20 +159,31 @@ export function managerCommand(
  * The SDK a new install asks the package manager for. SHERLO_SDK_PATH (set e.g. by sherlo-tester)
  * installs from local source: a .tgz through file: (a real copy into node_modules, which Metro and
  * EAS need to resolve it), a directory through portal: (a symlink, for directory-based dev
- * iteration). SHERLO_SDK_VERSION names a published version. Otherwise it is a range on this CLI's
- * major version (`^3`), never the exact version: Yarn 4 refuses a version under a day old when it
- * is named exactly (YN0016), while from a range every manager takes the newest it allows.
+ * iteration). SHERLO_SDK_VERSION names a published version. Otherwise it is the range the running
+ * CLI's version asks for ({@link sherloSdkVersionRange}).
  */
 export function sherloSdkPackageSpec(
   localSdkPath: string | undefined,
-  sdkVersion: string | undefined
+  sdkVersion: string | undefined,
+  runningCliVersion: string
 ): string {
   if (localSdkPath) {
     const localSdkProtocol = localSdkPath.endsWith('.tgz') ? 'file' : 'portal';
     return `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${localSdkProtocol}:${localSdkPath}`;
   }
 
-  return `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion || `^${cliVersion.split('.')[0]}`}`;
+  return `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion || sherloSdkVersionRange(runningCliVersion)}`;
+}
+
+/**
+ * The SDK versions a CLI of this version asks for: a range on its major (`^3`), never its exact
+ * version, because Yarn 4 refuses a version under a day old when it is named exactly (YN0016),
+ * while from a range every manager takes the newest it allows. A prerelease CLI (`3.0.0-alpha.0`)
+ * asks for its exact version: a `^` range never matches a prerelease.
+ */
+export function sherloSdkVersionRange(runningCliVersion: string): string {
+  const isPrerelease = runningCliVersion.includes('-');
+  return isPrerelease ? runningCliVersion : `^${runningCliVersion.split('.')[0]}`;
 }
 
 export default installSherlo;

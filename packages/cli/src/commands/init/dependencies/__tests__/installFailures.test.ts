@@ -8,6 +8,7 @@ const workstationAnswers = vi.hoisted(() => ({
   addPackage: vi.fn(),
   installPods: vi.fn(),
   podsAreCurrent: () => false,
+  sherloVersion: () => '3.0.1',
 }));
 
 vi.mock('../../../../helpers/getCwd', () => ({ default: () => projectRoot.path }));

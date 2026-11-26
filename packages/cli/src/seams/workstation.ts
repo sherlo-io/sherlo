@@ -57,6 +57,13 @@ import type { PosedFiles } from './projectFiles';
 
 /** Every act `sherlo init` performs on the machine it runs on, and nothing else. */
 export type Workstation = {
+  /**
+   * The version of the Sherlo CLI running setup, e.g. `3.0.1`: the SDK setup asks for is read off
+   * it. A pose names it to draw a release (a release-day install, a major not on the registry yet)
+   * while the tool itself is a prerelease.
+   */
+  sherloVersion(): string;
+
   /** Add one package to the project through its package manager. */
   addPackage(params: {
     /** The package the command asked for, e.g. `@sherlo/react-native-storybook`. */
@@ -180,6 +187,8 @@ async function runInstall(params: {
  * read.
  */
 export const liveWorkstation: Workstation = {
+  sherloVersion: () => cliVersion,
+
   addPackage: async ({ command, projectRoot, env }) => {
     await runInstall({ command, projectRoot, env });
   },
@@ -305,9 +314,15 @@ export type UnansweredAct = { call: string; problem: string };
 /** The acts `sherlo init` performs on the machine, as a pose states them. */
 export type PosedWorkstation = {
   /**
+   * The version of the Sherlo CLI the pose runs as, e.g. `"3.0.1"`. Left out: the version this CLI
+   * really is. Stated, setup asks for the SDK this version asks for, so one pose holds every number
+   * of an install: the CLI's version, the range it asks for, and the version the manager chose.
+   */
+  cli?: string;
+  /**
    * What the package manager answered when asked to add Sherlo: the package it installed, with the
-   * version it chose (`"@sherlo/react-native-storybook@3.1.4"`), or the bare name for this CLI's own
-   * version, the one a manager takes on any day but the day it comes out. The name is checked
+   * version it chose (`"@sherlo/react-native-storybook@3.1.4"`), or the bare name for the CLI's own
+   * version (`cli`), the one a manager takes on any day but the day it comes out. The name is checked
    * against the package the command asked for, so a pose cannot answer an install the command
    * never made, and the package is laid into the project's node_modules at that version.
    */
@@ -373,6 +388,7 @@ export function posedWorkstation(
   const refusals: UnansweredAct[] = [];
   let packageInstallWasAsked = false;
   let podInstallWasAsked = false;
+  const sherloVersion = posed?.cli ?? cliVersion;
 
   function refuse(call: string, problem: string): Error {
     refusals.push({ call, problem });
@@ -396,6 +412,8 @@ export function posedWorkstation(
             },
           ]
         : refusals,
+
+    sherloVersion: () => sherloVersion,
 
     addPackage: async ({ packageSpec, projectRoot }) => {
       packageInstallWasAsked = true;
@@ -429,7 +447,8 @@ export function posedWorkstation(
       // The package lands in node_modules the way a real install leaves it, so what setup reads
       // back afterwards is the version the pose says the manager chose.
       const installedName = packageNameOfSpecifier(installedPackage);
-      const installedVersion = installedPackage.slice(installedName.length + 1) || cliVersion;
+      const installedVersion =
+        installedPackage.slice(installedName.length + 1) || sherloVersion;
       const installedPackageFolder = path.join(projectRoot, 'node_modules', installedName);
       fs.mkdirSync(installedPackageFolder, { recursive: true });
       fs.writeFileSync(

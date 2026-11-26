@@ -162,11 +162,12 @@ describe('the posed workstation', () => {
   });
 
   it.each([
-    ['the version the pose names', '@sherlo/react-native-storybook@2.0.2', '2.0.2'],
-    ["the CLI's own version for the bare name", '@sherlo/react-native-storybook', cliVersion],
-  ])('a posed install lays the package into node_modules at %s', async (_, answer, version) => {
+    ['the version the pose names', undefined, '@sherlo/react-native-storybook@3.0.0', '3.0.0'],
+    ["the CLI's own version for the bare name", undefined, '@sherlo/react-native-storybook', cliVersion],
+    ["the pose's CLI version for the bare name", '3.0.1', '@sherlo/react-native-storybook', '3.0.1'],
+  ])('a posed install lays the package into node_modules at %s', async (_, cli, answer, version) => {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'posed-install-'));
-    const posed = posedWorkstation({ install: { package: answer } });
+    const posed = posedWorkstation({ cli, install: { package: answer } });
 
     await posed.addPackage({
       packageSpec: '@sherlo/react-native-storybook@^3',
@@ -182,6 +183,13 @@ describe('the posed workstation', () => {
     fs.rmSync(projectRoot, { recursive: true, force: true });
 
     expect(installed).toEqual({ name: '@sherlo/react-native-storybook', version });
+  });
+
+  it('a posed run is the CLI version its pose names, and this CLI when it names none', () => {
+    expect(posedWorkstation({ cli: '3.0.1', install: { package: 'x' } }).sherloVersion()).toBe(
+      '3.0.1'
+    );
+    expect(posedWorkstation({ install: { package: 'x' } }).sherloVersion()).toBe(cliVersion);
   });
 });
 

@@ -373,6 +373,7 @@ async function runProjectStep(world: {
     return answers.shift() as Value;
   };
   const person: Workstation = {
+    sherloVersion: () => '3.0.1',
     addPackage: () => Promise.reject(new Error('the project step installs nothing')),
     installStorybook: () => Promise.reject(new Error('the project step installs nothing')),
     installPods: () => Promise.reject(new Error('the project step installs nothing')),

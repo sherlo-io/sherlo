@@ -1524,6 +1524,9 @@ function readPosedAppBuild(value: unknown, path: string, problems: string[]): vo
 function readPosedWorkstation(value: unknown, path: string, problems: string[]): void {
   const object1 = asObject(value, path, problems);
   if (object1) {
+    if ('cli' in object1) {
+      expectString(object1.cli, at(path, 'cli'), problems);
+    }
     const where2 = at(path, 'install');
     const object3 = asObject(object1.install, where2, problems);
     if (object3) {
@@ -1576,7 +1579,7 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
     }
     reportUnknownFields(
       object1,
-      ['install', 'storybook', 'pods', 'scenes', 'podInstall', 'enter'],
+      ['cli', 'install', 'storybook', 'pods', 'scenes', 'podInstall', 'enter'],
       path,
       problems
     );

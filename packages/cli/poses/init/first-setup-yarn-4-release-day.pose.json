@@ -178,8 +178,9 @@
     "opened": true
   },
   "workstation": {
+    "cli": "3.0.1",
     "install": {
-      "package": "@sherlo/react-native-storybook@2.0.2"
+      "package": "@sherlo/react-native-storybook@3.0.0"
     },
     "storybook": {
       "wrote": {

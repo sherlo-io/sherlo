@@ -140,11 +140,12 @@
     "opened": true
   },
   "workstation": {
+    "cli": "3.0.0",
     "install": {
       "package": "@sherlo/react-native-storybook",
       "failed": {
         "stdout": "",
-        "stderr": "error: No version matching \"2.0.2\" found for specifier \"@sherlo/react-native-storybook\" (but package exists)\n"
+        "stderr": "error: No version matching \"^3\" found for specifier \"@sherlo/react-native-storybook\" (but package exists)\n"
       }
     },
     "storybook": {
