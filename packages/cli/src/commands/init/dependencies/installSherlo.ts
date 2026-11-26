@@ -13,7 +13,7 @@ import {
 } from '../../../helpers';
 import {
   renderInstallFailed,
-  renderSherloUnderADayOld,
+  renderSherloHeldBackByYarn,
   renderStorybookPinsExactVersions,
 } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
@@ -82,7 +82,7 @@ async function installSherlo(): Promise<void> {
 
   // Detected FROM THE PROJECT, not from wherever the process happens to be standing - the project
   // is what the manager will be run in, and it is what a pose lays out in `files`.
-  const tool = (await detectPackageManager(getCwd())) ?? 'npm';
+  const tool = await detectPackageManager(getCwd());
   const commandToRun = addCommand(tool, [packageSpec]);
 
   try {
@@ -125,10 +125,10 @@ async function installSherlo(): Promise<void> {
       });
     }
 
-    // A NEW MAJOR'S RELEASE DAY ON MODERN YARN: Yarn holds back a version under a day old, and the
-    // major has no older version yet, so every version the range allows is held and the install
-    // fails the same way all day. No fix helps before then, so the screen says when Yarn installs it
-    // instead. Yarn says so in its own words (YN0016 'All versions satisfying "^3" are quarantined',
+    // A NEW MAJOR'S FIRST DAYS ON MODERN YARN: Yarn holds back a version younger than its
+    // npmMinimalAgeGate (default a day), and the major has no older version yet, so every version
+    // the range allows is held and the install fails the same way until then. No fix helps before
+    // then, so the screen says when Yarn installs it instead, with the project's own setting. Yarn says so in its own words (YN0016 'All versions satisfying "^3" are quarantined',
     // spike yarn-age-hold-error); YN0016 alone is any resolution error, and YN0082 "No candidates
     // found" is a range nothing was ever published for - both get the install-failed fix.
     if (
@@ -136,7 +136,13 @@ async function installSherlo(): Promise<void> {
       packageSpec.endsWith(`@${sherloSdkVersionRange(sherloVersion)}`) &&
       output.includes(YARN_AGE_HOLD_TEXT)
     ) {
-      throwError({ ...renderSherloUnderADayOld({ version: sherloVersion }), errorToReport: error });
+      throwError({
+        ...renderSherloHeldBackByYarn({
+          version: sherloVersion,
+          ageGateMinutes: await workstation().readYarnAgeGateMinutes(getCwd()),
+        }),
+        errorToReport: error,
+      });
     }
 
     // The fix line names the same package the install asked for, so the person's retry gets what

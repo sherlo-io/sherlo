@@ -14,7 +14,7 @@ import {
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
 } from '../../../constants';
 import { setupReader } from '../../feedback/runningAgent';
-import { isPackageVersionCompatible, throwError } from '../../../helpers';
+import { getCwd, isPackageVersionCompatible, throwError } from '../../../helpers';
 import {
   renderPackagesNotInstalled,
   renderReactNativeTooOld,
@@ -24,6 +24,7 @@ import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps'
 import hasConfigFile from '../config/hasConfigFile';
 import readConfig from '../config/readConfig';
 import { packageManagerCommand, printLines } from '../helpers';
+import detectPackageManager from '../helpers/detectPackageManager';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
 import getPackageVersion from '../requirements/getPackageVersion';
@@ -55,6 +56,9 @@ export default checkProject;
 async function checkTheApp(): Promise<CheckedProject> {
   await validateProjectContext();
   await validateHasReactNative();
+  // Every later command runs in the app's own package manager: one setup cannot tell stops here,
+  // before anything is installed or made.
+  await detectPackageManager(getCwd());
 
   const expoVersion = await getDeclaredPackageVersion(EXPO_PACKAGE_NAME);
 

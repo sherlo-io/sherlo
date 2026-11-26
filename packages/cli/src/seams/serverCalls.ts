@@ -36,6 +36,7 @@ import liveGitHubTrade from './liveGitHubTrade';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
 import listProjectsRequest, {
+  ListProjectsAuthError,
   TeamNotFoundError,
 } from '../commands/projectList/listProjectsRequest';
 import listTeamsRequest, { ListTeamsAuthError } from '../commands/teamList/listTeamsRequest';
@@ -404,8 +405,11 @@ export function installServerCalls(next: ServerCalls): () => void {
 /** The error the server sends, as the tool's client surfaces it. */
 export type ApiError = {
   error: string;
-  /** The client's own error kind, where a command answers it apart: a team the person is not in. */
-  errorName?: 'TeamNotFoundError' | 'ListTeamsAuthError';
+  /**
+   * The client's own error kind, where a command answers it apart: a team the person is not in, or
+   * a refusal of the team list or of a team's project list.
+   */
+  errorName?: 'TeamNotFoundError' | 'ListTeamsAuthError' | 'ListProjectsAuthError';
   /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
   cause?: { code: string; hostname?: string };
 };
@@ -864,9 +868,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       if (answer.errorName === 'TeamNotFoundError') {
         throw new TeamNotFoundError(String(answer.error));
       }
-      // A login the service refuses is its own kind too, so setup answers it as a refused login.
+      // A refusal is its own kind too: of the team list, a refused login; of a team's project list,
+      // a dead login or a team out of reach, which setup tells apart.
       if (answer.errorName === 'ListTeamsAuthError') {
         throw new ListTeamsAuthError(String(answer.error));
+      }
+      if (answer.errorName === 'ListProjectsAuthError') {
+        throw new ListProjectsAuthError(String(answer.error));
       }
       // A call that never reached the service is raised as node-fetch raises it: a FetchError of
       // type 'system' with the network's code, and no host. BUILD DEBT (init-for-agents): the pose

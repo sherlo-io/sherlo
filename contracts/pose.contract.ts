@@ -208,8 +208,8 @@ export type PosedGit =
       dirty: boolean;
       /** Git's own sentence when the tool's fetch of 200 commits of a shallow clone was refused. */
       historyFetchRefused?: string;
-      /** The `origin` remote's address; left out for a repository that has none yet. */
-      remote?: string;
+      /** The address of every remote the repository names; left out for a repository that has none yet. */
+      remotes?: string[];
     };
 
 /** One platform's bundle as the bundler reports it. */
@@ -703,9 +703,17 @@ export type PosedWorkstation = {
    * What this machine's SSH config maps each host name to, as `ssh -G <host>` prints it in its
    * `hostname` line: `{ "github-work": "github.com" }` for a remote
    * `git@github-work:acme/app.git`. A host left out is answered as SSH answers a host no Host
-   * block names: the host itself.
+   * block names: the host itself. A host mapped to null is one ssh could not answer for (ssh
+   * missing, or `ssh -G` failed).
    */
-  sshHostNames?: Record<string, string>;
+  sshHostNames?: Record<string, string | null>;
+  /**
+   * What `yarn config get npmMinimalAgeGate` prints: modern Yarn's hold on a new version, in
+   * minutes (Yarn's default `1d` prints 1440). Left out: Yarn could not answer.
+   */
+  yarnAgeGateMinutes?: number;
+  /** What `pnpm --version` prints, e.g. `"10.4.0"`. Left out: pnpm could not answer. */
+  pnpmVersion?: string;
 };
 
 /**
@@ -1059,8 +1067,11 @@ export type PosedLogins = Record<
 /** The error the server sends, as the tool's client surfaces it. */
 export type ApiError = {
   error: string;
-  /** The client's own error kind, where a command answers it apart: a team the person is not in. */
-  errorName?: 'TeamNotFoundError' | 'ListTeamsAuthError';
+  /**
+   * The client's own error kind, where a command answers it apart: a team the person is not in, or
+   * a refusal of the team list or of a team's project list.
+   */
+  errorName?: 'TeamNotFoundError' | 'ListTeamsAuthError' | 'ListProjectsAuthError';
   /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
   cause?: {
     code: string;

@@ -127,6 +127,16 @@ export type Workstation = {
   readSshHostName(host: string): Promise<string | null>;
 
   /**
+   * How long modern Yarn holds a new version back, in minutes: `yarn config get npmMinimalAgeGate`
+   * in the project folder prints the setting parsed to its unit, minutes (Yarn's plugin-npm
+   * declares it a DURATION in MINUTES, default `1d`, so 1440). Null when Yarn cannot answer.
+   */
+  readYarnAgeGateMinutes(projectRoot: string): Promise<number | null>;
+
+  /** The version `pnpm --version` prints in this folder, null when pnpm cannot answer. */
+  readPnpmVersion(folder: string): Promise<string | null>;
+
+  /**
    * Storybook's own loader (`storybook/internal/common`) as the app has it installed: setup reads
    * the app's story list through it, so a story file counts only where Storybook itself would load
    * it. Throws when the app has no `storybook` package.
@@ -263,6 +273,17 @@ export const liveWorkstation: Workstation = {
         resolve(error ? null : (/^hostname (\S+)$/m.exec(stdout)?.[1] ?? null));
       });
     }),
+
+  // BUILD DEBT (init-for-agents): `yarn config get npmMinimalAgeGate` in the project folder, its
+  // number of minutes, null when Yarn fails or prints no number.
+  readYarnAgeGateMinutes: async () => {
+    throw new Error('readYarnAgeGateMinutes is not available yet.');
+  },
+
+  // BUILD DEBT (init-for-agents): `pnpm --version` in the folder, null when pnpm fails.
+  readPnpmVersion: async () => {
+    throw new Error('readPnpmVersion is not available yet.');
+  },
 
   storybookLoader: (projectRoot) =>
     createRequire(path.join(projectRoot, 'package.json'))('storybook/internal/common'),
@@ -420,9 +441,17 @@ export type PosedWorkstation = {
   /**
    * What this machine's SSH config maps each host name to, as `ssh -G <host>` prints it in its
    * `hostname` line: `{ "github-work": "github.com" }` for a remote `git@github-work:acme/app.git`.
-   * A host left out is answered as SSH answers a host no Host block names: the host itself.
+   * A host left out is answered as SSH answers a host no Host block names: the host itself. A host
+   * mapped to null is one ssh could not answer for (ssh missing, or `ssh -G` failed).
    */
-  sshHostNames?: Record<string, string>;
+  sshHostNames?: Record<string, string | null>;
+  /**
+   * What `yarn config get npmMinimalAgeGate` prints: modern Yarn's hold on a new version, in
+   * minutes (Yarn's default `1d` prints 1440). Left out: Yarn could not answer.
+   */
+  yarnAgeGateMinutes?: number;
+  /** What `pnpm --version` prints, e.g. `"10.4.0"`. Left out: pnpm could not answer. */
+  pnpmVersion?: string;
 };
 
 /**
@@ -603,7 +632,14 @@ export function posedWorkstation(
     readGit: () => Promise.reject(new Error('the pose holds no git history')),
 
     // A host the pose maps nowhere is answered as SSH answers a host no Host block names: itself.
-    readSshHostName: async (host) => posed?.sshHostNames?.[host] ?? host,
+    // A host mapped to null is one ssh could not answer for.
+    readSshHostName: async (host) => {
+      const named = posed?.sshHostNames?.[host];
+      return named === undefined ? host : named;
+    },
+
+    readYarnAgeGateMinutes: async () => posed?.yarnAgeGateMinutes ?? null,
+    readPnpmVersion: async () => posed?.pnpmVersion ?? null,
 
     // A posed project has no installed packages, so the pose's main config is loaded by the
     // Storybook this repository installs: the same loader, reading the pose's real files.

@@ -32,11 +32,11 @@ export type Surroundings = {
   /** What the git read answers for a project folder. */
   readGitInfo(projectRoot: string, options?: { branchOverride?: string }): Promise<GitInfo>;
   /**
-   * Where the project's repository is published: the address of its `origin` remote, or null when
-   * it has none yet (or is no repository at all). Setup reads it to decide whether to add a GitHub
-   * workflow.
+   * Where the project's repository is published: the address of EVERY remote it names, whatever
+   * the remote is called (`origin` is only git's default name), empty when it has none yet (or is
+   * no repository at all). Setup reads it to decide whether to add a GitHub workflow.
    */
-  readGitRemote(projectRoot: string): Promise<string | null>;
+  readGitRemotes(projectRoot: string): Promise<string[]>;
   /**
    * What the clock answers while a command waits, in milliseconds since the epoch - the wait
    * loop's deadline and every "has the deadline passed" read come through here.
@@ -58,9 +58,10 @@ export const liveSurroundings: Surroundings = {
   // to undo.
   installSettings: () => () => undefined,
   readGitInfo: readGitInfoFromDisk,
-  // BUILD DEBT (init-for-agents): `git remote get-url origin` in the project folder, null when it fails.
-  readGitRemote: async () => {
-    throw new Error('readGitRemote is not available yet.');
+  // BUILD DEBT (init-for-agents, gap B11): every remote's fetch address (`git remote -v`) in the
+  // project folder; a failed read is told apart from a repository with no remote.
+  readGitRemotes: async () => {
+    throw new Error('readGitRemotes is not available yet.');
   },
   now: () => Date.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -106,8 +107,8 @@ export type PosedGit =
       dirty: boolean;
       /** Git's own sentence when the tool's fetch of 200 commits of a shallow clone was refused. */
       historyFetchRefused?: string;
-      /** The `origin` remote's address; left out for a repository that has none yet. */
-      remote?: string;
+      /** The address of every remote the repository names; left out for a repository that has none yet. */
+      remotes?: string[];
     }
   | 'none'
   | 'unavailable';
@@ -181,7 +182,7 @@ export function posedSurroundings({
       };
     },
 
-    readGitRemote: async () => (typeof git === 'object' ? (git.remote ?? null) : null),
+    readGitRemotes: async () => (typeof git === 'object' ? (git.remotes ?? []) : []),
 
     readGitInfo: async (_projectRoot: string, options?: { branchOverride?: string }) => {
       // THE WORDING IS GIT'S OWN. `readGitInfoFromDisk` degrades on the stderr of a failed

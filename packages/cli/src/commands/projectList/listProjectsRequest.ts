@@ -30,6 +30,7 @@
  */
 import fetch from 'node-fetch';
 import type { ProjectList } from '../../render/projectList';
+import { isRefusalErrorType } from '../../seams/serviceRefusedToken';
 import listTeamsRequest, { ListTeamsAuthError } from '../teamList/listTeamsRequest';
 
 /** Bounded so a hung endpoint cannot leave the command waiting forever. */
@@ -141,9 +142,7 @@ async function listProjectsRequest(
   };
 
   if (json.errors?.length) {
-    const isAuthError = json.errors.some((error) =>
-      /unauthorized|forbidden|auth/i.test(error.errorType ?? '')
-    );
+    const isAuthError = json.errors.some((error) => isRefusalErrorType(error.errorType));
 
     if (isAuthError) throw new ListProjectsAuthError('GraphQL authorization error');
 

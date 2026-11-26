@@ -178,12 +178,16 @@ async function waitForTheAnswer(pendingLogin: PendingLogin): Promise<FinishedLog
 /**
  * A login call the service refused or could not answer. INSIDE SETUP, LIKE EVERY STOP THERE: the
  * step is marked red, and a call that never reached the service says so, in the words setup's
- * other service calls use (../init/project/refuseFailedServiceCall).
+ * other service calls use (../init/project/refuseFailedServiceCall). A login call spends no saved
+ * login - there is none yet - so its failure is never read as a dead one.
  */
-function refuseFailedLoginCall(error: Error, { insideSetup }: { insideSetup: boolean }): never {
-  if (insideSetup) refuseFailedServiceCall(error, 'Logging in failed');
+async function refuseFailedLoginCall(
+  error: Error,
+  { insideSetup }: { insideSetup: boolean }
+): Promise<never> {
+  if (insideSetup) return refuseFailedServiceCall(error, 'Logging in failed', null);
 
-  throwError({ message: error.message, errorToReport: error });
+  return throwError({ message: error.message, errorToReport: error });
 }
 
 /** A login that ended without a token: the person cancelled it, or nobody answered in time. */

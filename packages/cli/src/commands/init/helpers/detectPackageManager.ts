@@ -1,6 +1,10 @@
 /**
  * WHICH PACKAGE MANAGER A FOLDER USES, as package-manager-detector names it, read off the project
- * itself. The detector tells modern Yarn (2 and newer, `yarn@berry`) only by a `packageManager`
+ * itself: its lockfile, or package.json's `packageManager` field. Nothing is guessed: a folder with
+ * neither stops setup with a refusal that names no tool, as npm or any other pick may not be the
+ * person's. Setup checks the app first, so the stop comes before anything was changed.
+ *
+ * The detector tells modern Yarn (2 and newer, `yarn@berry`) only by a `packageManager`
  * field; a project without one, whose yarn.lock modern Yarn wrote, would be read as Yarn 1 and get
  * Yarn 1's commands and output reading. So a `yarn` answer is checked against what modern Yarn
  * leaves behind in the folder holding the lockfile: the `__metadata:` block it writes at the top of
@@ -10,9 +14,12 @@
 import fs from 'fs';
 import path from 'path';
 import { type Agent, detect } from 'package-manager-detector';
+import { throwError } from '../../../helpers';
+import { renderNoPackageManager } from '../../../render/initFixes';
 
-async function detectPackageManager(folder: string): Promise<Agent | undefined> {
+async function detectPackageManager(folder: string): Promise<Agent> {
   const agent = (await detect({ cwd: folder }))?.agent;
+  if (agent === undefined) return throwError(renderNoPackageManager());
   if (agent !== 'yarn') return agent;
 
   const lockFolder = folderHoldingYarnLock(folder);

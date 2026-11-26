@@ -44,10 +44,11 @@ const choiceName = (name: string): string => chalk.bold(name);
  * The closing lines of a refusal whose fix is words, not commands: what to run once it is fixed.
  * They say the rerun picks up where it stopped, so nobody undoes the steps already done first.
  */
-function rerun(): string[] {
+function rerun(backTo?: string): string[] {
   return [
     '',
     words('Then run setup again. It picks up where it stopped:'),
+    ...(backTo ? [code(`cd ${backTo}`)] : []),
     code(typedInitCommand()),
   ];
 }
@@ -106,6 +107,17 @@ export function renderNoReactNative(): InitRefusal {
     "package.json doesn't list react-native",
     goTo("your React Native app's folder", '<your app folder>')
   );
+}
+
+/**
+ * No lockfile and no `packageManager` field say which package manager the app uses. Naming one would
+ * be a guess, so the fix names none: the person's own manager writes the lockfile setup reads.
+ */
+export function renderNoPackageManager(): InitRefusal {
+  return refusal("Can't tell which package manager this app uses", [
+    words('Install your dependencies with your package manager, so it writes its lockfile.'),
+    ...rerun(),
+  ]);
 }
 
 /**
@@ -181,14 +193,17 @@ export function renderReactNativeTooOld({
  */
 export type StorybookUpgrade = {
   commands: string[];
-  /** Where to run them, relative to the app's folder; null when it is the app's folder itself. */
-  folder: string | null;
+  /**
+   * Where to run them, relative to the app's folder, and the way back to the app's folder from
+   * there; null when it is the app's folder itself.
+   */
+  folder: { there: string; back: string } | null;
 };
 
 /**
  * After the upgrade no file needs a change by hand. Like any upgrade, an agent makes it only with
- * the user's OK. Storybook held in a workspace root's package.json is upgraded there, so the line
- * names that folder.
+ * the user's OK. Storybook held in a workspace root's package.json is upgraded there: the commands
+ * start with the `cd` to it, and the rerun with the `cd` back, as setup runs in the app's folder.
  */
 function upgradeStorybook(
   { commands, folder }: StorybookUpgrade,
@@ -197,12 +212,11 @@ function upgradeStorybook(
   return [
     ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK."), ''] : []),
     words(
-      folder
-        ? `Upgrade Storybook in ${folder}, the folder whose package.json holds it:`
-        : 'Upgrade Storybook:'
+      folder ? 'Upgrade Storybook in the folder whose package.json holds it:' : 'Upgrade Storybook:'
     ),
+    ...(folder ? [code(`cd ${folder.there}`)] : []),
     ...commands.map((command) => code(command)),
-    ...rerun(),
+    ...rerun(folder?.back),
   ];
 }
 
@@ -339,19 +353,50 @@ export function renderInstallFailed(failed: FailedInstall): InitRefusal {
 }
 
 /**
- * Modern Yarn found no Sherlo for the CLI's major on that major's release day: Yarn holds back a
- * version under a day old, and the major has no older one. Every retry fails until then, so the
- * screen gives no fix, only when Yarn installs it, why (the setting Storybook's own installer reads
- * with `yarn config get npmMinimalAgeGate`), and the rerun. It never says to change the setting:
- * it guards the app against a bad release.
+ * Modern Yarn found no Sherlo for the CLI's major in the first days of that major: Yarn holds back
+ * a version younger than its npmMinimalAgeGate, and the major has no older one. Every retry fails
+ * until then, so the screen gives no fix, only when Yarn installs it, why (the setting, read with
+ * `yarn config get npmMinimalAgeGate`, so the wait named is this project's own), and the rerun. It
+ * never says to change the setting: it guards the app against a bad release. When Yarn could not
+ * say the setting, no wait is named.
  */
-export function renderSherloUnderADayOld({ version }: { version: string }): InitRefusal {
-  return refusal(`Yarn installs Sherlo ${version} once it is a day old`, [
-    words('Yarn holds new packages back for a day (its npmMinimalAgeGate setting).'),
-    '',
-    words('Run setup again then:'),
-    code(typedInitCommand()),
-  ]);
+export function renderSherloHeldBackByYarn({
+  version,
+  ageGateMinutes,
+}: {
+  version: string;
+  ageGateMinutes: number | null;
+}): InitRefusal {
+  const wait = ageGateMinutes === null ? null : durationInWords(ageGateMinutes);
+  return refusal(
+    wait === null
+      ? `Yarn installs Sherlo ${version} once it is old enough`
+      : `Yarn installs Sherlo ${version} once it is ${wait} old`,
+    [
+      words(
+        wait === null
+          ? 'Yarn holds new packages back (its npmMinimalAgeGate setting).'
+          : `Yarn holds new packages back for ${wait} (its npmMinimalAgeGate setting).`
+      ),
+      '',
+      words('Run setup again then:'),
+      code(typedInitCommand()),
+    ]
+  );
+}
+
+/** A number of minutes as a person says it, in the largest whole unit: "a day", "3 days", "90 minutes". */
+function durationInWords(minutes: number): string {
+  const units: Array<[name: string, minutes: number, one: string]> = [
+    ['week', 7 * 24 * 60, 'a week'],
+    ['day', 24 * 60, 'a day'],
+    ['hour', 60, 'an hour'],
+    ['minute', 1, 'a minute'],
+  ];
+  const [name, size, one] =
+    units.find(([, unitMinutes]) => minutes % unitMinutes === 0) ?? units[units.length - 1];
+  const count = minutes / size;
+  return count === 1 ? one : `${count} ${name}s`;
 }
 
 /**
@@ -425,9 +470,16 @@ export function renderServiceUnreachable({
 
 /**
  * Sherlo's service answered a team or project call with an error of its own, such as `HTTP 503`.
- * The service's words head the refusal; the way out is to wait and run setup again, which picks up
- * where it stopped.
+ * The service's words head the refusal. ONLY A PASSING FAILURE (a 5xx, a timeout) is waited out and
+ * run again; any other answer would come back the same, so nothing is promised and the help block
+ * under the refusal is the way out.
  */
-export function renderServiceFailed({ reason }: { reason: string }): InitRefusal {
-  return refusal(reason, [words('Wait a few minutes.'), ...rerun()]);
+export function renderServiceFailed({
+  reason,
+  passing,
+}: {
+  reason: string;
+  passing: boolean;
+}): InitRefusal {
+  return refusal(reason, passing ? [words('Wait a few minutes.'), ...rerun()] : []);
 }

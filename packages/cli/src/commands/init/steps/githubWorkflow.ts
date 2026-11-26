@@ -1,10 +1,12 @@
 /**
  * STEP 8 - THE GITHUB WORKFLOW, so every pull request and every push to main is tested.
  *
- * WHERE THE CODE LIVES DECIDES, NOT WHICH CI RUNS: on GitHub, or with no remote yet (most new apps
- * end up there), it is written even beside another CI, as it ends green until GitHub is connected
- * and the web app's Connect GitHub needs it. On another host GitHub never runs it, so it is
- * skipped. A workflow already in place is left as it is.
+ * WHERE THE CODE LIVES DECIDES, NOT WHICH CI RUNS: it is written whenever any remote is on GitHub,
+ * whenever there is no remote yet (most new apps end up there; a CI file of another host proves
+ * nothing about where the code will live), and whenever a remote's host cannot be told. It ends
+ * green until GitHub is connected, and the web app's Connect GitHub needs it. It is skipped only
+ * when every remote is known to live elsewhere, where GitHub never runs it. A workflow already in
+ * place is left as it is.
  *
  * AN APP INSIDE A MONOREPO: GitHub reads workflows only from the repository's root, so the file
  * goes there, the install runs in the workspace's root (where the lock file is), and the Sherlo
@@ -23,9 +25,6 @@ import { printLines } from '../helpers';
 import detectPackageManager from '../helpers/detectPackageManager';
 
 const STEP_NAME = 'Added GitHub workflow';
-
-/** The CI files that only run on a host other than GitHub, so with no remote yet they say the code will not live on GitHub. */
-const OTHER_HOST_CI_FILES = ['.gitlab-ci.yml', 'bitbucket-pipelines.yml', 'azure-pipelines.yml'];
 
 /**
  * The repository's root: the nearest folder at or above `folder` holding `.git` (a folder, or the
@@ -66,32 +65,38 @@ function printWhyNoWorkflow(): void {
 const GITHUB_HOSTS = ['github.com', 'ssh.github.com'];
 
 /**
- * Whether the remote's code lives on GitHub. AN SSH HOST NICKNAME IS ASKED, NOT GUESSED:
+ * Where one remote's code lives. AN SSH HOST NICKNAME IS ASKED, NOT GUESSED:
  * `git@github-work:acme/app.git` names a Host block of the person's SSH config, and only SSH knows
  * that block's real host, so an SSH host that is not GitHub's own is looked up with `ssh -G`. When
- * ssh is missing or fails, the remote is the host it names.
+ * ssh is missing or fails, or the remote names no host (a local folder), where it lives is
+ * 'unknown', and an unknown never skips the workflow.
  */
-async function remoteIsOnGitHub(remote: string): Promise<boolean> {
+async function whereRemoteLives(remote: string): Promise<'github' | 'elsewhere' | 'unknown'> {
   // `ssh://git@github-work/acme/app.git`, `https://github.com/acme/app.git`, or the scp-like
   // `git@github-work:acme/app.git`; anything else (a local folder) names no host.
   const urlMatch = /^([a-z][a-z0-9+.-]*):\/\/(?:[^@/]+@)?([^:/]+)/i.exec(remote);
   const scpLikeMatch = urlMatch ? null : /^(?:[^@/]+@)?([^:/]+):(?!\/\/)/.exec(remote);
   const host = urlMatch?.[2] ?? scpLikeMatch?.[1];
-  if (!host) return false;
-  if (GITHUB_HOSTS.includes(host)) return true;
+  if (!host) return 'unknown';
+  if (GITHUB_HOSTS.includes(host)) return 'github';
 
   const overSsh = scpLikeMatch !== null || /ssh/i.test(urlMatch?.[1] ?? '');
-  if (!overSsh || host.startsWith('-')) return false;
-  const realHost = (await workstation().readSshHostName(host)) ?? host;
-  return GITHUB_HOSTS.includes(realHost);
+  if (!overSsh) return 'elsewhere';
+  if (host.startsWith('-')) return 'unknown';
+  const realHost = await workstation().readSshHostName(host);
+  if (realHost === null) return 'unknown';
+  return GITHUB_HOSTS.includes(realHost) ? 'github' : 'elsewhere';
 }
 
 /** Answers whether the project has Sherlo's workflow now, which the next steps name. */
 async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
   const projectRoot = getCwd();
 
-  const remote = await surroundings().readGitRemote(projectRoot);
-  if (remote && !(await remoteIsOnGitHub(remote))) {
+  // EVERY REMOTE IS ASKED, whatever it is called: the workflow is skipped only when every one is
+  // known to live elsewhere. One on GitHub, or one whose host cannot be told, writes it.
+  const remotes = await surroundings().readGitRemotes(projectRoot);
+  const places = await Promise.all(remotes.map(whereRemoteLives));
+  if (places.length > 0 && places.every((place) => place === 'elsewhere')) {
     printWhyNoWorkflow();
     return { hasWorkflow: false };
   }
@@ -103,14 +108,6 @@ async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
   // Named from the app's folder, where the person ran setup: "../../.github/workflows/sherlo.yml".
   const workflowDetail = path.relative(projectRoot, workflowFile);
 
-  // Sherlo's own workflow from an earlier run counts before another host's CI file does: setup put it there.
-  const hasOtherHostCi =
-    !remote && OTHER_HOST_CI_FILES.some((file) => fs.existsSync(path.join(repositoryRoot, file)));
-  if (hasOtherHostCi && !fs.existsSync(workflowFile)) {
-    printWhyNoWorkflow();
-    return { hasWorkflow: false };
-  }
-
   if (fs.existsSync(workflowFile)) {
     printLines([renderStepLine({ outcome: 'already', name: STEP_NAME, detail: workflowDetail })]);
     return { hasWorkflow: true };
@@ -118,12 +115,8 @@ async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
 
   // The agent, not the name: Yarn 1 and Yarn 2+ install with different words.
   const agent = await detectPackageManager(workspaceRoot);
-  const packageManager =
-    agent === 'yarn' || agent === 'yarn@berry' || agent === 'pnpm' || agent === 'bun'
-      ? agent
-      : agent === 'pnpm@6'
-        ? 'pnpm'
-        : 'npm';
+  // BUILD DEBT (init-for-agents): Deno has no workflow of its own yet and gets npm's, untested.
+  const packageManager = agent === 'pnpm@6' ? 'pnpm' : agent === 'deno' ? 'npm' : agent;
 
   fs.mkdirSync(path.dirname(workflowFile), { recursive: true });
   fs.writeFileSync(

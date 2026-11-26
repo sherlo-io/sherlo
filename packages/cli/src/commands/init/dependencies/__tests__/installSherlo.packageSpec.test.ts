@@ -64,6 +64,8 @@ describe('installSherlo into an app with no SDK', () => {
     vi.stubEnv('SHERLO_SDK_VERSION', undefined);
     workstationAnswers.addPackage.mockReset();
     projectRoot.path = fs.mkdtempSync(path.join(os.tmpdir(), 'install-sherlo-new-'));
+    // npm's lock file: setup installs with the package manager it can tell, never a guessed one.
+    fs.writeFileSync(path.join(projectRoot.path, 'package-lock.json'), '{}');
   });
 
   afterEach(() => {

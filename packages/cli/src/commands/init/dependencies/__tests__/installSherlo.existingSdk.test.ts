@@ -55,6 +55,8 @@ beforeEach(() => {
   printed.lines.length = 0;
   installedSdk.version = null;
   projectRoot.path = fs.mkdtempSync(path.join(os.tmpdir(), 'install-sherlo-existing-'));
+  // npm's lock file: setup installs with the package manager it can tell, never a guessed one.
+  fs.writeFileSync(path.join(projectRoot.path, 'package-lock.json'), '{}');
 });
 
 afterEach(() => {

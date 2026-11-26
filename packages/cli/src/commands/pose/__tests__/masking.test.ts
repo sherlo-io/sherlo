@@ -628,6 +628,23 @@ describe('the versions sherlo init shows', () => {
     );
   });
 
+  it('folds the range Bun and Yarn 1 quote apart from the package on its line', () => {
+    const range = `^${cliVersion.split('.')[0]}`;
+    const failed = [
+      `error: No version matching "${range}" found for specifier "@sherlo/react-native-storybook" (but package exists)`,
+      `error Couldn't find any versions for "@sherlo/react-native-storybook" that matches "${range}"`,
+      `error Couldn't find any versions for "left-pad" that matches "${range}"`,
+    ].join('\n');
+
+    expect(maskScreen(failed, {})).toBe(
+      [
+        'error: No version matching "<SHERLO_VERSION>" found for specifier "@sherlo/react-native-storybook" (but package exists)',
+        `error Couldn't find any versions for "@sherlo/react-native-storybook" that matches "<SHERLO_VERSION>"`,
+        `error Couldn't find any versions for "left-pad" that matches "${range}"`,
+      ].join('\n')
+    );
+  });
+
   it('keeps the range a pose that states its CLI version asks for: the picture shows it', () => {
     const releaseDay = [
       `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 3.0.0${ESC}[22m`,

@@ -18,9 +18,6 @@ import readMetroConfigCode from '../metroConfig/readMetroConfigCode';
 /** Storybook's own default folders, newest first - the order the Metro wrapper tries them in. */
 const DEFAULT_FOLDERS = ['.rnstorybook', '.storybook'];
 
-/** Storybook 9's default, named when the app has no folder yet (Storybook's installer writes it). */
-export const NEWEST_STORYBOOK_FOLDER = DEFAULT_FOLDERS[0];
-
 /**
  * The folder relative to the app's folder (`.storybook`), or null when the app has none.
  *

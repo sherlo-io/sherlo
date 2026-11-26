@@ -105,6 +105,7 @@ export function renderFailedStepLine(name: string): string[] {
  */
 export function renderNextSteps({
   storybook,
+  storyListUnreadable,
   storybookFolder,
   storybookIndexFile,
   storybookMainFile,
@@ -119,13 +120,20 @@ export function renderNextSteps({
     | 'old-setup'
     | 'old-setup-example-stories';
   /**
-   * The app's Storybook folder as the Metro wrapper finds it (../commands/init/steps/storybookFolder):
-   * `.rnstorybook`, or `.storybook` kept by an app upgraded from Storybook 8.
+   * Why the app's story list could not be read (../commands/init/steps/hasStoriesOfItsOwn), or
+   * null. With it, setup cannot tell the app's stories from Storybook's examples, so the line is
+   * shown and the first test is not started for the person.
    */
-  storybookFolder: string;
+  storyListUnreadable: string | null;
+  /**
+   * The app's Storybook folder as the Metro wrapper finds it (../commands/init/steps/storybookFolder):
+   * `.rnstorybook`, or `.storybook` kept by an app upgraded from Storybook 8. Null when setup found
+   * none: the steps then name no folder and no file in it, as any name would be a guess.
+   */
+  storybookFolder: string | null;
   /** The folder's index and main files as the app has them (`.storybook/main.js`), from the app's folder. */
-  storybookIndexFile: string;
-  storybookMainFile: string;
+  storybookIndexFile: string | null;
+  storybookMainFile: string | null;
   rootRegistration: RootRegistration;
   /** The file the app's root component is in (../commands/init/steps/rootComponentFile). */
   rootComponent: RootComponentFile;
@@ -133,7 +141,7 @@ export function renderNextSteps({
 }): string[] {
   // NOTHING LEFT BUT THE TEST, FOR A PERSON: setup starts it, so nobody leaves it for later. The
   // line stays on the screen through the build, for whoever comes back to the terminal mid-way.
-  if (storybook === 'default-setup' && reader === 'person') {
+  if (storybook === 'default-setup' && reader === 'person' && !storyListUnreadable) {
     return [
       ...renderSectionTitle('🚀 First visual test', 21),
       'Building your app so Sherlo can test it. This can take a while.',
@@ -150,7 +158,8 @@ export function renderNextSteps({
           renderCode("import { registerRootComponent } from 'expo';"),
           renderCode('registerRootComponent(StorybookUIRoot);'),
         ]
-      : rootRegistration.inAppJson
+      : // With no index file found, the path to app.json is unknown: the name is written out.
+        rootRegistration.inAppJson && storybookIndexFile
         ? [
             renderCode("import { AppRegistry } from 'react-native';"),
             // From the index's folder to app.json in the app's folder, however deep the folder is.
@@ -177,7 +186,7 @@ export function renderNextSteps({
   const defaultSetupChoice = [
     // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up.
     chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
-    `   In ${storybookIndexFile}, below StorybookUIRoot, add:`,
+    `   In ${storybookIndexFile ?? "your Storybook folder's index file"}, below StorybookUIRoot, add:`,
     ...registerRoot.map((line) => `     ${line}`),
     ...removeOldRender,
   ];
@@ -190,7 +199,7 @@ export function renderNextSteps({
   // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the line names the file setup found,
   // never a guess. With none found it names no file, and a comment says which file the path is
   // from: the most common place, so the path is right for most apps and checkable for the rest.
-  const storybookImport = `import Storybook from '${importPath(path.posix.dirname(rootComponent.file), storybookFolder)}';`;
+  const storybookImport = `import Storybook from '${storybookFolder ? importPath(path.posix.dirname(rootComponent.file), storybookFolder) : '<your Storybook folder>'}';`;
   // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that
   // exports its routes for the server builds it too.
   const keepSetupChoice = [
@@ -199,7 +208,7 @@ export function renderNextSteps({
       ? `   At the top of your root component (${rootComponent.file}), add:`
       : '   At the top of your root component, add:',
     `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
-    `     ${renderCode(rootComponent.found ? storybookImport : `${storybookImport} // path from ${rootComponent.file}`)}`,
+    `     ${renderCode(rootComponent.found || !storybookFolder ? storybookImport : `${storybookImport} // path from ${rootComponent.file}`)}`,
     `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
   ];
 
@@ -215,7 +224,9 @@ export function renderNextSteps({
       "Right now Sherlo would test Storybook's examples, not your app.",
       // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
       // outside it drop out, so they need no deleting.
-      `Set "stories" in ${storybookMainFile} to your code's folder, e.g. ${renderCode(`['${importPath(storybookFolder, 'src')}']`)}.`,
+      storybookMainFile && storybookFolder
+        ? `Set "stories" in ${storybookMainFile} to your code's folder, e.g. ${renderCode(`['${importPath(storybookFolder, 'src')}']`)}.`
+        : `Set "stories" in your Storybook folder's main file to your code's folder.`,
       // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
       // found without reading the others.
       '',
@@ -292,6 +303,7 @@ export function renderNextSteps({
     ...(steps.length === 1
       ? renderSectionTitle('👉 Next step', 12)
       : renderSectionTitle('👉 Next steps', 13)),
+    ...(storyListUnreadable ? [storyListUnreadable, ''] : []),
     // The last step's blank line goes: nothing follows it in this section.
     ...stepLines.slice(0, -1),
   ];

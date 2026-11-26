@@ -1,6 +1,6 @@
 {
   "pose": 1,
-  "argv": ["init", "--project", "k7m2p9qx/4"],
+  "argv": ["init", "--project", "tm000001/4"],
   "files": {
     "App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
     "package.json": {
@@ -17,7 +17,12 @@
       },
       "packageManager": "yarn@4.3.1"
     },
-    "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "app.json": {
+      "expo": {
+        "name": "Acme Shop",
+        "slug": "acme-shop"
+      }
+    },
     "src/Button.stories.tsx": "import { Button } from './Button';\n\nexport default { component: Button };\n\nexport const Default = { args: { title: 'Default' } };\n",
     "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nmodule.exports = withStorybook(getDefaultConfig(__dirname));\n",
     "node_modules/react-native/package.json": {
@@ -26,61 +31,104 @@
       "main": "index.js"
     },
     "node_modules/react-native/index.js": "",
-    "node_modules/expo/package.json": { "name": "expo", "version": "58.0.26", "main": "index.js" },
+    "node_modules/expo/package.json": {
+      "name": "expo",
+      "version": "58.0.26",
+      "main": "index.js"
+    },
     "node_modules/expo/index.js": "",
     "node_modules/@storybook/react-native/package.json": {
       "name": "@storybook/react-native",
       "version": "10.6.0",
       "main": "index.js"
     },
-    "node_modules/@storybook/react-native/index.js": ""
+    "node_modules/@storybook/react-native/index.js": "",
+    ".rnstorybook/index.ts": "import { LiteUI } from '@storybook/react-native-ui-lite';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({\n  CustomUIComponent: LiteUI,\n  shouldPersistSelection: false,\n});\n\nexport default StorybookUIRoot;\n"
   },
-  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "env": {
+    "SHERLO_API_URL": "https://api.sherlo.io/graphql"
+  },
   "git": {
     "branch": "main",
     "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
     "dirty": false,
-    "remote": "git@github.com:acme/acme-shop.git"
+    "remotes": ["git@github.com:acme/acme-shop.git"]
   },
   "bundles": {},
   "api": [
     {
       "call": "trackCliInit",
-      "with": { "event": "0_init" },
-      "answer": { "sessionId": "init-session-1" }
-    },
-    {
-      "call": "trackCliInit",
-      "with": { "event": "1_requirements" },
-      "answer": { "sessionId": "init-session-1" }
-    },
-    {
-      "call": "listProjects",
-      "with": { "teamId": "k7m2p9qx" },
+      "with": {
+        "event": "0_init"
+      },
       "answer": {
-        "team": { "name": "Storefront", "id": "k7m2p9qx" },
-        "projects": [{ "index": 4, "name": "Acme Shop", "buildCount": 0, "mainBranch": null }]
+        "sessionId": "init-session-1"
       }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "5_config" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "1_requirements"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "listProjects",
+      "with": {
+        "teamId": "tm000001"
+      },
+      "answer": {
+        "team": {
+          "name": "Storefront",
+          "id": "tm000001"
+        },
+        "projects": [
+          {
+            "index": 4,
+            "name": "Acme Shop",
+            "buildCount": 0,
+            "mainBranch": null
+          }
+        ]
+      }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "2_dependencies" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "5_config"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "3_metro_config" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "2_dependencies"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     },
     {
       "call": "trackCliInit",
-      "with": { "event": "7_testing" },
-      "answer": { "sessionId": "init-session-1" }
+      "with": {
+        "event": "3_metro_config"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "7_testing"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
     }
   ],
   "masks": {},
@@ -90,5 +138,9 @@
       "token": "sht_poselogintoken00000000000000000"
     }
   },
-  "workstation": { "install": { "package": "@sherlo/react-native-storybook" } }
+  "workstation": {
+    "install": {
+      "package": "@sherlo/react-native-storybook"
+    }
+  }
 }

@@ -28,7 +28,7 @@ Opening your browser to log in to Sherlo...
 
 [31mERROR: Sherlo couldn't be installed[39m
 
-[2merror Couldn't find any versions for "@sherlo/react-native-storybook" that matches "^3"[22m
+[2merror Couldn't find any versions for "@sherlo/react-native-storybook" that matches "<SHERLO_VERSION>"[22m
 [2myarn add v1.22.22[22m
 [2m[1/4] Resolving packages...[22m
 

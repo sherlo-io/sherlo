@@ -4,19 +4,19 @@ import detectPackageManager from './detectPackageManager';
 
 /**
  * A command in the project's own package manager, as a refusal shows it: `yarn add x`, not `npm
- * install x` for a Yarn project. Detected from the project, like the SDK install; npm when nothing
- * says otherwise.
+ * install x` for a Yarn project. Detected from the project, like the SDK install.
  */
 async function packageManagerCommand(
   intent: 'install' | 'add',
   args: string[] = []
 ): Promise<string> {
-  const packageManager = (await detectPackageManager(getCwd())) ?? 'npm';
-  const resolved = resolveCommand(packageManager, intent, args);
-
-  return resolved
-    ? [resolved.command, ...resolved.args].join(' ')
-    : `npm ${intent} ${args.join(' ')}`.trim();
+  // `install` and `add` resolve for every manager package-manager-detector knows.
+  const { command, args: commandArgs } = resolveCommand(
+    await detectPackageManager(getCwd()),
+    intent,
+    args
+  )!;
+  return [command, ...commandArgs].join(' ');
 }
 
 export default packageManagerCommand;

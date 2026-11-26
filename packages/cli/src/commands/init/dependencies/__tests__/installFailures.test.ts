@@ -48,6 +48,8 @@ async function messageOfRefusal(install: () => Promise<void>): Promise<string> {
 beforeEach(async () => {
   projectRoot.path = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'sherlo-install-test-'));
   await fs.promises.writeFile(path.join(projectRoot.path, 'package.json'), '{}', 'utf-8');
+  // npm's lock file: setup installs with the package manager it can tell, never a guessed one.
+  await fs.promises.writeFile(path.join(projectRoot.path, 'package-lock.json'), '{}', 'utf-8');
 });
 
 afterEach(async () => {

@@ -23,8 +23,9 @@ import hasConfigFile from '../config/hasConfigFile';
 import readConfig from '../config/readConfig';
 import { printLines } from '../helpers';
 import { asConfigProject, type ProjectAddress } from '../project/projectAddress';
-import refuseFailedServiceCall from '../project/refuseFailedServiceCall';
+import refuseFailedServiceCall, { whyRefused } from '../project/refuseFailedServiceCall';
 import { TeamNotFoundError } from '../../projectList/listProjectsRequest';
+import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
 import { spendTheLogin, type Person } from './logIn';
 
 /** The project setup settled, as the config holds it, and its page in the web app. */
@@ -59,13 +60,19 @@ export default teamAndProject;
 /** The team and project a config already names, by name - refused when this person cannot reach them. */
 async function showProjectInConfig(project: ProjectAddress, person: Person): Promise<void> {
   // A team the person is not in and a project its team does not hold are one answer: no access.
+  // The service refuses a team out of reach the way it refuses a dead login, so the team list,
+  // which names no team, tells the two apart.
   const { answer: teamProjects, login } = await spendTheLogin(
     person,
     ({ token }) =>
       serverCalls()
         .listProjects({ teamId: project.teamId, personalToken: token })
-        .catch((error: Error) => {
+        .catch(async (error: Error) => {
           if (error instanceof TeamNotFoundError) return null;
+          const refusal = await whyRefused(error, token);
+          if (refusal === 'no-access') return null;
+          // Already told apart: spendTheLogin reads this one as dead without asking again.
+          if (refusal === 'dead-login') throw new ListTeamsAuthError(error.message);
           throw error;
         }),
     'Finding the project failed'
@@ -77,7 +84,9 @@ async function showProjectInConfig(project: ProjectAddress, person: Person): Pro
     // The account is named: a person signed in with another account fixes it by signing out.
     const { email } = await serverCalls()
       .whoAmI({ personalToken })
-      .catch((error: Error) => refuseFailedServiceCall(error, 'Finding the project failed'));
+      .catch((error: Error) =>
+        refuseFailedServiceCall(error, 'Finding the project failed', personalToken)
+      );
 
     printLines(renderFailedStepLine('Finding the project failed'));
     return throwError(renderNoAccessToProject({ project: asConfigProject(project), email }));
@@ -148,11 +157,15 @@ async function chooseTeam(
 
   const { name } = await serverCalls()
     .whoAmI({ personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, 'Creating a team failed'));
+    .catch((error: Error) =>
+      refuseFailedServiceCall(error, 'Creating a team failed', personalToken)
+    );
 
   const newTeam = await serverCalls()
     .createTeam({ name: teamNameFor(name), personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, 'Creating a team failed'));
+    .catch((error: Error) =>
+      refuseFailedServiceCall(error, 'Creating a team failed', personalToken)
+    );
 
   printLines([renderStepLine({ outcome: 'done', name: 'Created team', detail: newTeam.name })]);
   return { teamId: newTeam.id, login };
@@ -165,7 +178,9 @@ async function createProject(
 ): Promise<ProjectAddress> {
   const newProject = await serverCalls()
     .createProject({ name: appName(), teamId, personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, 'Creating the project failed'));
+    .catch((error: Error) =>
+      refuseFailedServiceCall(error, 'Creating the project failed', personalToken)
+    );
 
   const project = { teamId, projectIndex: newProject.index };
 

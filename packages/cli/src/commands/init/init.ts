@@ -20,7 +20,7 @@ import rootRegistration from './steps/rootRegistration';
 import sherloSdk from './steps/sherloSdk';
 import storybook from './steps/storybook';
 import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
-import storybookFolder, { NEWEST_STORYBOOK_FOLDER, storybookFile } from './steps/storybookFolder';
+import storybookFolder, { storybookFile } from './steps/storybookFolder';
 import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
 import { EXPO_ROUTER_PACKAGE_NAME, PROJECT_OPTION, TEAM_OPTION } from '../../constants';
@@ -59,23 +59,29 @@ async function init(options: Options<THIS_COMMAND>) {
     // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike, on every
     // setup: with only Storybook's examples, the next step is to write them. An app whose code
     // already asks Sherlo's isStorybookMode (way b) is as ready as Storybook's default setup.
+    const ownStories = installedNow ? null : await hasStoriesOfItsOwn();
+    // A story list that could not be read says nothing of examples: the line naming why stands in.
+    const examplesOnly = !!ownStories && 'found' in ownStories && !ownStories.found;
     const storybookState = installedNow
       ? 'installed'
       : storybookSetup() !== 'renders-in-app'
-        ? (await hasStoriesOfItsOwn())
-          ? 'default-setup'
-          : 'example-stories'
-        : (await hasStoriesOfItsOwn())
-          ? 'old-setup'
-          : 'old-setup-example-stories';
-    // A folder Storybook's installer just wrote is its newest default.
-    const folder = storybookFolder() ?? NEWEST_STORYBOOK_FOLDER;
+        ? examplesOnly
+          ? 'example-stories'
+          : 'default-setup'
+        : examplesOnly
+          ? 'old-setup-example-stories'
+          : 'old-setup';
+    // No folder found is named as none: a default name would send the reader to a folder the app
+    // does not have.
+    const folder = storybookFolder();
     printLines(
       renderNextSteps({
         storybook: storybookState,
+        storyListUnreadable:
+          ownStories && 'unreadable' in ownStories ? ownStories.unreadable : null,
         storybookFolder: folder,
-        storybookIndexFile: storybookFile(folder, 'index'),
-        storybookMainFile: storybookFile(folder, 'main'),
+        storybookIndexFile: folder && storybookFile(folder, 'index'),
+        storybookMainFile: folder && storybookFile(folder, 'main'),
         rootRegistration: rootRegistration(),
         rootComponent: rootComponentFile(
           !!(await getDeclaredPackageVersion(EXPO_ROUTER_PACKAGE_NAME))

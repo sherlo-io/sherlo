@@ -23,6 +23,7 @@ import { dirname, relative } from 'path';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd } from '../../../helpers';
 import type { StorybookUpgrade } from '../../../render/initFixes';
+import { workstation } from '../../../seams/workstation';
 import { managerCommand } from '../dependencies/installSherlo';
 import detectPackageManager from '../helpers/detectPackageManager';
 import findPackageJsonPaths from './findPackageJsonPaths';
@@ -67,6 +68,12 @@ const OWN_VERSION_LINE = new Set(['@storybook/addon-react-native-web']);
 /** pnpm 12 runs no package's build script unless told; Storybook 10's esbuild needs its own. */
 const PNPM_ALLOW_ESBUILD = '--allow-build=esbuild';
 
+/**
+ * `pnpm add` takes `--allow-build` from pnpm 10.4.0 (pnpm's CHANGELOG, 10.4.0 Minor Changes); before
+ * it the flag was dlx's and create's alone (10.2.0), so an older pnpm gets the add without it.
+ */
+const PNPM_ADD_ALLOW_BUILD_SINCE = [10, 4, 0];
+
 async function storybookUpgrade(): Promise<StorybookUpgrade> {
   const { current, monorepoRoot } = await findPackageJsonPaths();
   const holder = (await hasDependency(current, STORYBOOK_REACT_NATIVE_PACKAGE_NAME))
@@ -74,7 +81,7 @@ async function storybookUpgrade(): Promise<StorybookUpgrade> {
     : (monorepoRoot ?? current);
   const holderFolder = holder ? dirname(holder) : getCwd();
 
-  const tool = (await detectPackageManager(holderFolder)) ?? 'npm';
+  const tool = await detectPackageManager(holderFolder);
   const dependencyNames = Object.keys(holder ? await readAllDependencies(holder) : {});
   const storybookPackages = dependencyNames.filter((name) => name.startsWith('@storybook/')).sort();
 
@@ -87,13 +94,26 @@ async function storybookUpgrade(): Promise<StorybookUpgrade> {
 
   // `storybook` goes only when held: Yarn refuses to remove a package the folder does not list.
   const removed = [...ended, ...(dependencyNames.includes('storybook') ? ['storybook'] : [])];
+  const allowsBuildFlag =
+    tool === 'pnpm' && pnpmTakesAllowBuild(await workstation().readPnpmVersion(holderFolder));
   const add =
-    managerCommand(tool, 'add', added) + (tool === 'pnpm' ? ` ${PNPM_ALLOW_ESBUILD}` : '');
+    managerCommand(tool, 'add', added) + (allowsBuildFlag ? ` ${PNPM_ALLOW_ESBUILD}` : '');
 
+  const there = relative(getCwd(), holderFolder);
   return {
     commands: ended.length > 0 ? [managerCommand(tool, 'uninstall', removed), add] : [add],
-    folder: relative(getCwd(), holderFolder) || null,
+    folder: there ? { there, back: relative(holderFolder, getCwd()) } : null,
   };
+}
+
+/** Null (pnpm's version unread) adds no flag: an unknown flag fails the whole add. */
+export function pnpmTakesAllowBuild(pnpmVersion: string | null): boolean {
+  if (pnpmVersion === null) return false;
+  const parts = pnpmVersion.split(/[.-]/).map(Number);
+  for (const [index, since] of PNPM_ADD_ALLOW_BUILD_SINCE.entries()) {
+    if (parts[index] !== since) return parts[index] > since;
+  }
+  return true;
 }
 
 export default storybookUpgrade;

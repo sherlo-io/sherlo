@@ -42,7 +42,7 @@ async function storybook({
   }
 
   const projectRoot = getCwd();
-  const tool = (await detectPackageManager(projectRoot)) ?? 'npm';
+  const tool = await detectPackageManager(projectRoot);
   // pnpm reads its settings only from the workspace root's file, never from an app folder's.
   const { monorepoRoot } = await findPackageJsonPaths();
   const workspaceSettingsFile = monorepoRoot && pnpmWorkspaceFile(path.dirname(monorepoRoot));
@@ -92,9 +92,12 @@ async function storybook({
     renderStepLine({
       outcome: 'done',
       name: 'Installed Storybook',
-      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(
-        STORYBOOK_REACT_NATIVE_PACKAGE_NAME
-      )}`,
+      // NEVER A NULL VERSION: where no package.json of it is on disk to read (Yarn 4 keeps packages
+      // in its own store), the version is the exact one the install just added.
+      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${
+        getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME) ??
+        STORYBOOK_VERSIONS['@storybook/react-native']
+      }`,
     }),
     // A file of the person's that setup changed is named, as metro.config.js is.
     ...(updatedPnpmSettings

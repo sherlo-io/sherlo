@@ -379,6 +379,8 @@ async function runProjectStep(world: {
     installPods: () => Promise.reject(new Error('the project step installs nothing')),
     readGit: () => Promise.reject(new Error('the project step reads no git')),
     readSshHostName: () => Promise.reject(new Error('the project step reads no SSH config')),
+    readYarnAgeGateMinutes: () => Promise.reject(new Error('the project step reads no Yarn')),
+    readPnpmVersion: () => Promise.reject(new Error('the project step reads no pnpm')),
     storybookLoader: () => {
       throw new Error('the project step reads no Storybook');
     },

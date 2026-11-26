@@ -31,5 +31,15 @@ function serviceRefusedTheToken(error: unknown): boolean {
     clientError?.errorType,
     ...(clientError?.graphQLErrors ?? []).map((graphQLError) => graphQLError.errorType),
   ];
-  return errorTypes.some((errorType) => /unauthori[sz]ed|forbidden/i.test(errorType ?? ''));
+  return errorTypes.some(isRefusalErrorType);
+}
+
+/**
+ * THE ONE TEST of a GraphQL error's `errorType` for a refusal: AppSync's own `UnauthorizedException`,
+ * or a type that says unauthorized or forbidden. A bare "auth" is not one: a resolver's own error
+ * whose type merely contains the word (an author, an `authError` of its own) is the service's
+ * answer, not a refused token.
+ */
+export function isRefusalErrorType(errorType: string | undefined): boolean {
+  return /unauthori[sz]ed|forbidden/i.test(errorType ?? '');
 }

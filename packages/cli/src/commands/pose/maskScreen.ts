@@ -504,9 +504,17 @@ function foldInstalledSdkVersion(
       ? `${name}${separator}<SHERLO_VERSION>${dot}`
       : whole;
   // Yarn 4 writes the package as a descriptor ending in a colon: `@sherlo/...@npm:^3: No candidates`.
-  return screen.replace(
+  const folded = screen.replace(
     /(@sherlo\/react-native-storybook)([@ ](?:npm:)?)((?:file:|portal:)?[^\s"'`\u001b:]+?)([.:]?)(?=[\s"'`\u001b]|$)/g,
     fold
+  );
+  // Bun and Yarn 1 quote the range apart from the package, on the line that names it:
+  // `No version matching "^3" found for specifier "@sherlo/react-native-storybook"` (Bun),
+  // `Couldn't find any versions for "@sherlo/react-native-storybook" that matches "^3"` (Yarn 1).
+  return folded.replace(/^.*"@sherlo\/react-native-storybook".*$/gm, (line) =>
+    line.replace(/"([^"\s]+)"/g, (whole, spec: string) =>
+      spec === sherloVersion || (foldsRange && spec === majorRange) ? '"<SHERLO_VERSION>"' : whole
+    )
   );
 }
 

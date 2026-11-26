@@ -164,12 +164,12 @@ function readPosedGit(value: unknown, path: string, problems: string[]): void {
       if ('historyFetchRefused' in object2) {
         expectString(object2.historyFetchRefused, at(path, 'historyFetchRefused'), problems);
       }
-      if ('remote' in object2) {
-        expectString(object2.remote, at(path, 'remote'), problems);
+      if ('remotes' in object2) {
+        expectStringArray(object2.remotes, at(path, 'remotes'), problems);
       }
       reportUnknownFields(
         object2,
-        ['branch', 'commit', 'dirty', 'historyFetchRefused', 'remote'],
+        ['branch', 'commit', 'dirty', 'historyFetchRefused', 'remotes'],
         path,
         problems
       );
@@ -177,7 +177,7 @@ function readPosedGit(value: unknown, path: string, problems: string[]): void {
   } else {
     reportWrongShape(
       oneOf1,
-      '`"none"`, `"unavailable"` or `{ branch: string; commit: string; dirty: boolean; historyFetchRefused?: string; remote?: string }`',
+      '`"none"`, `"unavailable"` or `{ branch: string; commit: string; dirty: boolean; historyFetchRefused?: string; remotes?: string[] }`',
       path,
       problems
     );
@@ -1582,13 +1582,36 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
       const map13 = asObject(object1.sshHostNames, where12, problems);
       if (map13) {
         for (const key14 of Object.keys(map13)) {
-          expectString(map13[key14], atKey(where12, key14), problems);
+          const oneOf15 = map13[key14];
+          const where16 = atKey(where12, key14);
+          if (typeof oneOf15 === 'string' || oneOf15 === null) {
+            // the value is one of these
+          } else {
+            reportWrongShape(oneOf15, 'a string or `null`', where16, problems);
+          }
         }
       }
     }
+    if ('yarnAgeGateMinutes' in object1) {
+      expectNumber(object1.yarnAgeGateMinutes, at(path, 'yarnAgeGateMinutes'), problems);
+    }
+    if ('pnpmVersion' in object1) {
+      expectString(object1.pnpmVersion, at(path, 'pnpmVersion'), problems);
+    }
     reportUnknownFields(
       object1,
-      ['cli', 'install', 'storybook', 'pods', 'scenes', 'podInstall', 'enter', 'sshHostNames'],
+      [
+        'cli',
+        'install',
+        'storybook',
+        'pods',
+        'scenes',
+        'podInstall',
+        'enter',
+        'sshHostNames',
+        'yarnAgeGateMinutes',
+        'pnpmVersion',
+      ],
       path,
       problems
     );
@@ -2368,7 +2391,7 @@ function readApiError(value: unknown, path: string, problems: string[]): void {
     if ('errorName' in object1) {
       expectOneOf(
         object1.errorName,
-        ['TeamNotFoundError', 'ListTeamsAuthError'],
+        ['TeamNotFoundError', 'ListTeamsAuthError', 'ListProjectsAuthError'],
         at(path, 'errorName'),
         problems
       );

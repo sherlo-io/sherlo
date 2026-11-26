@@ -46,7 +46,7 @@
     "branch": "main",
     "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
     "dirty": false,
-    "remote": "git@github.com:acme/acme-shop.git"
+    "remotes": ["git@github.com:acme/acme-shop.git"]
   },
   "bundles": {},
   "api": [
@@ -141,6 +141,7 @@
   },
   "workstation": {
     "cli": "3.0.0",
+    "yarnAgeGateMinutes": 1440,
     "install": {
       "package": "@sherlo/react-native-storybook",
       "failed": {

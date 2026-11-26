@@ -14,7 +14,7 @@ import { renderStepLine } from '../../../render/initSteps';
 import { savedLogins, type SavedLogin } from '../../../seams/savedLogins';
 import { logInThroughTheBrowser } from '../../login/login';
 import { printLines } from '../helpers';
-import refuseFailedServiceCall, { isRefusedLogin } from '../project/refuseFailedServiceCall';
+import refuseFailedServiceCall, { whyRefused } from '../project/refuseFailedServiceCall';
 
 /**
  * Who setup runs as. A login just made in the browser is known to work; a saved one is not until the
@@ -49,13 +49,17 @@ export async function spendTheLogin<Answer>(
     if (person.isSaved) printLoggedIn(person.login);
     return { answer, login: person.login };
   } catch (error) {
-    if (!person.isSaved) return refuseFailedServiceCall(error as Error, failedStep);
-    if (!isRefusedLogin(error)) return refuseFailedServiceCall(error as Error, 'Logging in failed');
+    const { token } = person.login;
+    if (!person.isSaved) return refuseFailedServiceCall(error as Error, failedStep, token);
+    // Told apart here, so the refusal below does not ask the team list again.
+    if ((await whyRefused(error, token)) !== 'dead-login') {
+      return refuseFailedServiceCall(error as Error, 'Logging in failed', null);
+    }
   }
 
   const newLogin = await logInAgain();
   const answer = await call(newLogin).catch((error: Error) =>
-    refuseFailedServiceCall(error, failedStep)
+    refuseFailedServiceCall(error, failedStep, newLogin.token)
   );
   return { answer, login: newLogin };
 }

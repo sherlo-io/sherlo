@@ -61,4 +61,11 @@ describe('the package manager is read off the lockfile and the yarnPath', () => 
     const folder = projectWith({ 'package.json': PACKAGE_JSON, 'package-lock.json': '{}' });
     expect(await detectPackageManager(folder)).toBe('npm');
   });
+
+  it('names no manager when no lockfile and no packageManager field say one', async () => {
+    const folder = projectWith({ 'package.json': PACKAGE_JSON });
+    await expect(detectPackageManager(folder)).rejects.toThrow(
+      "Can't tell which package manager this app uses"
+    );
+  });
 });
