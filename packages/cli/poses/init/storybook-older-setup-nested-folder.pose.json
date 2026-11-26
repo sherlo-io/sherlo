@@ -16,6 +16,7 @@
       "packageManager": "yarn@4.3.1"
     },
     "app.json": { "name": "AcmeShop", "displayName": "Acme Shop" },
+    "android/app/src/main/java/com/acmeshop/MainActivity.kt": "package com.acmeshop\n\nimport com.facebook.react.ReactActivity\n\nclass MainActivity : ReactActivity() {\n  override fun getMainComponentName(): String = \"AcmeShop\"\n}\n",
     "metro.config.js": "const path = require('path');\nconst { getDefaultConfig } = require('@react-native/metro-config');\nconst { withStorybook } = require('@storybook/react-native/metro/withStorybook');\n\nmodule.exports = withStorybook(getDefaultConfig(__dirname), {\n  configPath: path.resolve(__dirname, './src/storybook'),\n});\n",
     "src/storybook/index.js": "import { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({});\n\nexport default StorybookUIRoot;\n",
     "src/storybook/main.js": "module.exports = {\n  stories: ['../components/**/*.stories.?(ts|tsx|js|jsx)'],\n  addons: [],\n};\n",

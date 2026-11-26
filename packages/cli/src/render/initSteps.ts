@@ -22,6 +22,16 @@ export interface RootComponentFile {
   found: boolean;
 }
 
+/**
+ * How Storybook's root is registered, so the app's native code opens it
+ * (../commands/init/steps/rootRegistration). `main`: Expo's `registerRootComponent`, which registers
+ * the name "main". `named`: `AppRegistry.registerComponent` under the name the native code opens;
+ * `inAppJson` when app.json's `name` is that name, so the code imports it rather than repeating it.
+ */
+export type RootRegistration =
+  | { registers: 'main' }
+  | { registers: 'named'; name: string; inAppJson: boolean };
+
 /** How wide the step names are padded, so every step's detail starts in the same column. */
 const STEP_NAME_WIDTH = 22;
 
@@ -98,7 +108,7 @@ export function renderNextSteps({
   storybookFolder,
   storybookIndexFile,
   storybookMainFile,
-  isExpo,
+  rootRegistration,
   rootComponent,
   reader,
 }: {
@@ -116,8 +126,7 @@ export function renderNextSteps({
   /** The folder's index and main files as the app has them (`.storybook/main.js`), from the app's folder. */
   storybookIndexFile: string;
   storybookMainFile: string;
-  /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
-  isExpo: boolean;
+  rootRegistration: RootRegistration;
   /** The file the app's root component is in (../commands/init/steps/rootComponentFile). */
   rootComponent: RootComponentFile;
   reader: FeedbackReader;
@@ -133,19 +142,29 @@ export function renderNextSteps({
 
   // EVERY LINE OF BOTH CHOICES IS ON THE SCREEN: the code to add, the file it
   // goes in, and what to remove - no docs link, which an agent rarely opens.
-  const registerRoot = isExpo
-    ? [
-        renderCode("import { registerRootComponent } from 'expo';"),
-        renderCode('registerRootComponent(StorybookUIRoot);'),
-      ]
-    : [
-        renderCode("import { AppRegistry } from 'react-native';"),
-        // From the index's folder to app.json in the app's folder, however deep the folder is.
-        renderCode(
-          `import { name as appName } from '${importPath(path.posix.dirname(storybookIndexFile), 'app.json')}';`
-        ),
-        renderCode('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
-      ];
+  // THE NAME THE NATIVE CODE OPENS decides the code: a bare app with Expo modules that calls
+  // registerRootComponent registers "main" and crashes at launch (proven on device).
+  const registerRoot =
+    rootRegistration.registers === 'main'
+      ? [
+          renderCode("import { registerRootComponent } from 'expo';"),
+          renderCode('registerRootComponent(StorybookUIRoot);'),
+        ]
+      : rootRegistration.inAppJson
+        ? [
+            renderCode("import { AppRegistry } from 'react-native';"),
+            // From the index's folder to app.json in the app's folder, however deep the folder is.
+            renderCode(
+              `import { name as appName } from '${importPath(path.posix.dirname(storybookIndexFile), 'app.json')}';`
+            ),
+            renderCode('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
+          ]
+        : [
+            renderCode("import { AppRegistry } from 'react-native';"),
+            renderCode(
+              `AppRegistry.registerComponent('${rootRegistration.name}', () => StorybookUIRoot);`
+            ),
+          ];
   // A STORYBOOK SETUP JUST INSTALLED has no code of the app's own that renders Storybook, so there
   // is nothing to remove. NO UPGRADE ON ANY SUPPORTED VERSION: Sherlo's withStorybook does the swap,
   // so the registration opens Storybook on 9.0 as on 10 (proven on device, Expo and bare).

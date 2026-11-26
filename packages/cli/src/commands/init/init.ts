@@ -16,6 +16,7 @@ import checkProject from './steps/checkProject';
 import githubWorkflow from './steps/githubWorkflow';
 import logIn from './steps/logIn';
 import rootComponentFile from './steps/rootComponentFile';
+import rootRegistration from './steps/rootRegistration';
 import sherloSdk from './steps/sherloSdk';
 import storybook from './steps/storybook';
 import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
@@ -23,7 +24,6 @@ import storybookFolder, { NEWEST_STORYBOOK_FOLDER, storybookFile } from './steps
 import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
 import {
-  EXPO_PACKAGE_NAME,
   EXPO_ROUTER_PACKAGE_NAME,
   PROJECT_OPTION,
   TEAM_OPTION,
@@ -80,7 +80,7 @@ async function init(options: Options<THIS_COMMAND>) {
         storybookFolder: folder,
         storybookIndexFile: storybookFile(folder, 'index'),
         storybookMainFile: storybookFile(folder, 'main'),
-        isExpo: !!(await getDeclaredPackageVersion(EXPO_PACKAGE_NAME)),
+        rootRegistration: rootRegistration(),
         rootComponent: rootComponentFile(
           !!(await getDeclaredPackageVersion(EXPO_ROUTER_PACKAGE_NAME))
         ),
