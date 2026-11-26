@@ -49,6 +49,59 @@ describe('the lines a failed build shows', () => {
     expect(shown.length).toBeLessThanOrEqual(LIMIT);
   });
 
+  it('a failed Xcode build shows its compiler error, not header lines whose selectors say error:', () => {
+    const header = (i: number) =>
+      `+ (NSDictionary *) stat${i}:(NSString *) path error:(NSError **) error;`;
+    const compilerLine = "/ios/App/File.m:12:5: error: use of undeclared identifier 'x'";
+    const log = [
+      ...Array.from({ length: 40 }, (_, i) => header(i)),
+      compilerLine,
+      ...notes(40),
+      '** BUILD FAILED **',
+    ].join('\n');
+
+    const shown = buildLogLinesShown(log, LIMIT);
+
+    expect(shown.slice(0, 2)).toEqual([compilerLine, '** BUILD FAILED **']);
+    expect(shown.filter((line) => line.includes('error:(NSError'))).toEqual([]);
+  });
+
+  it('a failed Xcode build shows a missing-header fatal error and the linker error among selector headers', () => {
+    const header = (i: number) =>
+      `+ (NSDictionary *) stat${i}:(NSString *) path error:(NSError **) error;`;
+    const fatalLine = "/ios/App/File.m:3:10: fatal error: 'Missing.h' file not found";
+    const linkerLine =
+      'clang: error: linker command failed with exit code 1 (use -v to see invocation)';
+    const log = [
+      ...Array.from({ length: 20 }, (_, i) => header(i)),
+      fatalLine,
+      ...notes(40),
+      linkerLine,
+      ...notes(40),
+    ].join('\n');
+
+    const shown = buildLogLinesShown(log, LIMIT);
+
+    expect(shown.slice(0, 2)).toEqual([fatalLine, linkerLine]);
+    expect(shown.filter((line) => line.includes('error:(NSError'))).toEqual([]);
+  });
+
+  it("a failed Gradle build shows R8's ERROR lines", () => {
+    const r8Line = 'ERROR: R8: Missing class com.example.Foo';
+    const log = [...notes(5), r8Line, ...notes(60)].join('\n');
+
+    expect(buildLogLinesShown(log, LIMIT)).toContain(r8Line);
+  });
+
+  it('the same error line repeated many times is shown once', () => {
+    const errorLine = '/ios/App/File.m:1:1: error: unknown type name Foo';
+    const log = [...Array(20).fill(errorLine), ...notes(50)].join('\n');
+
+    const shown = buildLogLinesShown(log, LIMIT);
+
+    expect(shown.filter((line) => line === errorLine)).toHaveLength(1);
+  });
+
   it('a failed build with no error line still shows its last lines', () => {
     const lines = notes(50);
 
