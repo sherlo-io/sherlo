@@ -39,6 +39,20 @@ const FULL: PlatformCapture = {
   },
 };
 
+/** The captured line printed for a narrowed capture with these counts. */
+const captured = (lookDifferent: number, couldNotBeChecked: number, total: number) =>
+  renderDiffScopeLines([
+    {
+      ...NARROWED,
+      diffScope: {
+        ...NARROWED.diffScope,
+        storiesLookDifferent: lookDifferent,
+        storiesCouldNotBeChecked: couldNotBeChecked,
+        storiesCaptured: total,
+      },
+    },
+  ])[1];
+
 describe('the lines the test prints about Diff Scope', () => {
   it('prints the captured and reused counts the service answered, not a sum of its own', () => {
     const answered: PlatformCapture = {
@@ -56,6 +70,24 @@ describe('the lines the test prints about Diff Scope', () => {
       '40 captured: 26 look different, 51 could not be checked',
       '61 reuse their last picture',
     ]);
+  });
+
+  it('names the stories that are new or read a changed file and leaves out kinds with no stories', () => {
+    expect(captured(0, 0, 4)).toBe('4 captured: 4 are new or read a changed file');
+    expect(captured(1, 0, 5)).toBe(
+      '5 captured: 1 look different, 4 are new or read a changed file'
+    );
+    expect(captured(0, 2, 6)).toBe(
+      '6 captured: 2 could not be checked, 4 are new or read a changed file'
+    );
+    expect(captured(1, 1, 6)).toBe(
+      '6 captured: 1 look different, 1 could not be checked, 4 are new or read a changed file'
+    );
+  });
+
+  it('keeps the captured line as it was when every captured story looks different or could not be checked', () => {
+    expect(captured(0, 0, 0)).toBe('0 captured: 0 look different, 0 could not be checked');
+    expect(captured(2, 0, 2)).toBe('2 captured: 2 look different, 0 could not be checked');
   });
 
   it('prints the three lines once when both platforms answered the same', () => {

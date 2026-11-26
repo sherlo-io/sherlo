@@ -7,7 +7,13 @@
  *                   77 captured: 26 look different, 51 could not be checked
  *                   307 reuse their last picture
  *
- * Only what follows `captured:` and the reason on the first line change from case to case.
+ * Only what follows `captured:` and the reason on the first line change from case to case. After
+ * `captured:` come the kinds that have stories, in this order: look different, could not be
+ * checked, are new or read a changed file (new stories and stories reading a changed picture or
+ * font file, which need no check). With none of the last kind it stays "N look different, N could
+ * not be checked", counts of 0 included:
+ *
+ *     5 captured: 1 look different, 4 are new or read a changed file
  *
  * Pure, like everything under ./. Words a customer does not know are not used here.
  */
@@ -64,7 +70,7 @@ function renderPlatformLines({ full, diffScope }: PlatformCapture): string[] {
     ? 'every story'
     : quickCheckFailed
       ? QUICK_CHECK_FAILED_WORDS
-      : `${diffScope.storiesLookDifferent ?? 0} look different, ${diffScope.storiesCouldNotBeChecked ?? 0} could not be checked`;
+      : capturedKinds(diffScope);
   const warning = quickCheckFailed ? `${chalk.yellow('!')} ` : '';
   const after = diffScope.reason ? `, after ${diffScope.reason}` : '';
 
@@ -73,4 +79,25 @@ function renderPlatformLines({ full, diffScope }: PlatformCapture): string[] {
     `${warning}${diffScope.storiesCaptured} captured: ${whatTheyAre}`,
     `${diffScope.storiesReused} reuse their last picture`,
   ];
+}
+
+function capturedKinds(diffScope: {
+  storiesCaptured: number;
+  storiesLookDifferent?: number | null;
+  storiesCouldNotBeChecked?: number | null;
+}): string {
+  const lookDifferent = diffScope.storiesLookDifferent ?? 0;
+  const couldNotBeChecked = diffScope.storiesCouldNotBeChecked ?? 0;
+  const newOrChangedFile = diffScope.storiesCaptured - lookDifferent - couldNotBeChecked;
+  if (newOrChangedFile <= 0) {
+    return `${lookDifferent} look different, ${couldNotBeChecked} could not be checked`;
+  }
+
+  return [
+    lookDifferent > 0 && `${lookDifferent} look different`,
+    couldNotBeChecked > 0 && `${couldNotBeChecked} could not be checked`,
+    `${newOrChangedFile} are new or read a changed file`,
+  ]
+    .filter(Boolean)
+    .join(', ');
 }
