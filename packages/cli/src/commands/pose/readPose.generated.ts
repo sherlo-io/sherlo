@@ -41,6 +41,9 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
     expectLiteral(object1.pose, 1, at(path, 'pose'), problems);
     expectStringArray(object1.argv, at(path, 'argv'), problems);
     readPosedFiles(object1.files, at(path, 'files'), problems);
+    if ('workingFolder' in object1) {
+      expectString(object1.workingFolder, at(path, 'workingFolder'), problems);
+    }
     const where2 = at(path, 'env');
     const map3 = asObject(object1.env, where2, problems);
     if (map3) {
@@ -106,6 +109,7 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
         'pose',
         'argv',
         'files',
+        'workingFolder',
         'env',
         'git',
         'bundles',

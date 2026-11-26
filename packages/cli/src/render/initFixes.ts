@@ -43,8 +43,8 @@ const choiceName = (name: string): string => chalk.bold(name);
  * The closing lines of a refusal whose fix is words, not commands: what to run once it is fixed.
  * They say the rerun picks up where it stopped, so nobody undoes the steps already done first.
  */
-function rerun(): string[] {
-  return ['', words('Then run setup again. It picks up where it stopped:'), code(INIT_COMMAND)];
+function rerun(command: string = INIT_COMMAND): string[] {
+  return ['', words('Then run setup again. It picks up where it stopped:'), code(command)];
 }
 
 function refusal(message: string, below: string[]): InitRefusal {
@@ -261,12 +261,16 @@ export function renderMetroConfigUnreadable({ path }: { path: string }): InitRef
 export function renderNoAccessToProject({
   project,
   email,
+  namedIn,
 }: {
   /** `teamId/projectIndex`. */
   project: string;
   /** The account this computer is signed in with. */
   email: string;
-  /** Where the project was named; the words are the same for both since the third way out went. */
+  /**
+   * Where the project was named. The ways out read the same for both; a project named by
+   * `--project` is named again in the rerun line, or the rerun would set up another project.
+   */
   namedIn: 'config' | 'flag';
 }): InitRefusal {
   return refusal(`${email} has no access to project ${project}`, [
@@ -277,7 +281,7 @@ export function renderNoAccessToProject({
     choiceName('b) Use another account'),
     words('   Log out, and log in with it when setup asks:'),
     code('   npx sherlo logout'),
-    ...rerun(),
+    ...rerun(namedIn === 'flag' ? `npx sherlo init --project ${project}` : INIT_COMMAND),
   ]);
 }
 
@@ -387,4 +391,13 @@ export function renderServiceUnreachable({
     words('Check your internet connection, and that no VPN, proxy or firewall blocks it.'),
     ...rerun(),
   ]);
+}
+
+/**
+ * Sherlo's service answered a team or project call with an error of its own, such as `HTTP 503`.
+ * The service's words head the refusal; the way out is to wait and run setup again, which picks up
+ * where it stopped.
+ */
+export function renderServiceFailed({ reason }: { reason: string }): InitRefusal {
+  return refusal(reason, [words('Wait a few minutes.'), ...rerun()]);
 }

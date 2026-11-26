@@ -2,10 +2,14 @@
  * A team or project call setup made that the service refused or could not answer. Setup spends the
  * saved login alone, so a refused token is a refused login, answered the way every command answers
  * it - log in again (../../shared/refuseRejectedLogin) - and anything else with the service's own
- * words.
+ * words, then to try again in a few minutes.
  */
 import { throwError } from '../../../helpers';
-import { renderLoginRejected, renderServiceUnreachable } from '../../../render/initFixes';
+import {
+  renderLoginRejected,
+  renderServiceFailed,
+  renderServiceUnreachable,
+} from '../../../render/initFixes';
 import { renderFailedStepLine } from '../../../render/initSteps';
 import { printLines } from '../helpers';
 import { CreateProjectAuthError } from '../../projectCreate/createProjectRequest';
@@ -42,7 +46,7 @@ function refuseFailedServiceCall(error: Error, failedStep: string): never {
     });
   }
 
-  throwError({ message: error.message, errorToReport: error });
+  throwError({ ...renderServiceFailed({ reason: error.message }), errorToReport: error });
 }
 
 export default refuseFailedServiceCall;

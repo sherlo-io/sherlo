@@ -69,13 +69,18 @@ export type Workstation = {
   /**
    * Set Storybook's lite setup up in a project that has none: install its packages, and write its
    * config folder, its example stories and its Metro wrapper into the project. Answers whether it
-   * wrote pnpm's `allowBuilds` answer for esbuild into `pnpm-workspace.yaml`, without which pnpm
+   * wrote pnpm's `allowBuilds` answer for esbuild into `pnpmSettingsFile`, without which pnpm
    * stops the install, so the checklist can say the person's pnpm settings changed.
    */
   installStorybook(params: {
     /** The whole command line, e.g. `yarn add @storybook/react-native@10.7.2 ...`. */
     command: string;
     projectRoot: string;
+    /**
+     * The `pnpm-workspace.yaml` pnpm reads its settings from: the workspace root's in a pnpm
+     * monorepo, else the project's own. pnpm never reads one in an app folder of a workspace.
+     */
+    pnpmSettingsFile: string;
   }): Promise<{ updatedPnpmSettings: boolean }>;
 
   /** Run `pod install` in the project's iOS folder. */
@@ -180,7 +185,7 @@ export const liveWorkstation: Workstation = {
 
   // BUILD DEBT (init-for-agents decision 2): adds the packages only; build writes `.rnstorybook`
   // from the templates kept in the CLI once they are installed, and on pnpm writes `allowBuilds:
-  // esbuild: false` into `pnpm-workspace.yaml` before the install.
+  // esbuild: false` into `pnpmSettingsFile` before the install.
   installStorybook: async ({ command, projectRoot }) => {
     await runInstall({ command, projectRoot });
     return { updatedPnpmSettings: false };
@@ -419,7 +424,7 @@ export function posedWorkstation(
       }
     },
 
-    installStorybook: async ({ projectRoot }) => {
+    installStorybook: async ({ projectRoot, pnpmSettingsFile }) => {
       if (!posed?.storybook) {
         // Recorded, not thrown, exactly like an unanswered `addPackage` - see this file's header.
         refuse(
@@ -435,8 +440,21 @@ export function posedWorkstation(
         throw installFailure(new Error('the package manager failed'), posed.storybook.failed);
       }
 
+      let updatedPnpmSettings = false;
       for (const [relativePath, content] of Object.entries(posed.storybook.wrote)) {
         const filePath = path.join(projectRoot, relativePath);
+        // pnpm reads its settings from one file only, so a pose that writes them anywhere else
+        // depicts a setup pnpm would ignore.
+        if (path.basename(filePath) === 'pnpm-workspace.yaml') {
+          if (filePath !== pnpmSettingsFile) {
+            refuse(
+              'installStorybook',
+              `the pose writes pnpm's settings to \`${relativePath}\`, and pnpm reads them from ` +
+                `\`${path.relative(projectRoot, pnpmSettingsFile)}\``
+            );
+          }
+          updatedPnpmSettings = true;
+        }
         fs.mkdirSync(path.dirname(filePath), { recursive: true });
         fs.writeFileSync(
           filePath,
@@ -444,7 +462,7 @@ export function posedWorkstation(
         );
       }
 
-      return { updatedPnpmSettings: 'pnpm-workspace.yaml' in posed.storybook.wrote };
+      return { updatedPnpmSettings };
     },
 
     installPods: async ({ command, sherloBuildUnset }) => {

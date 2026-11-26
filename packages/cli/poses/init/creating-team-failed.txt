@@ -18,6 +18,11 @@ Setting up Sherlo...
 
 [31mERROR: HTTP 503: Service Unavailable[39m
 
+[0mWait a few minutes.[0m
+
+[0mThen run setup again. It picks up where it stopped:[0m
+[36m  npx sherlo init[39m
+
 [2m──────────[22m
 
 Need help?

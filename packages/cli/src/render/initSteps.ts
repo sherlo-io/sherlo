@@ -9,7 +9,7 @@
  * Pure, like everything under ./: state in, print-call arguments out.
  */
 import chalk from 'chalk';
-import { STORYBOOK_SETUP_GUIDE, WRITING_STORIES_GUIDE } from '../constants';
+import { WRITING_STORIES_GUIDE } from '../constants';
 import { renderCode, renderSectionTitle } from './initLines';
 
 /** How wide the step names are padded, so every step's detail starts in the same column. */
@@ -145,11 +145,6 @@ export function renderNextSteps({
       ...defaultSetupChoice,
       '',
       ...keepSetupChoice,
-      '',
-      // AN INSTRUCTION WITH ITS MOMENT, NOT A TOPIC: whichever option is picked, the providers
-      // that wrapped Storybook in the app must move first, so the guide is read before any change.
-      'Before you change your setup, read:',
-      `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
     ],
   });
   // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the example names that file: an Expo

@@ -53,11 +53,12 @@ async function init(options: Options<THIS_COMMAND>) {
 
     // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
     const reader = process.stdout.isTTY ? 'person' : 'agent';
-    // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike, on either
-    // of Storybook's setups: with only Storybook's examples, the next step is to write them.
+    // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike, on every
+    // setup: with only Storybook's examples, the next step is to write them. An app whose code
+    // already asks Sherlo's isStorybookMode (way b) is as ready as Storybook's default setup.
     const storybookState = installedNow
       ? 'installed'
-      : storybookSetup() === 'registers-root'
+      : storybookSetup() !== 'renders-in-app'
         ? hasStoriesOfItsOwn()
           ? 'default-setup'
           : 'example-stories'

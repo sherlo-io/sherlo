@@ -131,7 +131,7 @@ export async function runPose(
   { terminal, play }: PoseOptions = { terminal: true }
 ): Promise<PosedScreen> {
   const playClock = play !== undefined ? playingTheClock() : undefined;
-  const files = posedProjectFiles(commandPose.files);
+  const files = posedProjectFiles(commandPose.files, commandPose.workingFolder);
   const api = answeringAfterTheWait(posedServerCalls(commandPose.api), playClock?.clock);
   const world = posedSurroundings({
     env: commandPose.env,
@@ -193,7 +193,8 @@ export async function runPose(
     for (const undo of [...uninstall].reverse()) undo();
   }
 
-  const mask = (text: string) => applyMasks(text, commandPose, { root: files.root(), configPath });
+  const mask = (text: string) =>
+    applyMasks(text, commandPose, { root: files.layoutRoot(), configPath });
   const screen = mask(capture.screen());
   const chunks = maskedPlayChunks(capture.chunks(), mask);
   files.remove();

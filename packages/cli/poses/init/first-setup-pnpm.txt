@@ -42,9 +42,6 @@ Setting up Sherlo...
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
         [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
 
-   Before you change your setup, read:
-     [36mnode_modules/@sherlo/react-native-storybook/guides/storybook-setup.md[39m
-
 [1m2. Replace the example stories[22m
    Right now Sherlo would test Storybook's examples, not your app.
    Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. [2m[[22m[32m'../src'[39m[2m][22m.

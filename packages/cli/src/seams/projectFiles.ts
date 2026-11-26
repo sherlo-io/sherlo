@@ -59,6 +59,8 @@ export type PosedFiles = Record<string, string | Record<string, unknown>>;
 
 /** A folder laid out from a pose's `files`, plus the two things a posed run needs to know about it. */
 export type PosedProjectFiles = ProjectFiles & {
+  /** The temporary folder the files were laid out in, which a working folder sits inside. */
+  layoutRoot(): string;
   /** Delete the temporary folder. */
   remove(): void;
 };
@@ -70,9 +72,10 @@ export type PosedProjectFiles = ProjectFiles & {
  * as the config file it depicts. Parent folders are created, so a pose states `builds/app.apk`
  * without also stating `builds/`. The root is REAL-PATHED: on macOS the system temporary folder is
  * reached through a symlink, and the tool prints the resolved path - so folding the unresolved one
- * out of the output would miss.
+ * out of the output would miss. A `workingFolder` makes the command run in that folder of the
+ * files rather than at their root.
  */
-export function posedProjectFiles(files: PosedFiles): PosedProjectFiles {
+export function posedProjectFiles(files: PosedFiles, workingFolder = ''): PosedProjectFiles {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-pose-')));
 
   for (const [relativePath, content] of Object.entries(files)) {
@@ -84,8 +87,12 @@ export function posedProjectFiles(files: PosedFiles): PosedProjectFiles {
     );
   }
 
+  const workingRoot = path.join(root, workingFolder);
+  fs.mkdirSync(workingRoot, { recursive: true });
+
   return {
-    root: () => root,
+    root: () => workingRoot,
+    layoutRoot: () => root,
     remove: () => fs.rmSync(root, { recursive: true, force: true }),
   };
 }

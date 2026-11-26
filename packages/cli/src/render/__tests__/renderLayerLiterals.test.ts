@@ -159,7 +159,7 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        "::notice title=Sherlo skipped this run::acme-mobile/shop-app is not connected to the team Anna's team, so Sherlo did not test this run. Connect GitHub in the project's settings in the Sherlo web app: https://sherlo.io/docs/integrations/github",
+        "::notice title=Sherlo skipped this run::acme-mobile/shop-app is not connected to the team Anna's team, so Sherlo did not test this run. Connect GitHub in the project's settings in the Sherlo web app.",
       ],
     ],
   },

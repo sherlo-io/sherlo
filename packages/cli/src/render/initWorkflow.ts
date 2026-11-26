@@ -98,15 +98,42 @@ function packageManagerSetup(packageManager: PackageManager, pinnedVersion?: str
   }
 }
 
+/**
+ * The lock file setup-node's cache keys on. It looks only in the repository's root unless told, so
+ * a workspace in a subfolder names its own.
+ */
+const LOCK_FILE: Partial<Record<PackageManager, string>> = {
+  npm: 'package-lock.json',
+  yarn: 'yarn.lock',
+  pnpm: 'pnpm-lock.yaml',
+};
+
+/**
+ * AN APP INSIDE A MONOREPO: the file sits in the repository's root (the only place GitHub reads
+ * workflows from), `installFolder` is the workspace's root and `appFolder` the app's, both relative
+ * to the repository's root. Empty for a plain app, whose file is the one it always was.
+ */
 export function renderSherloWorkflow({
   packageManager,
   pinnedVersion,
+  installFolder = '',
+  appFolder = '',
 }: {
   packageManager: PackageManager;
   pinnedVersion?: string;
+  installFolder?: string;
+  appFolder?: string;
 }): string {
   const cache = SETUP_NODE_CACHE[packageManager];
-  const cacheLine = cache ? `\n          cache: ${cache}` : '';
+  const lockFile = LOCK_FILE[packageManager];
+  const cacheLine = cache
+    ? `\n          cache: ${cache}` +
+      (installFolder && lockFile ? `\n          cache-dependency-path: ${installFolder}/${lockFile}` : '')
+    : '';
+  const installFolderLine = installFolder ? `\n        working-directory: ${installFolder}` : '';
+  const appFolderLine = appFolder
+    ? `\n          # The app's folder inside the repository.\n          working-directory: ${appFolder}`
+    : '';
   const setup = packageManagerSetup(packageManager, pinnedVersion);
   return `# Sherlo visual tests, added by \`npx sherlo init\`.
 #
@@ -159,11 +186,11 @@ ${setup.beforeNode}
           node-version: 22${cacheLine}
 ${setup.afterNode}
       - name: Install packages
-        run: ${INSTALL_COMMAND[packageManager]}
+        run: ${INSTALL_COMMAND[packageManager]}${installFolderLine}
 
       - name: Run Sherlo
         uses: sherlo-io/sherlo@v3
         with:
-          platform: \${{ matrix.platform }}
+          platform: \${{ matrix.platform }}${appFolderLine}
 `;
 }

@@ -9,6 +9,8 @@
  * Its line names the package and version, as Sherlo's line does. It does not say "lite": that changes
  * nothing anyone does next, and the stories guide and `.rnstorybook/index.ts` say it where it matters.
  */
+import fs from 'fs';
+import path from 'path';
 import { detect } from 'package-manager-detector';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
@@ -17,6 +19,7 @@ import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps'
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { addCommand } from '../dependencies/installSherlo';
 import { printLines } from '../helpers';
+import findPackageJsonPaths, { pnpmWorkspaceFile } from '../requirements/findPackageJsonPaths';
 import getPackageVersion from '../requirements/getPackageVersion';
 
 /** Storybook's packages, each at the version Sherlo tested - never `@latest` at run time. */
@@ -40,6 +43,13 @@ async function storybook({
 
   const projectRoot = getCwd();
   const tool = (await detect({ cwd: projectRoot }))?.agent ?? 'npm';
+  // pnpm reads its settings only from the workspace root's file, never from an app folder's.
+  const { monorepoRoot } = await findPackageJsonPaths();
+  const workspaceSettingsFile = monorepoRoot && pnpmWorkspaceFile(path.dirname(monorepoRoot));
+  const pnpmSettingsFile =
+    workspaceSettingsFile && fs.existsSync(workspaceSettingsFile)
+      ? workspaceSettingsFile
+      : pnpmWorkspaceFile(projectRoot);
   const command = addCommand(
     tool,
     Object.entries(STORYBOOK_VERSIONS).map(([name, version]) => `${name}@${version}`)
@@ -55,6 +65,7 @@ async function storybook({
     ({ updatedPnpmSettings } = await workstation().installStorybook({
       command: tool === 'yarn@berry' ? `${command} --json` : command,
       projectRoot,
+      pnpmSettingsFile,
     }));
   } catch (error) {
     spinner.stop();
@@ -88,7 +99,7 @@ async function storybook({
           renderStepLine({
             outcome: 'done',
             name: 'Updated pnpm settings',
-            detail: 'pnpm-workspace.yaml',
+            detail: path.relative(projectRoot, pnpmSettingsFile),
           }),
         ]
       : []),
