@@ -334,6 +334,41 @@ describe('setup names the project', () => {
       devices: [{ id: 'pixel.7.pro', osVersion: '13' }],
     });
   });
+
+  it('an app whose lowest Android is 14 gets an Android 14 phone in its config', async () => {
+    const fromGradle = await runConfigStep({
+      files: { 'android/build.gradle': 'buildscript {\n  ext {\n    minSdkVersion = 34\n  }\n}\n' },
+      projectToWrite: `${TEAM_ID}/4`,
+    });
+    expect(fromGradle.config.devices).toEqual([
+      { id: 'iphone.15.pro', osVersion: '17' },
+      { id: 'pixel.8', osVersion: '14' },
+    ]);
+
+    const fromProperties = await runConfigStep({
+      files: { 'android/gradle.properties': 'org.gradle.jvmargs=-Xmx2g\nminSdkVersion=34\n' },
+      projectToWrite: `${TEAM_ID}/4`,
+    });
+    expect(fromProperties.config.devices).toContainEqual({ id: 'pixel.8', osVersion: '14' });
+  });
+
+  it('an app whose lowest Android is 13 or below keeps the Pixel 7 Pro on Android 13', async () => {
+    const keptDevices = [
+      { id: 'iphone.15.pro', osVersion: '17' },
+      { id: 'pixel.7.pro', osVersion: '13' },
+    ];
+
+    const apps: PosedFiles[] = [
+      { 'android/build.gradle': 'ext {\n  minSdkVersion = 33\n}\n' },
+      { 'android/app/build.gradle': 'defaultConfig {\n  minSdk 24\n}\n' },
+      { 'android/build.gradle': 'ext {\n  minSdkVersion = rootProject.ext.min\n}\n' },
+      {},
+    ];
+    for (const files of apps) {
+      const run = await runConfigStep({ files, projectToWrite: `${TEAM_ID}/4` });
+      expect(run.config.devices).toEqual(keptDevices);
+    }
+  });
 });
 
 /* ========================================================================== */
