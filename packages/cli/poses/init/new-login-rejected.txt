@@ -22,9 +22,7 @@ Opening your browser to log in to Sherlo...
 [2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G[32m✔[39m Logged in              [2manna@example.com[22m
 [31m✖[39m Choosing a team failed
 
-[31mERROR: Sherlo no longer accepts the login saved on this computer.[39m
-
-[0mIt expired after 90 days unused, was revoked, or its owner left the team.[0m
+[31mERROR: Sherlo refused this login right after accepting it.[39m
 
 [0mLog in again:[0m
 [36m  npx sherlo login[39m

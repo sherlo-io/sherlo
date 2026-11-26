@@ -19,10 +19,6 @@ import type { Agent } from 'package-manager-detector';
 import typedInitCommand from '../commands/init/typedInitCommand';
 import { LOGIN_COMMAND } from '../commands/login/constants';
 import { MAX_PROJECT_NAME_LENGTH } from '../constants';
-import {
-  REJECTED_LOGIN_REASONS,
-  REJECTED_LOGIN_SENTENCE,
-} from '../commands/shared/refuseRejectedLogin';
 import { renderCode } from './initLines';
 import type { FeedbackReader } from './initSteps';
 import { pickInstallOutput } from './installOutput';
@@ -478,13 +474,15 @@ export function renderLoginNotFinished({ sentence }: { sentence: string }): Init
 }
 
 /**
- * The service no longer accepts the login saved on this computer. The sentences are
- * `refuseRejectedLogin`'s own; the fix is to log in again, then run setup again.
+ * The service refused a login it had accepted earlier in this same run: one just made in the
+ * browser, or a saved one its first call already spent. A saved login refused at its first call
+ * never comes here; setup logs in again by itself (../commands/init/steps/logIn).
+ *
+ * WHAT IS KNOWN, NOT WHY: a refusal names no cause, so the screen names none either. The fix is
+ * to log in again, then run setup again.
  */
 export function renderLoginRejected(): InitRefusal {
-  return refusal(REJECTED_LOGIN_SENTENCE, [
-    words(REJECTED_LOGIN_REASONS),
-    '',
+  return refusal('Sherlo refused this login right after accepting it.', [
     words('Log in again:'),
     code(`npx sherlo ${LOGIN_COMMAND}`),
     ...rerun(),

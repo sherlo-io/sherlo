@@ -24,9 +24,7 @@ If it doesn't open, use this link on any device:
 ✔ Logged in              anna@example.com
 ✖ Choosing a team failed
 
-ERROR: Sherlo no longer accepts the login saved on this computer.
-
-It expired after 90 days unused, was revoked, or its owner left the team.
+ERROR: Sherlo refused this login right after accepting it.
 
 Log in again:
   npx sherlo login
