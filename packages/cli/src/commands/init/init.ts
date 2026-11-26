@@ -23,11 +23,7 @@ import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
 import storybookFolder, { NEWEST_STORYBOOK_FOLDER, storybookFile } from './steps/storybookFolder';
 import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
-import {
-  EXPO_ROUTER_PACKAGE_NAME,
-  PROJECT_OPTION,
-  TEAM_OPTION,
-} from '../../constants';
+import { EXPO_ROUTER_PACKAGE_NAME, PROJECT_OPTION, TEAM_OPTION } from '../../constants';
 import getDeclaredPackageVersion from './requirements/getDeclaredPackageVersion';
 import { setupReader } from '../feedback/runningAgent';
 
