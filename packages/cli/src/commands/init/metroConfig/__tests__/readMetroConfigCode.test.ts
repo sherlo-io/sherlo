@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import readMetroConfigCode from '../readMetroConfigCode';
 
-describe('readMetroConfigCode', () => {
+describe('the Metro config is read by its syntax tree', () => {
   it("reads Sherlo's withStorybook, required or imported, as wired", () => {
     expect(
       readMetroConfigCode(

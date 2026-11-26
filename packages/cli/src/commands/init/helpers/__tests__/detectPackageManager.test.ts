@@ -22,7 +22,7 @@ afterEach(() => {
 
 const PACKAGE_JSON = JSON.stringify({ name: 'app' });
 
-describe('detectPackageManager', () => {
+describe('the package manager is read off the lockfile and the yarnPath', () => {
   it('reads a yarn.lock Yarn 1 wrote as Yarn 1', async () => {
     const folder = projectWith({
       'package.json': PACKAGE_JSON,
