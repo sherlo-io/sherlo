@@ -40,7 +40,7 @@ async function teamAndProject(
   const flagProject = projectFlag ? parseProject(projectFlag) : undefined;
   const existingProject = flagProject ?? (teamFlag ? undefined : await readProjectFromConfig());
   if (existingProject) {
-    await showProjectInConfig(existingProject, person, flagProject ? 'flag' : 'config');
+    await showProjectInConfig(existingProject, person);
     return settled(existingProject);
   }
 
@@ -57,11 +57,7 @@ export default teamAndProject;
 /* ========================================================================== */
 
 /** The team and project a config already names, by name - refused when this person cannot reach them. */
-async function showProjectInConfig(
-  project: ProjectAddress,
-  person: Person,
-  namedIn: 'config' | 'flag'
-): Promise<void> {
+async function showProjectInConfig(project: ProjectAddress, person: Person): Promise<void> {
   // A team the person is not in and a project its team does not hold are one answer: no access.
   const { answer: teamProjects, login } = await spendTheLogin(
     person,
@@ -84,9 +80,7 @@ async function showProjectInConfig(
       .catch((error: Error) => refuseFailedServiceCall(error, 'Finding the project failed'));
 
     printLines(renderFailedStepLine('Finding the project failed'));
-    return throwError(
-      renderNoAccessToProject({ project: asConfigProject(project), email, namedIn })
-    );
+    return throwError(renderNoAccessToProject({ project: asConfigProject(project), email }));
   }
   const { team } = teamProjects;
 

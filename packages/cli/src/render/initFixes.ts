@@ -10,10 +10,13 @@
  * AS SHORT AS STILL WORKS: every line is a command, a file, or the one fact needed to act. A reason,
  * a reassurance or a second way of saying it is cut.
  *
- * Pure, like everything under ./: state in, the `message` and `below` that `throwError` prints.
+ * Pure, like everything under ./: state in, the `message` and `below` that `throwError` prints -
+ * but for the setup command each refusal ends on, which repeats the flags typed on this run's
+ * command line (../commands/init/typedInitCommand), so a rerun asks for what this run asked for.
  */
 import chalk from 'chalk';
 import type { Agent } from 'package-manager-detector';
+import typedInitCommand from '../commands/init/typedInitCommand';
 import { LOGIN_COMMAND } from '../commands/login/constants';
 import {
   REJECTED_LOGIN_REASONS,
@@ -24,8 +27,6 @@ import type { FeedbackReader } from './initSteps';
 import { pickInstallOutput } from './installOutput';
 
 export type InitRefusal = { message: string; below: string };
-
-const INIT_COMMAND = 'npx sherlo init';
 
 /** A command, indented and in the command colour; code to add goes through `renderCode`. */
 const code = (line: string): string => chalk.cyan(`  ${line}`);
@@ -43,8 +44,8 @@ const choiceName = (name: string): string => chalk.bold(name);
  * The closing lines of a refusal whose fix is words, not commands: what to run once it is fixed.
  * They say the rerun picks up where it stopped, so nobody undoes the steps already done first.
  */
-function rerun(command: string = INIT_COMMAND): string[] {
-  return ['', words('Then run setup again. It picks up where it stopped:'), code(command)];
+function rerun(): string[] {
+  return ['', words('Then run setup again. It picks up where it stopped:'), code(typedInitCommand())];
 }
 
 function refusal(message: string, below: string[]): InitRefusal {
@@ -56,7 +57,7 @@ function goTo(folderWords: string, folder: string): string[] {
   return [
     words(`Go to ${folderWords} and run setup again:`),
     code(`cd ${folder}`),
-    code(INIT_COMMAND),
+    code(typedInitCommand()),
   ];
 }
 
@@ -82,14 +83,14 @@ export function renderMonorepoRoot({ appFolders }: { appFolders: string[] }): In
             words('Go to the one to test and run setup again:'),
             // A placeholder, not the first app: a real folder here reads as setup's own pick.
             code('cd <your app folder>'),
-            code(INIT_COMMAND),
+            code(typedInitCommand()),
           ]
         : // NO APP IN ANY WORKSPACE: a folder placeholder would send the reader looking for one
           // here, so the screen says none was found and where setup runs instead.
           [
             words("No React Native app was found in this workspace's packages."),
             words("Run setup inside your React Native app's folder:"),
-            code(INIT_COMMAND),
+            code(typedInitCommand()),
           ];
 
   return refusal('This folder is a monorepo root', fix);
@@ -117,7 +118,7 @@ export function renderPackagesNotInstalled({
   return refusal(`${packageName} isn't installed`, [
     words('Install your dependencies, then run setup again:'),
     code(installCommand),
-    code(INIT_COMMAND),
+    code(typedInitCommand()),
   ]);
 }
 
@@ -157,7 +158,7 @@ export function renderReactNativeTooOld({
           words('Upgrade Expo, then run setup again:'),
           code(`npx expo install expo@^${minExpoSdk}.0.0`),
           code('npx expo install --fix'),
-          code(INIT_COMMAND),
+          code(typedInitCommand()),
         ]
       : [
           words("Make the native changes React Native's Upgrade Helper lists for your versions:"),
@@ -165,7 +166,7 @@ export function renderReactNativeTooOld({
           '',
           words('Then upgrade the package and run setup again:'),
           code(addReactNativeCommand),
-          code(INIT_COMMAND),
+          code(typedInitCommand()),
         ]),
   ]);
 }
@@ -276,17 +277,11 @@ export function renderMetroConfigUnreadable({ path }: { path: string }): InitRef
 export function renderNoAccessToProject({
   project,
   email,
-  namedIn,
 }: {
   /** `teamId/projectIndex`. */
   project: string;
   /** The account this computer is signed in with. */
   email: string;
-  /**
-   * Where the project was named. The ways out read the same for both; a project named by
-   * `--project` is named again in the rerun line, or the rerun would set up another project.
-   */
-  namedIn: 'config' | 'flag';
 }): InitRefusal {
   return refusal(`${email} has no access to project ${project}`, [
     choiceName('a) Ask your team for access'),
@@ -296,7 +291,7 @@ export function renderNoAccessToProject({
     choiceName('b) Use another account'),
     words('   Log out, and log in with it when setup asks:'),
     code('   npx sherlo logout'),
-    ...rerun(namedIn === 'flag' ? `npx sherlo init --project ${project}` : INIT_COMMAND),
+    ...rerun(),
   ]);
 }
 
@@ -349,7 +344,7 @@ export function renderStorybookInstallFailed(failed: FailedInstall): InitRefusal
     ...installOutput(failed),
     '',
     words('Fix the error, then run setup again. It picks up where it stopped:'),
-    code(INIT_COMMAND),
+    code(typedInitCommand()),
   ]);
 }
 
@@ -359,7 +354,7 @@ export function renderInvalidJson({ path, reason }: { path: string; reason: stri
     words(reason),
     '',
     words('Fix the file, then run setup again:'),
-    code(INIT_COMMAND),
+    code(typedInitCommand()),
   ]);
 }
 
@@ -368,7 +363,7 @@ export function renderInvalidJson({ path, reason }: { path: string; reason: stri
  * `sentence` is the login's own, said once; the fix is the whole setup again, which starts a new one.
  */
 export function renderLoginNotFinished({ sentence }: { sentence: string }): InitRefusal {
-  return refusal(sentence, [words('Run setup again:'), code(INIT_COMMAND)]);
+  return refusal(sentence, [words('Run setup again:'), code(typedInitCommand())]);
 }
 
 /**

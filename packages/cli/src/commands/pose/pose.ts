@@ -66,6 +66,7 @@ import {
   type PlayChunk,
 } from './playClock';
 import { maskScreen } from './maskScreen';
+import flagValue from '../shared/flagValue';
 import exitAfterOutput from '../../helpers/exitAfterOutput';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
@@ -530,18 +531,9 @@ export function applyMasks(
  */
 export function resolvedConfigPath(argv: string[]): string {
   return resolveConfigPath({
-    projectRoot: valueOf(argv, 'projectRoot'),
-    config: valueOf(argv, 'config'),
+    projectRoot: flagValue(argv, 'projectRoot'),
+    config: flagValue(argv, 'config'),
   });
-}
-
-/** The value of `--name value` or `--name=value` on a command line, or undefined. */
-function valueOf(argv: string[], name: string): string | undefined {
-  const index = argv.indexOf(`--${name}`);
-  if (index !== -1) return argv[index + 1];
-
-  const joined = argv.find((word) => word.startsWith(`--${name}=`));
-  return joined?.slice(`--${name}=`.length);
 }
 
 /** Read the whole of stdin, for `sherlo pose -`. */
