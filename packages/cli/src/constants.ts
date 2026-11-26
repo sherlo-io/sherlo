@@ -49,6 +49,7 @@ export const SHERLO_TEMP_DATA_FILENAME = 'data.json';
 /* PACKAGES */
 
 export const EXPO_PACKAGE_NAME = 'expo';
+export const EXPO_ROUTER_PACKAGE_NAME = 'expo-router';
 export const REACT_NATIVE_PACKAGE_NAME = 'react-native';
 export const SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME = '@sherlo/react-native-storybook';
 export const STORYBOOK_REACT_NATIVE_PACKAGE_NAME = '@storybook/react-native';

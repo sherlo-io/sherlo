@@ -49,6 +49,11 @@ export type MaskContext = {
   projectRoot?: string;
   /** The config file path the run resolved, which sits INSIDE the project root. */
   configPath?: string;
+  /**
+   * The CLI version the run was: a pose's `workstation.cli` when it states one. Left out: this CLI's
+   * own version, from package.json.
+   */
+  sherloVersion?: string;
 };
 
 /**
@@ -90,7 +95,7 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldCaptureMeasuredSize(folded);
   folded = foldCheckedAppVersions(folded);
   folded = foldInstalledStorybookVersion(folded);
-  folded = foldInstalledSdkVersion(folded);
+  folded = foldInstalledSdkVersion(folded, context.sherloVersion ?? cliVersion);
   folded = foldFeedbackMachineFacts(folded);
   folded = stripTurboSnapDiagnostic(folded);
 
@@ -475,14 +480,15 @@ function foldInstalledStorybookVersion(screen: string): string {
 }
 
 /**
- * The SDK at this CLI's own version, or from a local tarball or folder, written after an `@` in a
+ * The SDK at the run's own CLI version, or from a local tarball or folder, written after an `@` in a
  * command or after a space on the `Installed Sherlo` line: both move with every release. Any other
  * version (the older one a manager installs on the day this CLI's comes out) and the range setup
- * asks for (`^3`) are what the picture shows, and stay.
+ * asks for (`^3`) are what the picture shows, and stay. A pose that states its CLI version is
+ * folded against that, so its picture holds when this CLI's own version moves.
  */
-function foldInstalledSdkVersion(screen: string): string {
+function foldInstalledSdkVersion(screen: string, sherloVersion: string): string {
   const fold = (whole: string, name: string, separator: string, spec: string, dot: string) =>
-    spec === cliVersion || /^(?:file:|portal:|\/)/.test(spec)
+    spec === sherloVersion || /^(?:file:|portal:|\/)/.test(spec)
       ? `${name}${separator}<SHERLO_VERSION>${dot}`
       : whole;
   return screen.replace(

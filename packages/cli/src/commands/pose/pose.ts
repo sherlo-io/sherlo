@@ -512,6 +512,7 @@ export function applyMasks(
   let masked = maskScreen(screen, {
     projectRoot: machineOnly.root,
     configPath: machineOnly.configPath,
+    sherloVersion: commandPose.workstation?.cli,
   });
 
   for (const [placeholder, literal] of Object.entries(commandPose.masks)) {

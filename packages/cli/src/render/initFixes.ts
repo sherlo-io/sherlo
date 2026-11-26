@@ -339,6 +339,22 @@ export function renderInstallFailed(failed: FailedInstall): InitRefusal {
 }
 
 /**
+ * Modern Yarn found no Sherlo for the CLI's major on that major's release day: Yarn holds back a
+ * version under a day old, and the major has no older one. Every retry fails until then, so the
+ * screen gives no fix, only when Yarn installs it, why (the setting Storybook's own installer reads
+ * with `yarn config get npmMinimalAgeGate`), and the rerun. It never says to change the setting:
+ * it guards the app against a bad release.
+ */
+export function renderSherloUnderADayOld({ version }: { version: string }): InitRefusal {
+  return refusal(`Yarn installs Sherlo ${version} once it is a day old`, [
+    words('Yarn holds new packages back for a day (its npmMinimalAgeGate setting).'),
+    '',
+    words('Run setup again then:'),
+    code(typedInitCommand()),
+  ]);
+}
+
+/**
  * The package manager adding Storybook's packages failed. NO INSTALLING THEM BY HAND: setup writes
  * `.rnstorybook` only for a project with no Storybook, so a rerun after a hand install would find
  * Storybook and never write it. The one fix is the error, and the rerun installs Storybook again.

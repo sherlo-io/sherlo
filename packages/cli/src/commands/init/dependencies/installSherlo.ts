@@ -11,7 +11,11 @@ import {
   spinner as createSpinner,
   throwError,
 } from '../../../helpers';
-import { renderInstallFailed, renderStorybookPinsExactVersions } from '../../../render/initFixes';
+import {
+  renderInstallFailed,
+  renderSherloUnderADayOld,
+  renderStorybookPinsExactVersions,
+} from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { printLines } from '../helpers';
@@ -58,11 +62,13 @@ async function installSherlo(): Promise<void> {
     packageJson.dependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME] ??
     packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]
   );
+  const versionBeforeInstall = getPackageVersion(SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME);
 
+  const sherloVersion = workstation().sherloVersion();
   const packageSpec = sherloSdkPackageSpec(
     process.env.SHERLO_SDK_PATH,
     process.env.SHERLO_SDK_VERSION,
-    workstation().sherloVersion()
+    sherloVersion
   );
 
   // Detected FROM THE PROJECT, not from wherever the process happens to be standing - the project
@@ -108,6 +114,17 @@ async function installSherlo(): Promise<void> {
       });
     }
 
+    // A NEW MAJOR'S RELEASE DAY ON MODERN YARN: Yarn holds back a version under a day old, and the
+    // major has no older version yet, so the range finds nothing (YN0082) and fails the same way all
+    // day. No fix helps before then, so the screen says when Yarn installs it instead.
+    if (
+      tool === 'yarn@berry' &&
+      packageSpec.endsWith(`@${sherloSdkVersionRange(sherloVersion)}`) &&
+      output.includes('YN0082')
+    ) {
+      throwError({ ...renderSherloUnderADayOld({ version: sherloVersion }), errorToReport: error });
+    }
+
     // The fix line names the same package the install asked for, so the person's retry gets what
     // setup would have installed.
     throwError({
@@ -130,10 +147,13 @@ async function installSherlo(): Promise<void> {
     packageSpec.slice(SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME.length + 1);
 
   spinner.stop();
+  // AN INSTALL THAT CHANGED NOTHING IS ALREADY DONE: on the day this CLI's version comes out, a
+  // rerun on Yarn 4 asks for the range again and keeps the version the first run installed.
+  const versionUnchanged = versionBeforeInstall === installedVersion;
   printLines([
     renderStepLine({
-      outcome: 'done',
-      name: hadSdk ? 'Updated Sherlo' : 'Installed Sherlo',
+      outcome: versionUnchanged ? 'already' : 'done',
+      name: hadSdk && !versionUnchanged ? 'Updated Sherlo' : 'Installed Sherlo',
       detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${installedVersion}`,
     }),
   ]);

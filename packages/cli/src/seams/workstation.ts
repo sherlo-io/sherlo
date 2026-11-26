@@ -195,7 +195,8 @@ export const liveWorkstation: Workstation = {
 
   // BUILD DEBT (init-for-agents decision 2): adds the packages only; build writes `.rnstorybook`
   // from the templates kept in the CLI once they are installed, and on pnpm writes `allowBuilds:
-  // esbuild: false` into `pnpmSettingsFile` before the install.
+  // esbuild: false` into `pnpmSettingsFile` before the install. It also adds the
+  // react-native-reanimated and react-native-worklets versions that fit the app when it has none.
   installStorybook: async ({ command, projectRoot }) => {
     await runInstall({ command, projectRoot });
     return { updatedPnpmSettings: false };
@@ -378,6 +379,19 @@ export type PosedWorkstation = {
 };
 
 /**
+ * Whether a manager asked for `range` may install `version`, for the ranges setup asks for: a major
+ * (`^3` allows 3.x.y, never a prerelease), an exact version, or a local file or folder (anything).
+ */
+function rangeAllowsVersion(range: string, version: string): boolean {
+  if (/^(?:file:|portal:)/.test(range)) return true;
+  const caretMajor = /^\^(\d+)$/.exec(range)?.[1];
+  if (caretMajor !== undefined) {
+    return version.split('.')[0] === caretMajor && !version.includes('-');
+  }
+  return range === version;
+}
+
+/**
  * The workstation a pose declares. A pose with no `workstation` running `init` is a terminal
  * nobody sits at: the installs are refused and the prompt is refused, and none of them reaches a
  * real package manager, a real CocoaPods or a real keyboard.
@@ -438,6 +452,20 @@ export function posedWorkstation(
         return;
       }
 
+      // NO VERSION THE REQUEST NEVER ALLOWED: a manager asked for `^3` cannot answer 2.0.2, so a
+      // pose cannot draw it.
+      const installedName = packageNameOfSpecifier(installedPackage);
+      const installedVersion = installedPackage.slice(installedName.length + 1) || sherloVersion;
+      const askedRange = packageSpec.slice(installedName.length + 1);
+      if (!rangeAllowsVersion(askedRange, installedVersion)) {
+        refuse(
+          'addPackage',
+          `the pose answers the install with version ${installedVersion}, and the command asked ` +
+            `the package manager for \`${packageSpec}\`, which does not allow it`
+        );
+        return;
+      }
+
       // A failed install ends the way a real one does: an error carrying what the manager printed
       // and the log file a real run writes it to (a pose writes no file).
       if (posed.install.failed) {
@@ -446,8 +474,6 @@ export function posedWorkstation(
 
       // The package lands in node_modules the way a real install leaves it, so what setup reads
       // back afterwards is the version the pose says the manager chose.
-      const installedName = packageNameOfSpecifier(installedPackage);
-      const installedVersion = installedPackage.slice(installedName.length + 1) || sherloVersion;
       const installedPackageFolder = path.join(projectRoot, 'node_modules', installedName);
       fs.mkdirSync(installedPackageFolder, { recursive: true });
       fs.writeFileSync(

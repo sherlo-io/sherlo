@@ -87,6 +87,7 @@ export function renderNextSteps({
   storybook,
   storybookFolder,
   isExpo,
+  hasExpoRouter,
   reader,
 }: {
   storybook:
@@ -102,6 +103,8 @@ export function renderNextSteps({
   storybookFolder: string;
   /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
   isExpo: boolean;
+  /** An expo-router app keeps its root component in a route layout, not in App.tsx. */
+  hasExpoRouter: boolean;
   reader: FeedbackReader;
 }): string[] {
   // NOTHING LEFT BUT THE TEST, FOR A PERSON: setup starts it, so nobody leaves it for later. The
@@ -147,9 +150,10 @@ export function renderNextSteps({
     title: 'Let Sherlo open Storybook',
     content: [`${reason} Pick one:`, '', ...defaultSetupChoice, '', ...keepSetupChoice],
   });
-  // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the example names that file: an Expo
-  // app's template keeps it in src/app/_layout.tsx, a bare app's in App.tsx beside the Storybook folder.
-  const rootComponent = isExpo
+  // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the example names that file: an
+  // expo-router app's template keeps it in src/app/_layout.tsx (clean-expo-58), and an app without
+  // expo-router, Expo (clean-expo-55) or bare, in App.tsx beside the Storybook folder.
+  const rootComponent = hasExpoRouter
     ? { file: 'src/app/_layout.tsx', storybookPath: `../../${storybookFolder}` }
     : { file: 'App.tsx', storybookPath: `./${storybookFolder}` };
   // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that

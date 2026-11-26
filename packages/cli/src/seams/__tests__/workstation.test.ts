@@ -18,6 +18,7 @@ import { defaultAgents } from 'agent-cli-detector';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ansiEscapes from 'ansi-escapes';
 import { version as cliVersion } from '../../../package.json';
+import { sherloSdkVersionRange } from '../../commands/init/dependencies/installSherlo';
 import waitForEnterPress from '../../commands/init/helpers/waitForEnterPress';
 import { forgetScenesFlag } from '../../helpers/scenesFlag';
 import { installSavedLogins, liveSavedLogins } from '../savedLogins';
@@ -145,7 +146,7 @@ describe('the posed workstation', () => {
 
   it('a pose that answers pod install is refused when the dependencies step ran and never asked for it', async () => {
     const posed = posedWorkstation({
-      install: { package: '@sherlo/react-native-storybook@2.0.2' },
+      install: { package: '@sherlo/react-native-storybook@3.0.0' },
       pods: 'installed',
       enter: 'pressed',
     });
@@ -162,7 +163,7 @@ describe('the posed workstation', () => {
   });
 
   it.each([
-    ['the version the pose names', undefined, '@sherlo/react-native-storybook@3.0.0', '3.0.0'],
+    ['the version the pose names', '3.0.1', '@sherlo/react-native-storybook@3.0.0', '3.0.0'],
     [
       "the CLI's own version for the bare name",
       undefined,
@@ -180,12 +181,9 @@ describe('the posed workstation', () => {
     async (_, cli, answer, version) => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'posed-install-'));
       const posed = posedWorkstation({ cli, install: { package: answer } });
+      const packageSpec = `@sherlo/react-native-storybook@${sherloSdkVersionRange(cli ?? cliVersion)}`;
 
-      await posed.addPackage({
-        packageSpec: '@sherlo/react-native-storybook@^3',
-        command: 'yarn add @sherlo/react-native-storybook@^3',
-        projectRoot,
-      });
+      await posed.addPackage({ packageSpec, command: `yarn add ${packageSpec}`, projectRoot });
       const installed = JSON.parse(
         fs.readFileSync(
           path.join(projectRoot, 'node_modules/@sherlo/react-native-storybook/package.json'),
@@ -197,6 +195,29 @@ describe('the posed workstation', () => {
       expect(installed).toEqual({ name: '@sherlo/react-native-storybook', version });
     }
   );
+
+  it.each([
+    ['an older main version', '2.0.2'],
+    ['a prerelease of the same main version', '3.1.0-alpha.0'],
+  ])('a posed install is refused when it answers ^3 with %s', async (_, answeredVersion) => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'posed-install-'));
+    const posed = posedWorkstation({
+      install: { package: `@sherlo/react-native-storybook@${answeredVersion}` },
+    });
+
+    await posed.addPackage({
+      packageSpec: '@sherlo/react-native-storybook@^3',
+      command: 'yarn add @sherlo/react-native-storybook@^3',
+      projectRoot,
+    });
+    const installed = fs.existsSync(
+      path.join(projectRoot, 'node_modules/@sherlo/react-native-storybook/package.json')
+    );
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+
+    expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'addPackage' })]);
+    expect(installed).toBe(false);
+  });
 
   it('a posed run is the CLI version its pose names, and this CLI when it names none', () => {
     expect(posedWorkstation({ cli: '3.0.1', install: { package: 'x' } }).sherloVersion()).toBe(

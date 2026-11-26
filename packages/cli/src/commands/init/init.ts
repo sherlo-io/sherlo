@@ -21,7 +21,12 @@ import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
 import storybookFolder, { NEWEST_STORYBOOK_FOLDER } from './steps/storybookFolder';
 import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
-import { EXPO_PACKAGE_NAME, PROJECT_OPTION, TEAM_OPTION } from '../../constants';
+import {
+  EXPO_PACKAGE_NAME,
+  EXPO_ROUTER_PACKAGE_NAME,
+  PROJECT_OPTION,
+  TEAM_OPTION,
+} from '../../constants';
 import getPackageVersion from './requirements/getPackageVersion';
 
 async function init(options: Options<THIS_COMMAND>) {
@@ -72,6 +77,7 @@ async function init(options: Options<THIS_COMMAND>) {
         // A folder Storybook's installer just wrote is its newest default.
         storybookFolder: storybookFolder() ?? NEWEST_STORYBOOK_FOLDER,
         isExpo: !!getPackageVersion(EXPO_PACKAGE_NAME),
+        hasExpoRouter: !!getPackageVersion(EXPO_ROUTER_PACKAGE_NAME),
         reader,
       })
     );

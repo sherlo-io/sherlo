@@ -28,7 +28,7 @@ Opening your browser to log in to Sherlo...
 
 [31mERROR: Sherlo couldn't be installed[39m
 
-[2mYN0082: @sherlo/react-native-storybook@npm:^3: No candidates found[22m
+[2mYN0001: RequestError: getaddrinfo ENOTFOUND registry.yarnpkg.com[22m
 
 [0mFull output: <LOG_FILE>[0m
 

@@ -59,6 +59,9 @@ async function storybook({
   // takes the wait for a hang.
   const spinner = createSpinner('Installing Storybook...').start();
 
+  // Read before the install writes it, so the line says Created for a file that was not there, as
+  // the Metro config's does.
+  const hadPnpmSettings = fs.existsSync(pnpmSettingsFile);
   let updatedPnpmSettings = false;
   try {
     // Only `--json` lets Yarn 2+ tell an error from a warning (../../../render/installOutput).
@@ -98,7 +101,7 @@ async function storybook({
       ? [
           renderStepLine({
             outcome: 'done',
-            name: 'Updated pnpm settings',
+            name: hadPnpmSettings ? 'Updated pnpm settings' : 'Created pnpm settings',
             detail: path.relative(projectRoot, pnpmSettingsFile),
           }),
         ]
