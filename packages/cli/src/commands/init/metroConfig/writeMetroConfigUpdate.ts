@@ -48,8 +48,7 @@ export function rewriteMetroConfig(content: string): string | null {
 
     // A withStorybook from anywhere but Storybook's package is the developer's own: never wrapped twice.
     const isWired =
-      repointStorybookRequire(body) ||
-      (!code.mentionsWithStorybook && wrapExportedConfig(body));
+      repointStorybookRequire(body) || (!code.mentionsWithStorybook && wrapExportedConfig(body));
     if (!isWired) return null;
 
     modified = generateCode(mod).code;

@@ -11,8 +11,7 @@ import hasDependency from './hasDependency';
 async function getDeclaredPackageVersion(packageName: string): Promise<string | null> {
   const { current, monorepoRoot } = await findPackageJsonPaths();
   const isDeclared =
-    (await hasDependency(current, packageName)) ||
-    (await hasDependency(monorepoRoot, packageName));
+    (await hasDependency(current, packageName)) || (await hasDependency(monorepoRoot, packageName));
 
   return isDeclared ? getPackageVersion(packageName) : null;
 }

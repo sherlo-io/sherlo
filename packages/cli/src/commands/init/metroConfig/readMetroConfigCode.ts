@@ -49,7 +49,11 @@ function readMetroConfigCode(content: string): MetroConfigCode | null {
     if (node.type === 'Identifier' && node.name === 'withStorybook') {
       code.mentionsWithStorybook = true;
     }
-    if (code.configPath === null && node.type === 'ObjectProperty' && keyName(node) === 'configPath') {
+    if (
+      code.configPath === null &&
+      node.type === 'ObjectProperty' &&
+      keyName(node) === 'configPath'
+    ) {
       code.configPath = configPathOf(node.value);
     }
   }

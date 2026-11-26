@@ -1,8 +1,6 @@
 {
   "pose": 1,
-  "argv": [
-    "init"
-  ],
+  "argv": ["init"],
   "workingFolder": "apps/mobile",
   "files": {
     "apps/mobile/App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
@@ -10,9 +8,7 @@
     "package.json": {
       "name": "acme",
       "private": true,
-      "workspaces": [
-        "apps/*"
-      ]
+      "workspaces": ["apps/*"]
     },
     "package-lock.json": {
       "name": "acme",
