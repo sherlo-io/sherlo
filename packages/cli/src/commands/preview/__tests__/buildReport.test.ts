@@ -3,11 +3,14 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { describe, expect, it, vi } from 'vitest';
+import { apiLevelOf, catalogDevice } from '../../../seams/__tests__/catalogDevice';
 import { installDeviceState, posedDeviceState } from '../../../seams/deviceState';
 import { keepCapture, newCapture, readKeptCaptures } from '../../../seams/localCaptures';
 import type { KeptCapture } from '../../../seams/localCaptures';
 import { readLocalDevice } from '../../../seams/localDevice';
 import { buildReport } from '../buildReport';
+
+const pixel7 = catalogDevice('pixel.7');
 
 const sceneRecord = {
   kind: 'scene',
@@ -255,7 +258,7 @@ describe('the capture report', () => {
     fs.mkdirSync(avdFolder, { recursive: true });
     fs.writeFileSync(
       path.join(avdFolder, 'config.ini'),
-      'hw.device.name=pixel_xl\r\nimage.sysdir.1=system-images/android-31/default/arm64-v8a/\r\n'
+      `hw.device.name=${pixel7.emuName}\r\nimage.sysdir.1=system-images/android-${apiLevelOf(pixel7.lacking)}/default/arm64-v8a/\r\n`
     );
     vi.stubEnv('ANDROID_AVD_HOME', path.join(root, 'avd'));
     // The emulator console answers with the name, then OK, each line ended by CR LF.
@@ -271,9 +274,9 @@ describe('the capture report', () => {
       const report = build(readKeptCaptures(root));
 
       expect(report.captures[0].device).toMatchObject({
-        model: 'pixel_xl',
+        model: pixel7.emuName,
         platform: 'android',
-        osVersion: '12',
+        osVersion: String(pixel7.lacking),
       });
     } finally {
       undo();

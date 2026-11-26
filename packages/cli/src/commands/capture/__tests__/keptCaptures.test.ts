@@ -7,10 +7,14 @@ import capture from '../capture';
 import { ALL_SCENES_OPTION, DISCOVER_OPTION, PNG_OPTION, SCENE_OPTION } from '../../../constants';
 import { captureTranscript } from '../../../helpers/transcriptSink';
 import { installCaptureSocket } from '../../../seams/captureSocket';
+import { apiLevelOf, catalogDevice } from '../../../seams/__tests__/catalogDevice';
 import { installDeviceState } from '../../../seams/deviceState';
 import { readKeptCaptures } from '../../../seams/localCaptures';
 import { installProjectFiles } from '../../../seams/projectFiles';
 import type { SceneCaptureResult } from '../../../seams/liveScene';
+
+const iphone = catalogDevice('iphone.15.pro');
+const pixel7 = catalogDevice('pixel.7');
 
 /** Thrown by the stubbed `process.exit`, so a case that ends in a refusal can still read what was kept. */
 class LeftTheProcess extends Error {}
@@ -58,13 +62,13 @@ describe('kept captures', () => {
           }
           if (line.includes('list devicetypes')) {
             return JSON.stringify({
-              devicetypes: [{ identifier: 'type-1', name: 'iPhone 15 Pro' }],
+              devicetypes: [{ identifier: 'type-1', name: iphone.emuName }],
             });
           }
           if (line.includes('list devices')) {
             return JSON.stringify({
               devices: {
-                'com.apple.CoreSimulator.SimRuntime.iOS-17-5': [
+                [`com.apple.CoreSimulator.SimRuntime.iOS-${iphone.held}-5`]: [
                   { udid: 'SIM-1', deviceTypeIdentifier: 'type-1' },
                 ],
               },
@@ -119,7 +123,7 @@ describe('kept captures', () => {
     expect(kept.id).toBe('chat--open');
     expect(kept.record).toMatchObject({ kind: 'scene', sceneId: 'chat--open' });
     expect(kept.screenPath && fs.readFileSync(kept.screenPath, 'utf8')).toBe('picture');
-    expect(kept.device).toEqual({ deviceId: 'iphone.15.pro', os: 'iOS 17.5' });
+    expect(kept.device).toEqual({ deviceId: 'iphone.15.pro', os: `iOS ${iphone.held}.5` });
   });
 
   it('a scene that was not captured keeps its record and where the app ended up', async () => {
@@ -215,7 +219,7 @@ describe('kept captures', () => {
     fs.mkdirSync(path.join(userHome, 'avd', 'Pixel_XL_API_31.avd'), { recursive: true });
     fs.writeFileSync(
       path.join(userHome, 'avd', 'Pixel_XL_API_31.avd', 'config.ini'),
-      'hw.device.name=pixel_xl\nimage.sysdir.1=system-images/android-31/google_apis/arm64-v8a/\n'
+      `hw.device.name=${pixel7.emuName}\nimage.sysdir.1=system-images/android-${apiLevelOf(pixel7.lacking)}/google_apis/arm64-v8a/\n`
     );
     vi.stubEnv('ANDROID_USER_HOME', userHome);
     vi.stubEnv('ANDROID_AVD_HOME', '');
@@ -241,7 +245,11 @@ describe('kept captures', () => {
     await captureWith([A_SCENE], { [SCENE_OPTION]: 'chat--open' });
 
     const [kept] = readKeptCaptures(project);
-    expect(kept.device).toEqual({ local: true, model: 'pixel_xl', os: 'Android 12' });
+    expect(kept.device).toEqual({
+      local: true,
+      model: pixel7.emuName,
+      os: `Android ${pixel7.lacking}`,
+    });
   });
 
   it('a scene that crashed at boot keeps no picture', async () => {
