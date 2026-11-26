@@ -699,6 +699,13 @@ export type PosedWorkstation = {
    * BUILD DEBT: the prompt and the questions below go with the old setup's last caller.
    */
   enter?: 'pressed' | 'closed' | 'nobody';
+  /**
+   * What this machine's SSH config maps each host name to, as `ssh -G <host>` prints it in its
+   * `hostname` line: `{ "github-work": "github.com" }` for a remote
+   * `git@github-work:acme/app.git`. A host left out is answered as SSH answers a host no Host
+   * block names: the host itself.
+   */
+  sshHostNames?: Record<string, string>;
 };
 
 /**

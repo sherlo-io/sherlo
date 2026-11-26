@@ -42,6 +42,7 @@
  * no way to state an answer, so the posed half refuses every question and the setup is cancelled;
  * a test that needs an answer installs a workstation of its own.
  */
+import { execFile } from 'child_process';
 import fs from 'fs';
 import { createRequire } from 'module';
 import os from 'os';
@@ -117,6 +118,13 @@ export type Workstation = {
 
   /** Run one git command line in the project folder; rejects when git fails (not a git folder). */
   readGit(params: { command: string; projectRoot: string }): Promise<string>;
+
+  /**
+   * The real host behind an SSH host name, as this machine's SSH config maps it: `ssh -G <host>`
+   * prints the configuration after its Host and Match blocks, and its `hostname` line is the answer
+   * (`github-work` -> `github.com`). Null when ssh is missing or fails.
+   */
+  readSshHostName(host: string): Promise<string | null>;
 
   /**
    * Storybook's own loader (`storybook/internal/common`) as the app has it installed: setup reads
@@ -246,6 +254,15 @@ export const liveWorkstation: Workstation = {
   askScenesFlag: decideScenesForProject,
 
   readGit: ({ command, projectRoot }) => runShellCommand({ command, projectRoot }),
+
+  // No shell: the host comes from the project's git remote, so it is passed as one argument, after
+  // `--` so a host starting with `-` is never read as an option.
+  readSshHostName: (host) =>
+    new Promise((resolve) => {
+      execFile('ssh', ['-G', '--', host], { timeout: 5000 }, (error, stdout) => {
+        resolve(error ? null : (/^hostname (\S+)$/m.exec(stdout)?.[1] ?? null));
+      });
+    }),
 
   storybookLoader: (projectRoot) =>
     createRequire(path.join(projectRoot, 'package.json'))('storybook/internal/common'),
@@ -400,6 +417,12 @@ export type PosedWorkstation = {
    * BUILD DEBT: the prompt and the questions below go with the old setup's last caller.
    */
   enter?: 'pressed' | 'closed' | 'nobody';
+  /**
+   * What this machine's SSH config maps each host name to, as `ssh -G <host>` prints it in its
+   * `hostname` line: `{ "github-work": "github.com" }` for a remote `git@github-work:acme/app.git`.
+   * A host left out is answered as SSH answers a host no Host block names: the host itself.
+   */
+  sshHostNames?: Record<string, string>;
 };
 
 /**
@@ -578,6 +601,9 @@ export function posedWorkstation(
 
     // A pose states no git history: a read of it fails as in a folder that is not a git folder.
     readGit: () => Promise.reject(new Error('the pose holds no git history')),
+
+    // A host the pose maps nowhere is answered as SSH answers a host no Host block names: itself.
+    readSshHostName: async (host) => posed?.sshHostNames?.[host] ?? host,
 
     // A posed project has no installed packages, so the pose's main config is loaded by the
     // Storybook this repository installs: the same loader, reading the pose's real files.

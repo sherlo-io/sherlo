@@ -1577,9 +1577,18 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
     if ('enter' in object1) {
       expectOneOf(object1.enter, ['pressed', 'closed', 'nobody'], at(path, 'enter'), problems);
     }
+    if ('sshHostNames' in object1) {
+      const where12 = at(path, 'sshHostNames');
+      const map13 = asObject(object1.sshHostNames, where12, problems);
+      if (map13) {
+        for (const key14 of Object.keys(map13)) {
+          expectString(map13[key14], atKey(where12, key14), problems);
+        }
+      }
+    }
     reportUnknownFields(
       object1,
-      ['cli', 'install', 'storybook', 'pods', 'scenes', 'podInstall', 'enter'],
+      ['cli', 'install', 'storybook', 'pods', 'scenes', 'podInstall', 'enter', 'sshHostNames'],
       path,
       problems
     );

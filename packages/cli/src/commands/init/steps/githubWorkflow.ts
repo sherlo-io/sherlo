@@ -17,6 +17,7 @@ import { getCwd } from '../../../helpers';
 import { renderStepLine } from '../../../render/initSteps';
 import { GITHUB_WORKFLOW_PATH, renderSherloWorkflow } from '../../../render/initWorkflow';
 import { surroundings } from '../../../seams/surroundings';
+import { workstation } from '../../../seams/workstation';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import { printLines } from '../helpers';
 import detectPackageManager from '../helpers/detectPackageManager';
@@ -58,12 +59,39 @@ function printWhyNoWorkflow(): void {
   ]);
 }
 
+/**
+ * GitHub's own SSH hosts: `ssh.github.com` is GitHub's SSH over the HTTPS port
+ * (docs.github.com, "Using SSH over the HTTPS port").
+ */
+const GITHUB_HOSTS = ['github.com', 'ssh.github.com'];
+
+/**
+ * Whether the remote's code lives on GitHub. AN SSH HOST NICKNAME IS ASKED, NOT GUESSED:
+ * `git@github-work:acme/app.git` names a Host block of the person's SSH config, and only SSH knows
+ * that block's real host, so an SSH host that is not GitHub's own is looked up with `ssh -G`. When
+ * ssh is missing or fails, the remote is the host it names.
+ */
+async function remoteIsOnGitHub(remote: string): Promise<boolean> {
+  // `ssh://git@github-work/acme/app.git`, `https://github.com/acme/app.git`, or the scp-like
+  // `git@github-work:acme/app.git`; anything else (a local folder) names no host.
+  const urlMatch = /^([a-z][a-z0-9+.-]*):\/\/(?:[^@/]+@)?([^:/]+)/i.exec(remote);
+  const scpLikeMatch = urlMatch ? null : /^(?:[^@/]+@)?([^:/]+):(?!\/\/)/.exec(remote);
+  const host = urlMatch?.[2] ?? scpLikeMatch?.[1];
+  if (!host) return false;
+  if (GITHUB_HOSTS.includes(host)) return true;
+
+  const overSsh = scpLikeMatch !== null || /ssh/i.test(urlMatch?.[1] ?? '');
+  if (!overSsh || host.startsWith('-')) return false;
+  const realHost = (await workstation().readSshHostName(host)) ?? host;
+  return GITHUB_HOSTS.includes(realHost);
+}
+
 /** Answers whether the project has Sherlo's workflow now, which the next steps name. */
 async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
   const projectRoot = getCwd();
 
   const remote = await surroundings().readGitRemote(projectRoot);
-  if (remote && !remote.includes('github.com')) {
+  if (remote && !(await remoteIsOnGitHub(remote))) {
     printWhyNoWorkflow();
     return { hasWorkflow: false };
   }

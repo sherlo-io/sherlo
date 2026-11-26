@@ -378,6 +378,7 @@ async function runProjectStep(world: {
     installStorybook: () => Promise.reject(new Error('the project step installs nothing')),
     installPods: () => Promise.reject(new Error('the project step installs nothing')),
     readGit: () => Promise.reject(new Error('the project step reads no git')),
+    readSshHostName: () => Promise.reject(new Error('the project step reads no SSH config')),
     storybookLoader: () => {
       throw new Error('the project step reads no Storybook');
     },
