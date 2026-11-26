@@ -145,13 +145,7 @@ export function renderNextSteps({
   // open Storybook alone differs.
   const openStorybookStep = (reason: string) => ({
     title: 'Let Sherlo open Storybook',
-    content: [
-      `${reason} Pick one:`,
-      '',
-      ...defaultSetupChoice,
-      '',
-      ...keepSetupChoice,
-    ],
+    content: [`${reason} Pick one:`, '', ...defaultSetupChoice, '', ...keepSetupChoice],
   });
   // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the example names that file: an Expo
   // app's template keeps it in src/app/_layout.tsx, a bare app's in App.tsx beside the Storybook folder.

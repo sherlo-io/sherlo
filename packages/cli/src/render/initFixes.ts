@@ -185,7 +185,10 @@ export type StorybookUpgrade = {
  * the user's OK. Storybook held in a workspace root's package.json is upgraded there, so the line
  * names that folder.
  */
-function upgradeStorybook({ commands, folder }: StorybookUpgrade, reader: FeedbackReader): string[] {
+function upgradeStorybook(
+  { commands, folder }: StorybookUpgrade,
+  reader: FeedbackReader
+): string[] {
   return [
     ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK."), ''] : []),
     words(

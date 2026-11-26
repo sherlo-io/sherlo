@@ -25,7 +25,8 @@ export const NEWEST_STORYBOOK_FOLDER = DEFAULT_FOLDERS[0];
  * BUILD DEBT (init-for-agents): a configPath built any other way is not read, and the defaults are
  * tried as if none were given.
  */
-const CONFIG_PATH = /\bconfigPath\s*:\s*(?:path\.(?:resolve|join)\(\s*__dirname\s*,\s*)?['"]([^'"]+)['"]/;
+const CONFIG_PATH =
+  /\bconfigPath\s*:\s*(?:path\.(?:resolve|join)\(\s*__dirname\s*,\s*)?['"]([^'"]+)['"]/;
 
 /** The folder relative to the app's folder (`.storybook`), or null when the app has none. */
 function storybookFolder(): string | null {

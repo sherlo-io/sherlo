@@ -87,7 +87,8 @@ async function storybookUpgrade(): Promise<StorybookUpgrade> {
 
   // `storybook` goes only when held: Yarn refuses to remove a package the folder does not list.
   const removed = [...ended, ...(dependencyNames.includes('storybook') ? ['storybook'] : [])];
-  const add = managerCommand(tool, 'add', added) + (tool === 'pnpm' ? ` ${PNPM_ALLOW_ESBUILD}` : '');
+  const add =
+    managerCommand(tool, 'add', added) + (tool === 'pnpm' ? ` ${PNPM_ALLOW_ESBUILD}` : '');
 
   return {
     commands: ended.length > 0 ? [managerCommand(tool, 'uninstall', removed), add] : [add],

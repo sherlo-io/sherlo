@@ -128,7 +128,9 @@ export function renderSherloWorkflow({
   const lockFile = LOCK_FILE[packageManager];
   const cacheLine = cache
     ? `\n          cache: ${cache}` +
-      (installFolder && lockFile ? `\n          cache-dependency-path: ${installFolder}/${lockFile}` : '')
+      (installFolder && lockFile
+        ? `\n          cache-dependency-path: ${installFolder}/${lockFile}`
+        : '')
     : '';
   const installFolderLine = installFolder ? `\n        working-directory: ${installFolder}` : '';
   const appFolderLine = appFolder
