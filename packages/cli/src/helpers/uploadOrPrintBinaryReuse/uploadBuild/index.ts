@@ -1,1 +1,6 @@
-export { default, REAL_BINARY_UPLOAD_EFFECTS, type BinaryUploadEffects } from './uploadBuild';
+export {
+  default,
+  putWithRetries,
+  REAL_BINARY_UPLOAD_EFFECTS,
+  type BinaryUploadEffects,
+} from './uploadBuild';

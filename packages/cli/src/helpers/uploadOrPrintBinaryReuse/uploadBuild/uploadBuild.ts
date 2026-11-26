@@ -11,6 +11,8 @@ import getBuildData from './getBuildData';
 import getSizeInMB from './getSizeInMB';
 
 const MAX_RETRIES = 3;
+/** The wait before the next try, longer each time: after the first failure, then after the second. */
+const RETRY_WAITS_MS = [5_000, 15_000];
 const TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -33,6 +35,8 @@ export type BinaryUploadEffects = {
     uploadUrl: string,
     data: Buffer
   ) => Promise<{ ok: boolean; status: number; text: () => Promise<string> }>;
+  /** Waits this many milliseconds before a new try; a builder that leaves it out waits for real. */
+  wait?: (ms: number) => Promise<void>;
 };
 
 export const REAL_BINARY_UPLOAD_EFFECTS: BinaryUploadEffects = {
@@ -40,6 +44,7 @@ export const REAL_BINARY_UPLOAD_EFFECTS: BinaryUploadEffects = {
     const data = await getBuildData({ buildPath, platform, projectRoot });
     return { data, sizeMb: getSizeInMB({ bytes: data.length }) };
   },
+  wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   putBinary: (uploadUrl, data) => {
     // Use protocol-appropriate agent (HTTP for local S3, HTTPS for AWS)
     const agent = uploadUrl.startsWith('https')
@@ -88,21 +93,33 @@ async function uploadBuild({
   // An upload is only a wait: a spinner in a terminal that leaves no line, one plain line in a log.
   // The step a person reads is the test it starts.
   await whileShowing({ kind: 'binary-uploading', sizeMb: buildSizeMB, platform }, () =>
-    putWithRetries({ platform, uploadUrl, buildData, effects })
+    putWithRetries({
+      what: `${PLATFORM_LABEL[platform]} build`,
+      uploadUrl,
+      buildData,
+      effects,
+      onRetry: (attempt) => emit({ kind: 'binary-upload-retry', attempt, maxRetries: MAX_RETRIES }),
+    })
   );
 }
 
-/** PUT the bytes, trying again up to {@link MAX_RETRIES} times; the last failure ends the run. */
-async function putWithRetries({
-  platform,
+/**
+ * PUT the bytes, trying again up to {@link MAX_RETRIES} times with a longer wait each time; the last
+ * failure ends the run. Every upload of a build or staged file goes through here, so no failure
+ * prints the signed upload link.
+ */
+export async function putWithRetries({
+  what,
   uploadUrl,
   buildData,
   effects,
+  onRetry,
 }: {
-  platform: Platform;
+  what: string;
   uploadUrl: string;
   buildData: Buffer;
-  effects: BinaryUploadEffects;
+  effects: Pick<BinaryUploadEffects, 'putBinary' | 'wait'>;
+  onRetry?: (attempt: number) => void;
 }): Promise<void> {
   let attempt = 0;
   while (attempt < MAX_RETRIES) {
@@ -118,27 +135,28 @@ async function putWithRetries({
     } catch (error) {
       attempt++;
 
-      // Log detailed error info
+      // The upload link is a signed secret and a fetch error's message repeats it: never print it.
+      const message = String(error.message).split(uploadUrl).join('<upload link>');
+
       console.error('Upload error details:', {
         code: error.code,
-        message: error.message,
-        stack: error.stack,
+        message,
         attempt,
         buildSize: buildData.length,
-        url: uploadUrl,
       });
 
       if (attempt === MAX_RETRIES) {
         throwError({
           type: 'unexpected',
           error: new Error(
-            `Failed to upload ${PLATFORM_LABEL[platform]} build after ${MAX_RETRIES} attempts. ` +
-              `Last error (${error.code}): ${error.message}`
+            `Failed to upload ${what} after ${MAX_RETRIES} attempts. ` +
+              `Last error (${error.code}): ${message}`
           ),
         });
       }
 
-      emit({ kind: 'binary-upload-retry', attempt, maxRetries: MAX_RETRIES });
+      onRetry?.(attempt);
+      await (effects.wait ?? REAL_BINARY_UPLOAD_EFFECTS.wait!)(RETRY_WAITS_MS[attempt - 1]);
     }
   }
 }
