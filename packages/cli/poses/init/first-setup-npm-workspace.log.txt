@@ -12,10 +12,10 @@ Make sure your mobile app looks perfect on every device
 
 Setting up Sherlo...
 
-✔ Checked the app        React Native <REACT_NATIVE_VERSION>
+✔ Checked the app        Expo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>
 ✔ Logged in              anna@example.com
 ✔ Using team             Anna's team
-✔ Created project        acme-shop
+✔ Created project        Acme Shop
 ✔ Created config         sherlo.config.json, one device: Pixel 7 Pro
 - Installing Storybook...
 ✔ Installed Storybook    @storybook/react-native <STORYBOOK_VERSION>
@@ -33,9 +33,8 @@ Setting up Sherlo...
 
    a) Entry-point swapping (Storybook's default, recommended)
       In .rnstorybook/index.ts, below StorybookUIRoot, add:
-        import { AppRegistry } from 'react-native';
-        import { name as appName } from '../app.json';
-        AppRegistry.registerComponent(appName, () => StorybookUIRoot);
+        import { registerRootComponent } from 'expo';
+        registerRootComponent(StorybookUIRoot);
 
    b) In-app integration
       At the top of your root component (App.tsx), add:
