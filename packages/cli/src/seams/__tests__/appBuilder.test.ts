@@ -694,6 +694,7 @@ describe('app builder, iOS', () => {
     expect(result.lastLines).toEqual([
       'The pod install step failed: `bundle exec pod install` exited with 18.',
       'Bundler::RubyVersionMismatch: Your Ruby version is 3.2.0, but your Gemfile specified 3.4.5',
+      'at /x.rb:1',
     ]);
     expect(callsOf('xcodebuild')).toHaveLength(0);
   });

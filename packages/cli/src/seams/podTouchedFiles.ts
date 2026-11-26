@@ -60,9 +60,13 @@ export function podsAreCurrent(iosFolder: string): boolean {
   );
 }
 
+/** The most lines of an error's block that follow its first line. */
+const MAX_BLOCK_LINES_AFTER_ERROR = 8;
+
 /**
  * What a failed pod step prints: its command and exit code (when the failure carries one), then the
- * first error line of its log.
+ * first error line of its log and the lines of that error's block that follow it (up to the next
+ * blank line), so CocoaPods' invalid-Podfile heading comes with what is wrong.
  */
 export function podInstallFailureLines(params: {
   command: string;
@@ -70,12 +74,20 @@ export function podInstallFailureLines(params: {
   logLines: string[];
 }): string[] {
   const { command, exitCode, logLines } = params;
-  const lines = logLines.filter((line) => line.trim() !== '');
-  const firstError = lines.find((line) => /error|mismatch|fail|\[!\]/i.test(line)) ?? lines[0];
+  const filled = logLines.filter((line) => line.trim() !== '');
+  const firstError = filled.find((line) => /error|mismatch|fail|\[!\]/i.test(line)) ?? filled[0];
+  const errorAt = firstError === undefined ? -1 : logLines.indexOf(firstError);
+  const blockEnd = logLines.findIndex((line, index) => index > errorAt && line.trim() === '');
+  const block =
+    errorAt === -1
+      ? []
+      : logLines
+          .slice(errorAt, blockEnd === -1 ? undefined : blockEnd)
+          .slice(0, 1 + MAX_BLOCK_LINES_AFTER_ERROR);
   return [
     `The pod install step failed: \`${command}\`${
       exitCode === undefined ? '' : ` exited with ${exitCode}`
     }.`,
-    ...(firstError ? [firstError.trim()] : []),
+    ...block.map((line) => line.trim()),
   ];
 }
