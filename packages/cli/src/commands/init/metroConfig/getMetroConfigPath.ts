@@ -1,12 +1,12 @@
 /**
  * THE METRO CONFIG METRO ITSELF LOADS, found by metro-config's own search (loadConfig.js,
- * searchForConfigFile): in the app's folder and then each folder above it, up to and including the
- * home folder, the first of `metro.config.<ext>` and `.config/metro.<ext>`, then a package.json
- * holding a "metro" key. Setup reads and wires that file, so it never writes a second config Metro
- * would not load, nor misses one Metro does.
+ * searchForConfigFile): in the app's folder and then each folder above it, the first of
+ * `metro.config.<ext>` and `.config/metro.<ext>`, then a package.json holding a "metro" key. Setup
+ * reads and wires that file, so it never writes a second config Metro would not load, nor misses
+ * one Metro does. Metro stops at the home folder; this search goes on to the top of the disk,
+ * since only folders above the home folder (where no project lives) tell the two apart.
  */
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { getCwd } from '../../../helpers';
 
@@ -16,7 +16,6 @@ const SEARCH_PLACES = ['metro.config', path.join('.config', 'metro')].flatMap((p
 );
 
 function getMetroConfigPath(): string | null {
-  const homeFolder = os.homedir();
   let folder = path.resolve(getCwd());
   while (true) {
     for (const place of SEARCH_PLACES) {
@@ -27,7 +26,7 @@ function getMetroConfigPath(): string | null {
     if (isFile(packageJson) && hasMetroKey(packageJson)) return packageJson;
 
     const parent = path.dirname(folder);
-    if (folder === homeFolder || parent === folder) return null;
+    if (parent === folder) return null;
     folder = parent;
   }
 }
