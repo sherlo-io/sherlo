@@ -100,15 +100,46 @@ describe('the command waits for the quick check', () => {
     expect(sleep).not.toHaveBeenCalled();
   });
 
-  it('ends the wait with the last answer when a status read fails', async () => {
+  it('asks again after a status read fails and returns the counts the next read gives', async () => {
     getBuildStatus
       .mockResolvedValueOnce(statusWith('RUNNING'))
-      .mockRejectedValueOnce(new Error('network down'));
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce(statusWith('FINISHED'));
 
     const answer = await waitForQuickCheck({ openBuildReturn: openedWith('RUNNING'), ...ASK });
 
-    expect(answer?.platforms?.android?.capture?.quickCheck).toBe('RUNNING');
-    expect(getBuildStatus).toHaveBeenCalledTimes(2);
+    expect(answer?.platforms?.android?.capture?.quickCheck).toBe('FINISHED');
+    expect(getBuildStatus).toHaveBeenCalledTimes(3);
+  });
+
+  it('ends with the counts when one read fails while both platforms run and they finish 30 seconds later', async () => {
+    const both = (quickCheck: 'RUNNING' | 'FINISHED'): BuildStatus => {
+      const numbers =
+        quickCheck === 'FINISHED'
+          ? { storiesChecked: 73, storiesCaptured: 4, storiesReused: 69 }
+          : {};
+      const capture = { full: false, reason: null, storyFiles: [], quickCheck, ...numbers };
+      return {
+        runStatus: 'inProgress',
+        platforms: {
+          android: { arrived: true, capture },
+          ios: { arrived: true, capture },
+        },
+      } as BuildStatus;
+    };
+    // One read every 3 seconds: two running, one slow read that fails, ten more running, finished.
+    getBuildStatus
+      .mockResolvedValueOnce(both('RUNNING'))
+      .mockResolvedValueOnce(both('RUNNING'))
+      .mockRejectedValueOnce(new Error('read timed out'));
+    for (let ask = 0; ask < 10; ask++) getBuildStatus.mockResolvedValueOnce(both('RUNNING'));
+    getBuildStatus.mockResolvedValue(both('FINISHED'));
+
+    const answer = await waitForQuickCheck({ openBuildReturn: openedWith('RUNNING'), ...ASK });
+
+    expect(answer?.platforms?.android?.capture?.storiesChecked).toBe(73);
+    expect(answer?.platforms?.ios?.capture?.storiesCaptured).toBe(4);
+    expect(answer?.platforms?.ios?.capture?.storiesReused).toBe(69);
   });
 });
 
