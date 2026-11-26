@@ -35,7 +35,7 @@ Opening your browser to log in to Sherlo...
 [0mFull output: <LOG_FILE>[0m
 
 [0mFix the error, or install Sherlo yourself:[0m
-[36m  yarn add @sherlo/react-native-storybook@^3[39m
+[36m  yarn add @sherlo/react-native-storybook@<SHERLO_VERSION>[39m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

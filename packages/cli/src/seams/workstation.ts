@@ -43,6 +43,7 @@
  * a test that needs an answer installs a workstation of its own.
  */
 import fs from 'fs';
+import { createRequire } from 'module';
 import os from 'os';
 import path from 'path';
 import { confirm, input, select } from '@inquirer/prompts';
@@ -117,6 +118,13 @@ export type Workstation = {
   /** Run one git command line in the project folder; rejects when git fails (not a git folder). */
   readGit(params: { command: string; projectRoot: string }): Promise<string>;
 
+  /**
+   * Storybook's own loader (`storybook/internal/common`) as the app has it installed: setup reads
+   * the app's story list through it, so a story file counts only where Storybook itself would load
+   * it. Throws when the app has no `storybook` package.
+   */
+  storybookLoader(projectRoot: string): StorybookLoader;
+
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
 
@@ -138,6 +146,19 @@ export type Workstation = {
 
   /** Ask the person a yes or no question, and answer whether they said yes. */
   askYesOrNo(params: { question: string }): Promise<boolean>;
+};
+
+/**
+ * The two parts of `storybook/internal/common` setup calls: the app's main config, loaded the way
+ * Storybook loads it, and its `stories` turned into the matchers Storybook tests a file against
+ * (a file's path from the app folder, written `./src/Button.stories.tsx`).
+ */
+export type StorybookLoader = {
+  loadMainConfig(options: { configDir: string; cwd: string }): Promise<{ stories?: unknown }>;
+  normalizeStories(
+    stories: unknown,
+    options: { configDir: string; workingDir: string }
+  ): { importPathMatcher: RegExp }[];
 };
 
 /**
@@ -225,6 +246,9 @@ export const liveWorkstation: Workstation = {
   askScenesFlag: decideScenesForProject,
 
   readGit: ({ command, projectRoot }) => runShellCommand({ command, projectRoot }),
+
+  storybookLoader: (projectRoot) =>
+    createRequire(path.join(projectRoot, 'package.json'))('storybook/internal/common'),
 
   /**
    * Is there a human at the keyboard who could actually press Enter? `isTTY` alone is not enough:
@@ -554,6 +578,10 @@ export function posedWorkstation(
 
     // A pose states no git history: a read of it fails as in a folder that is not a git folder.
     readGit: () => Promise.reject(new Error('the pose holds no git history')),
+
+    // A posed project has no installed packages, so the pose's main config is loaded by the
+    // Storybook this repository installs: the same loader, reading the pose's real files.
+    storybookLoader: () => createRequire(__filename)('storybook/internal/common'),
 
     // A pose that says Enter was pressed or the terminal closed says somebody was asked, so the
     // prompt prints and `enter` below decides what they did. `nobody` is the run with no keyboard

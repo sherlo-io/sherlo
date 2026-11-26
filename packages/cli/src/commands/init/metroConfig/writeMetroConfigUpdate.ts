@@ -1,7 +1,8 @@
 import fs from 'fs';
 import { generateCode, parseModule } from 'magicast';
 import { parse as babelParse } from '@babel/parser';
-import { ALREADY_WRAPPED_TOKEN, NEW_IMPORT_PACKAGE, WITH_STORYBOOK_IMPORT_RE } from './constants';
+import { NEW_IMPORT_PACKAGE, WITH_STORYBOOK_IMPORT_RE } from './constants';
+import readMetroConfigCode from './readMetroConfigCode';
 
 /**
  * Wires the Metro config for Sherlo, writing it only when it changed. `applied: false` means the
@@ -34,11 +35,11 @@ export default writeMetroConfigUpdate;
  *   - A config exported as a function, or one with no export setup can find, is left alone.
  */
 export function rewriteMetroConfig(content: string): string | null {
+  const code = readMetroConfigCode(content);
+  if (code === null) return null;
   // Sherlo's older factory shape wraps Storybook's own withStorybook itself: repointing that
   // require would nest one wrapper in the other.
-  if (content.includes(ALREADY_WRAPPED_TOKEN) || content.includes('createSherloStorybook(')) {
-    return content;
-  }
+  if (code.wiredForSherlo) return content;
 
   let modified: string;
   try {
@@ -48,7 +49,7 @@ export function rewriteMetroConfig(content: string): string | null {
     // A withStorybook from anywhere but Storybook's package is the developer's own: never wrapped twice.
     const isWired =
       repointStorybookRequire(body) ||
-      (!content.includes('withStorybook') && wrapExportedConfig(body));
+      (!code.mentionsWithStorybook && wrapExportedConfig(body));
     if (!isWired) return null;
 
     modified = generateCode(mod).code;

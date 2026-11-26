@@ -19,12 +19,12 @@
  * and Bun, by install plus an Android Storybook export (spike package-manager-edges); and from
  * 10.6.1 on npm (spike storybook-upgrade-steps).
  */
-import { detect } from 'package-manager-detector';
 import { dirname, relative } from 'path';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd } from '../../../helpers';
 import type { StorybookUpgrade } from '../../../render/initFixes';
 import { managerCommand } from '../dependencies/installSherlo';
+import detectPackageManager from '../helpers/detectPackageManager';
 import findPackageJsonPaths from './findPackageJsonPaths';
 import hasDependency, { readAllDependencies } from './hasDependency';
 
@@ -74,7 +74,7 @@ async function storybookUpgrade(): Promise<StorybookUpgrade> {
     : (monorepoRoot ?? current);
   const holderFolder = holder ? dirname(holder) : getCwd();
 
-  const tool = (await detect({ cwd: holderFolder }))?.agent ?? 'npm';
+  const tool = (await detectPackageManager(holderFolder)) ?? 'npm';
   const dependencyNames = Object.keys(holder ? await readAllDependencies(holder) : {});
   const storybookPackages = dependencyNames.filter((name) => name.startsWith('@storybook/')).sort();
 

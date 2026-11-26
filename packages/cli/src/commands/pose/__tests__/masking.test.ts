@@ -614,13 +614,27 @@ describe('the versions sherlo init shows', () => {
     );
   });
 
-  it('keeps another Sherlo SDK version and the range setup asks for: the picture shows them', () => {
+  it("folds the range on the CLI's own major, and keeps another Sherlo SDK version", () => {
     const installed = [
       `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 2.9.9${ESC}[22m`,
+      `  yarn add @sherlo/react-native-storybook@^${cliVersion.split('.')[0]}`,
+    ].join('\n');
+
+    expect(maskScreen(installed, {})).toBe(
+      [
+        `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 2.9.9${ESC}[22m`,
+        '  yarn add @sherlo/react-native-storybook@<SHERLO_VERSION>',
+      ].join('\n')
+    );
+  });
+
+  it('keeps the range a pose that states its CLI version asks for: the picture shows it', () => {
+    const releaseDay = [
+      `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 3.0.0${ESC}[22m`,
       '  yarn add @sherlo/react-native-storybook@^3',
     ].join('\n');
 
-    expect(maskScreen(installed, {})).toBe(installed);
+    expect(maskScreen(releaseDay, { sherloVersion: '3.0.1' })).toBe(releaseDay);
   });
 
   it('keeps the version a refusal names and the oldest supported one', () => {

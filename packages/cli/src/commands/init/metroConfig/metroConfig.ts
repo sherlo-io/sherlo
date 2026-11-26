@@ -5,7 +5,7 @@ import { getCwd, throwError } from '../../../helpers';
 import { renderMetroConfigUnreadable } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { printLines, trackProgress } from '../helpers';
-import getPackageVersion from '../requirements/getPackageVersion';
+import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
 import { EVENT } from './constants';
 import readMetroConfigState from './readMetroConfigState';
 import writeMetroConfigUpdate from './writeMetroConfigUpdate';
@@ -31,7 +31,7 @@ async function metroConfig(sessionId: string | null): Promise<void> {
     const createdPath = path.join(getCwd(), 'metro.config.js');
     await fs.promises.writeFile(
       createdPath,
-      defaultMetroConfig({ isExpo: !!getPackageVersion(EXPO_PACKAGE_NAME) }),
+      defaultMetroConfig({ isExpo: !!(await getDeclaredPackageVersion(EXPO_PACKAGE_NAME)) }),
       'utf-8'
     );
     printLines([

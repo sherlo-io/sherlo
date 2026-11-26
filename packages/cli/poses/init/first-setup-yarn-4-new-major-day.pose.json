@@ -144,7 +144,7 @@
     "install": {
       "package": "@sherlo/react-native-storybook",
       "failed": {
-        "stdout": "{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"┌ Resolution step\"}\n{\"type\":\"error\",\"name\":82,\"displayName\":\"YN0082\",\"indent\":\"│ \",\"data\":\"@sherlo/react-native-storybook@npm:^3: No candidates found\"}\n{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"└ Completed in 0s 512ms\"}\n{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"· Failed with errors in 0s 518ms\"}\n",
+        "stdout": "{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"┌ Resolution step\"}\n{\"type\":\"error\",\"name\":16,\"displayName\":\"YN0016\",\"indent\":\"│ \",\"data\":\"@sherlo/react-native-storybook@npm:^3: All versions satisfying \\\"^3\\\" are quarantined\"}\n{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"└ Completed in 0s 512ms\"}\n{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"· Failed with errors in 0s 518ms\"}\n",
         "stderr": ""
       }
     },

@@ -1,5 +1,6 @@
-import { detect, resolveCommand } from 'package-manager-detector';
+import { resolveCommand } from 'package-manager-detector';
 import { getCwd } from '../../../helpers';
+import detectPackageManager from './detectPackageManager';
 
 /**
  * A command in the project's own package manager, as a refusal shows it: `yarn add x`, not `npm
@@ -10,7 +11,7 @@ async function packageManagerCommand(
   intent: 'install' | 'add',
   args: string[] = []
 ): Promise<string> {
-  const packageManager = (await detect({ cwd: getCwd() }))?.name ?? 'npm';
+  const packageManager = (await detectPackageManager(getCwd())) ?? 'npm';
   const resolved = resolveCommand(packageManager, intent, args);
 
   return resolved

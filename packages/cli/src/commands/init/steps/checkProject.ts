@@ -13,6 +13,7 @@ import {
   REACT_NATIVE_PACKAGE_NAME,
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
 } from '../../../constants';
+import { setupReader } from '../../feedback/runningAgent';
 import { isPackageVersionCompatible, throwError } from '../../../helpers';
 import {
   renderPackagesNotInstalled,
@@ -24,6 +25,7 @@ import hasConfigFile from '../config/hasConfigFile';
 import readConfig from '../config/readConfig';
 import { packageManagerCommand, printLines } from '../helpers';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
+import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
 import getPackageVersion from '../requirements/getPackageVersion';
 import hasDependency from '../requirements/hasDependency';
 import storybookUpgrade from '../requirements/storybookUpgrade';
@@ -54,7 +56,7 @@ async function checkTheApp(): Promise<CheckedProject> {
   await validateProjectContext();
   await validateHasReactNative();
 
-  const expoVersion = getPackageVersion(EXPO_PACKAGE_NAME);
+  const expoVersion = await getDeclaredPackageVersion(EXPO_PACKAGE_NAME);
 
   const reactNativeVersion = await installedVersion(REACT_NATIVE_PACKAGE_NAME);
   if (
@@ -74,8 +76,7 @@ async function checkTheApp(): Promise<CheckedProject> {
         addReactNativeCommand: await packageManagerCommand('add', [
           `${REACT_NATIVE_PACKAGE_NAME}@${MIN_REACT_NATIVE_VERSION}`,
         ]),
-        // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
-        reader: process.stdout.isTTY ? 'person' : 'agent',
+        reader: setupReader(),
       })
     );
   }
@@ -101,7 +102,7 @@ async function checkTheApp(): Promise<CheckedProject> {
           current: installedStorybook,
           min: MIN_STORYBOOK_REACT_NATIVE_VERSION,
           upgrade: await storybookUpgrade(),
-          reader: process.stdout.isTTY ? 'person' : 'agent',
+          reader: setupReader(),
         })
       );
     }

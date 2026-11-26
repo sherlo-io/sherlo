@@ -36,7 +36,8 @@ function expoRouterFolder(projectRoot: string): string {
 function rootComponentFile(hasExpoRouter: boolean): RootComponentFile {
   const projectRoot = getCwd();
   const baseNames = hasExpoRouter
-    ? [`${expoRouterFolder(projectRoot)}/_layout`]
+    ? // Joined, never glued: a root written 'app/' or './app' still names app/_layout.
+      [path.posix.join(expoRouterFolder(projectRoot), '_layout')]
     : ['App', 'src/App'];
   const candidates = baseNames.flatMap((baseName) =>
     SCRIPT_EXTENSIONS.map((extension) => `${baseName}${extension}`)

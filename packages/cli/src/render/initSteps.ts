@@ -96,6 +96,8 @@ export function renderFailedStepLine(name: string): string[] {
 export function renderNextSteps({
   storybook,
   storybookFolder,
+  storybookIndexFile,
+  storybookMainFile,
   isExpo,
   rootComponent,
   reader,
@@ -111,6 +113,9 @@ export function renderNextSteps({
    * `.rnstorybook`, or `.storybook` kept by an app upgraded from Storybook 8.
    */
   storybookFolder: string;
+  /** The folder's index and main files as the app has them (`.storybook/main.js`), from the app's folder. */
+  storybookIndexFile: string;
+  storybookMainFile: string;
   /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
   isExpo: boolean;
   /** The file the app's root component is in (../commands/init/steps/rootComponentFile). */
@@ -135,7 +140,10 @@ export function renderNextSteps({
       ]
     : [
         renderCode("import { AppRegistry } from 'react-native';"),
-        renderCode("import { name as appName } from '../app.json';"),
+        // From the index's folder to app.json in the app's folder, however deep the folder is.
+        renderCode(
+          `import { name as appName } from '${importPath(path.posix.dirname(storybookIndexFile), 'app.json')}';`
+        ),
         renderCode('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
       ];
   // A STORYBOOK SETUP JUST INSTALLED has no code of the app's own that renders Storybook, so there
@@ -150,7 +158,7 @@ export function renderNextSteps({
   const defaultSetupChoice = [
     // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up.
     chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
-    `   In ${storybookFolder}/index.ts, below StorybookUIRoot, add:`,
+    `   In ${storybookIndexFile}, below StorybookUIRoot, add:`,
     ...registerRoot.map((line) => `     ${line}`),
     ...removeOldRender,
   ];
@@ -163,14 +171,7 @@ export function renderNextSteps({
   // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the line names the file setup found,
   // never a guess. With none found it names no file, and a comment says which file the path is
   // from: the most common place, so the path is right for most apps and checkable for the rest.
-  const relativeStorybookPath = path.posix.relative(
-    path.posix.dirname(rootComponent.file),
-    storybookFolder
-  );
-  const storybookPath = /^\.\.?\//.test(relativeStorybookPath)
-    ? relativeStorybookPath
-    : `./${relativeStorybookPath}`;
-  const storybookImport = `import Storybook from '${storybookPath}';`;
+  const storybookImport = `import Storybook from '${importPath(path.posix.dirname(rootComponent.file), storybookFolder)}';`;
   // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that
   // exports its routes for the server builds it too.
   const keepSetupChoice = [
@@ -195,7 +196,7 @@ export function renderNextSteps({
       "Right now Sherlo would test Storybook's examples, not your app.",
       // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
       // outside it drop out, so they need no deleting.
-      `Set "stories" in ${storybookFolder}/main.ts to your code's folder, e.g. ${renderCode("['../src']")}.`,
+      `Set "stories" in ${storybookMainFile} to your code's folder, e.g. ${renderCode(`['${importPath(storybookFolder, 'src')}']`)}.`,
       // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
       // found without reading the others.
       '',
@@ -295,6 +296,12 @@ const FEEDBACK_HELP = 'npx sherlo feedback --help';
  * One separator for every side note at the end of a run, finished or failed.
  * Functions, not constants: colour is decided per run, after this module loads.
  */
+/** The path an import in `fromFolder` writes to reach `target`: `./src`, `../app.json`. */
+function importPath(fromFolder: string, target: string): string {
+  const relative = path.posix.relative(fromFolder, target);
+  return /^\.\.?(?:\/|$)/.test(relative) ? relative : `./${relative}`;
+}
+
 // A THIN LINE, NOT THE SECTION TITLES' DOUBLE ONE, so a side note never
 // reads as a section of its own.
 const sideNoteSeparator = (): string[] => [chalk.dim('─'.repeat(10)), ''];

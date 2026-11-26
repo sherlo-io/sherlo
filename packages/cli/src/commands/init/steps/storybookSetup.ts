@@ -11,11 +11,11 @@ import fs from 'fs';
 import path from 'path';
 import { getCwd } from '../../../helpers';
 import someAppFile from './someAppFile';
-import storybookFolder from './storybookFolder';
+import storybookFolder, { STORYBOOK_SOURCE_EXTENSIONS } from './storybookFolder';
 
 export type StorybookSetup = 'registers-root' | 'sherlo-in-app' | 'renders-in-app';
 
-const INDEX_FILES = ['index.ts', 'index.tsx', 'index.js', 'index.jsx'];
+const INDEX_FILES = STORYBOOK_SOURCE_EXTENSIONS.map((extension) => `index${extension}`);
 const REGISTERS_A_ROOT = /\bregisterRootComponent\s*\(|\bAppRegistry\.registerComponent\s*\(/;
 const CODE_FILE = /\.(?:[cm]?[jt]sx?)$/;
 /** Way b)'s import, in any quotes and with any other names beside it. */

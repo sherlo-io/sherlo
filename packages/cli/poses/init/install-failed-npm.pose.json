@@ -146,7 +146,6 @@
     "opened": true
   },
   "workstation": {
-    "cli": "3.0.0",
     "install": {
       "package": "@sherlo/react-native-storybook",
       "failed": {

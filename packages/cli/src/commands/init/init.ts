@@ -19,7 +19,7 @@ import rootComponentFile from './steps/rootComponentFile';
 import sherloSdk from './steps/sherloSdk';
 import storybook from './steps/storybook';
 import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
-import storybookFolder, { NEWEST_STORYBOOK_FOLDER } from './steps/storybookFolder';
+import storybookFolder, { NEWEST_STORYBOOK_FOLDER, storybookFile } from './steps/storybookFolder';
 import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
 import {
@@ -28,7 +28,8 @@ import {
   PROJECT_OPTION,
   TEAM_OPTION,
 } from '../../constants';
-import getPackageVersion from './requirements/getPackageVersion';
+import getDeclaredPackageVersion from './requirements/getDeclaredPackageVersion';
+import { setupReader } from '../feedback/runningAgent';
 
 async function init(options: Options<THIS_COMMAND>) {
   const { sessionId } = await trackProgress({ event: '0_init', sessionId: null, hasStarted: true });
@@ -58,27 +59,31 @@ async function init(options: Options<THIS_COMMAND>) {
     await metroConfig(sessionId);
     await githubWorkflow();
 
-    // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
-    const reader = process.stdout.isTTY ? 'person' : 'agent';
+    const reader = setupReader();
     // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike, on every
     // setup: with only Storybook's examples, the next step is to write them. An app whose code
     // already asks Sherlo's isStorybookMode (way b) is as ready as Storybook's default setup.
     const storybookState = installedNow
       ? 'installed'
       : storybookSetup() !== 'renders-in-app'
-        ? hasStoriesOfItsOwn()
+        ? (await hasStoriesOfItsOwn())
           ? 'default-setup'
           : 'example-stories'
-        : hasStoriesOfItsOwn()
+        : (await hasStoriesOfItsOwn())
           ? 'old-setup'
           : 'old-setup-example-stories';
+    // A folder Storybook's installer just wrote is its newest default.
+    const folder = storybookFolder() ?? NEWEST_STORYBOOK_FOLDER;
     printLines(
       renderNextSteps({
         storybook: storybookState,
-        // A folder Storybook's installer just wrote is its newest default.
-        storybookFolder: storybookFolder() ?? NEWEST_STORYBOOK_FOLDER,
-        isExpo: !!getPackageVersion(EXPO_PACKAGE_NAME),
-        rootComponent: rootComponentFile(!!getPackageVersion(EXPO_ROUTER_PACKAGE_NAME)),
+        storybookFolder: folder,
+        storybookIndexFile: storybookFile(folder, 'index'),
+        storybookMainFile: storybookFile(folder, 'main'),
+        isExpo: !!(await getDeclaredPackageVersion(EXPO_PACKAGE_NAME)),
+        rootComponent: rootComponentFile(
+          !!(await getDeclaredPackageVersion(EXPO_ROUTER_PACKAGE_NAME))
+        ),
         reader,
       })
     );

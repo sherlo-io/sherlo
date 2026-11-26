@@ -56,8 +56,8 @@
       "call": "startCliLogin",
       "with": {},
       "answer": {
-        "error": "fetch failed",
-        "cause": { "code": "ENOTFOUND", "hostname": "api.sherlo.io" }
+        "error": "request to https://api.sherlo.io/graphql failed, reason: getaddrinfo ENOTFOUND api.sherlo.io",
+        "cause": { "code": "ENOTFOUND" }
       }
     }
   ],

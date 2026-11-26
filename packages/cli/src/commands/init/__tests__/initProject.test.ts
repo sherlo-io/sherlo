@@ -378,6 +378,9 @@ async function runProjectStep(world: {
     installStorybook: () => Promise.reject(new Error('the project step installs nothing')),
     installPods: () => Promise.reject(new Error('the project step installs nothing')),
     readGit: () => Promise.reject(new Error('the project step reads no git')),
+    storybookLoader: () => {
+      throw new Error('the project step reads no Storybook');
+    },
     podsAreCurrent: () => false,
     scenesFlag: () => undefined,
     askScenesFlag: async () => {},

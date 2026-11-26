@@ -27,7 +27,7 @@ vi.mock('../../../../helpers/spinner', () => ({
 vi.mock('../../../../seams/workstation', () => ({ workstation: () => workstationAnswers }));
 
 import installPods from '../installPods';
-import installSherlo, { storybookPinsExactPeers } from '../installSherlo';
+import installSherlo, { storybookPinsExactPeers, unmetPeerOfNpm } from '../installSherlo';
 
 const LAST_LINES_SHOWN = 15;
 
@@ -114,10 +114,17 @@ describe('npm stopping on the exact versions some Storybook releases demand', ()
     'npm error code ERESOLVE',
     'npm error ERESOLVE could not resolve',
     'npm error Found: react-native-safe-area-context@5.11.1',
+    'npm error Could not resolve dependency:',
     'npm error peer react-native-safe-area-context@"5.8.0" from @storybook/react-native@10.6.1',
   ].join('\n');
 
+  /** The app depends on Storybook and has it installed: only a declared package's version is read. */
   async function installStorybook(version: string): Promise<void> {
+    await fs.promises.writeFile(
+      path.join(projectRoot.path, 'package.json'),
+      JSON.stringify({ dependencies: { '@storybook/react-native': `^${version}` } }),
+      'utf-8'
+    );
     const folder = path.join(projectRoot.path, 'node_modules', '@storybook', 'react-native');
     await fs.promises.mkdir(folder, { recursive: true });
     await fs.promises.writeFile(
@@ -139,7 +146,7 @@ describe('npm stopping on the exact versions some Storybook releases demand', ()
       'Storybook 10.6.1 demands exact versions of react-native-safe-area-context and react-native-reanimated'
     );
     expect(message).toContain('Upgrade Storybook:');
-    expect(message).toContain('npm i storybook@^10');
+    expect(message).toContain('npm i @storybook/react-native@^10 storybook@^10');
     expect(message).not.toContain('npm install @sherlo/react-native-storybook');
   });
 
@@ -152,6 +159,39 @@ describe('npm stopping on the exact versions some Storybook releases demand', ()
     const message = await messageOfRefusal(installSherlo);
 
     expect(message).toContain("Sherlo couldn't be installed");
+  });
+
+  it('Storybook 10.6.1, but the peer is demanded by another package: the usual install refusal', async () => {
+    await installStorybook('10.6.1');
+    const output = [
+      'npm error code ERESOLVE',
+      'npm error ERESOLVE could not resolve',
+      'npm error Found: react-native-reanimated@4.1.0',
+      'npm error Could not resolve dependency:',
+      'npm error peer react-native-reanimated@"^3.16.0" from react-native-gesture-carousel@2.0.0',
+      'npm error   @storybook/react-native@"10.6.1" from the root project',
+    ].join('\n');
+    workstationAnswers.addPackage.mockRejectedValue(
+      Object.assign(new Error('Command failed'), { output, logFile: 'log' })
+    );
+
+    const message = await messageOfRefusal(installSherlo);
+
+    expect(message).toContain("Sherlo couldn't be installed");
+  });
+
+  it('reads the unmet peer and who demands it, in the words of npm 10.4+ and of older npm', () => {
+    expect(
+      unmetPeerOfNpm(
+        'npm ERR! Could not resolve dependency:\nnpm ERR! peerOptional react-native-reanimated@"4.5.1" from @storybook/react-native@10.5.2\n'
+      )
+    ).toEqual({ peer: 'react-native-reanimated', requirer: '@storybook/react-native' });
+    expect(
+      unmetPeerOfNpm(
+        'npm error Could not resolve dependency:\nnpm error peer @types/react@"^18" from storybook@10.6.0\n'
+      )
+    ).toEqual({ peer: '@types/react', requirer: 'storybook' });
+    expect(unmetPeerOfNpm('npm error code ERESOLVE\n')).toBeNull();
   });
 
   it('the pinning releases are 10.5.2 to 10.6.1', () => {

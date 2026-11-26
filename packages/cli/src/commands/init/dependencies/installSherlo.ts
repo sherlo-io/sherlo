@@ -1,5 +1,5 @@
 import { readFile } from 'fs/promises';
-import { type Agent, detect, resolveCommand } from 'package-manager-detector';
+import { type Agent, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
 import {
   SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
@@ -18,7 +18,10 @@ import {
 } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { type InstallFailure, workstation } from '../../../seams/workstation';
+import { setupReader } from '../../feedback/runningAgent';
 import { printLines } from '../helpers';
+import detectPackageManager from '../helpers/detectPackageManager';
+import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
 import getPackageVersion from '../requirements/getPackageVersion';
 import storybookUpgrade from '../requirements/storybookUpgrade';
 
@@ -28,6 +31,9 @@ import storybookUpgrade from '../requirements/storybookUpgrade';
  * made them loose again.
  */
 const STORYBOOK_EXACT_PEERS = ['react-native-safe-area-context', 'react-native-reanimated'];
+
+/** How Yarn 4 ends the error when its day hold (npmMinimalAgeGate) blocks every version asked for. */
+const YARN_AGE_HOLD_TEXT = 'are quarantined';
 
 export function storybookPinsExactPeers(version: string): boolean {
   // A prerelease tag after the patch number is not read.
@@ -62,7 +68,10 @@ async function installSherlo(): Promise<void> {
     packageJson.dependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME] ??
     packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]
   );
-  const versionBeforeInstall = getPackageVersion(SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME);
+  // A sibling app's SDK, hoisted to the monorepo root, is not this app's: not read as installed.
+  const versionBeforeInstall = await getDeclaredPackageVersion(
+    SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME
+  );
 
   const sherloVersion = workstation().sherloVersion();
   const packageSpec = sherloSdkPackageSpec(
@@ -73,7 +82,7 @@ async function installSherlo(): Promise<void> {
 
   // Detected FROM THE PROJECT, not from wherever the process happens to be standing - the project
   // is what the manager will be run in, and it is what a pose lays out in `files`.
-  const tool = (await detect({ cwd: getCwd() }))?.agent ?? 'npm';
+  const tool = (await detectPackageManager(getCwd())) ?? 'npm';
   const commandToRun = addCommand(tool, [packageSpec]);
 
   try {
@@ -94,33 +103,38 @@ async function installSherlo(): Promise<void> {
 
     // npm alone refuses a peer it cannot meet (Yarn, pnpm and Bun warn and go on), so only npm
     // stops on the exact versions these Storybook releases demand, and installing Sherlo again would
-    // stop the same way: the way out is Storybook's.
-    const storybookVersion = getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME);
+    // stop the same way: the way out is Storybook's. Only when npm itself names a Storybook package
+    // as the one demanding the peer - any other conflict is the usual install refusal.
+    const storybookVersion = await getDeclaredPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME);
+    const unmetPeer = tool === 'npm' ? unmetPeerOfNpm(output) : null;
     if (
-      tool === 'npm' &&
+      unmetPeer !== null &&
+      isStorybookPackage(unmetPeer.requirer) &&
+      STORYBOOK_EXACT_PEERS.includes(unmetPeer.peer) &&
       storybookVersion !== null &&
-      storybookPinsExactPeers(storybookVersion) &&
-      output.includes('ERESOLVE') &&
-      STORYBOOK_EXACT_PEERS.some((peer) => output.includes(peer))
+      storybookPinsExactPeers(storybookVersion)
     ) {
       throwError({
         ...renderStorybookPinsExactVersions({
           current: storybookVersion,
           pinnedPackages: STORYBOOK_EXACT_PEERS,
           upgrade: await storybookUpgrade(),
-          reader: process.stdout.isTTY ? 'person' : 'agent',
+          reader: setupReader(),
         }),
         errorToReport: error,
       });
     }
 
     // A NEW MAJOR'S RELEASE DAY ON MODERN YARN: Yarn holds back a version under a day old, and the
-    // major has no older version yet, so the range finds nothing (YN0082) and fails the same way all
-    // day. No fix helps before then, so the screen says when Yarn installs it instead.
+    // major has no older version yet, so every version the range allows is held and the install
+    // fails the same way all day. No fix helps before then, so the screen says when Yarn installs it
+    // instead. Yarn says so in its own words (YN0016 'All versions satisfying "^3" are quarantined',
+    // spike yarn-age-hold-error); YN0016 alone is any resolution error, and YN0082 "No candidates
+    // found" is a range nothing was ever published for - both get the install-failed fix.
     if (
       tool === 'yarn@berry' &&
       packageSpec.endsWith(`@${sherloSdkVersionRange(sherloVersion)}`) &&
-      output.includes('YN0082')
+      output.includes(YARN_AGE_HOLD_TEXT)
     ) {
       throwError({ ...renderSherloUnderADayOld({ version: sherloVersion }), errorToReport: error });
     }
@@ -157,6 +171,23 @@ async function installSherlo(): Promise<void> {
       detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${installedVersion}`,
     }),
   ]);
+}
+
+/**
+ * The peer npm's ERESOLVE could not meet, and the package that demands it, read off the line npm
+ * prints under "Could not resolve dependency:" (npm 7 and newer, arborist's explain-eresolve):
+ * `npm error peer react-native-reanimated@"4.5.1" from @storybook/react-native@10.6.1` - `npm ERR!`
+ * before npm 10.4. Null when the output holds no such line.
+ */
+export function unmetPeerOfNpm(output: string): { peer: string; requirer: string } | null {
+  const match = output.match(
+    /Could not resolve dependency:\r?\n(?:npm (?:error|ERR!) )?(?:peer|peerOptional) (\S+?)@"[^"]*" from (\S+?)@\S+/
+  );
+  return match ? { peer: match[1], requirer: match[2] } : null;
+}
+
+function isStorybookPackage(name: string): boolean {
+  return name === 'storybook' || name.startsWith('@storybook/');
 }
 
 /** The package manager's own `add` command line for these packages, as a person types it. */

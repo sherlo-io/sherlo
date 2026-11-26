@@ -95,7 +95,11 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldCaptureMeasuredSize(folded);
   folded = foldCheckedAppVersions(folded);
   folded = foldInstalledStorybookVersion(folded);
-  folded = foldInstalledSdkVersion(folded, context.sherloVersion ?? cliVersion);
+  folded = foldInstalledSdkVersion(folded, {
+    sherloVersion: context.sherloVersion ?? cliVersion,
+    // A pose that states its CLI version (a release day, a too-old SDK) shows the range it asks for.
+    foldsRange: context.sherloVersion === undefined,
+  });
   folded = foldFeedbackMachineFacts(folded);
   folded = stripTurboSnapDiagnostic(folded);
 
@@ -481,18 +485,27 @@ function foldInstalledStorybookVersion(screen: string): string {
 
 /**
  * The SDK at the run's own CLI version, or from a local tarball or folder, written after an `@` in a
- * command or after a space on the `Installed Sherlo` line: both move with every release. Any other
- * version (the older one a manager installs on the day this CLI's comes out) and the range setup
- * asks for (`^3`) are what the picture shows, and stay. A pose that states its CLI version is
- * folded against that, so its picture holds when this CLI's own version moves.
+ * command or after a space on the `Installed Sherlo` line: both move with every release. So does the
+ * range on this CLI's major that setup asks for (`^3`), folded to the same mark, so a picture reads
+ * alike whether the CLI asks for a range or, as a prerelease, its exact version. Any other version
+ * (the older one a manager installs on the day this CLI's comes out) is what the picture shows, and
+ * stays. A pose that states its CLI version is folded against that, and keeps its range, so its
+ * picture holds when this CLI's own version moves.
  */
-function foldInstalledSdkVersion(screen: string, sherloVersion: string): string {
+function foldInstalledSdkVersion(
+  screen: string,
+  { sherloVersion, foldsRange }: { sherloVersion: string; foldsRange: boolean }
+): string {
+  const majorRange = `^${sherloVersion.split('.')[0]}`;
   const fold = (whole: string, name: string, separator: string, spec: string, dot: string) =>
-    spec === sherloVersion || /^(?:file:|portal:|\/)/.test(spec)
+    spec === sherloVersion ||
+    (foldsRange && spec === majorRange) ||
+    /^(?:file:|portal:|\/)/.test(spec)
       ? `${name}${separator}<SHERLO_VERSION>${dot}`
       : whole;
+  // Yarn 4 writes the package as a descriptor ending in a colon: `@sherlo/...@npm:^3: No candidates`.
   return screen.replace(
-    /(@sherlo\/react-native-storybook)([@ ])([^\s"'`\u001b]+?)(\.?)(?=[\s"'`\u001b]|$)/g,
+    /(@sherlo\/react-native-storybook)([@ ](?:npm:)?)((?:file:|portal:)?[^\s"'`\u001b:]+?)([.:]?)(?=[\s"'`\u001b]|$)/g,
     fold
   );
 }

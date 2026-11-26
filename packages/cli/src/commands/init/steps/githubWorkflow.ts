@@ -13,13 +13,13 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { detect } from 'package-manager-detector';
 import { getCwd } from '../../../helpers';
 import { renderStepLine } from '../../../render/initSteps';
 import { GITHUB_WORKFLOW_PATH, renderSherloWorkflow } from '../../../render/initWorkflow';
 import { surroundings } from '../../../seams/surroundings';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import { printLines } from '../helpers';
+import detectPackageManager from '../helpers/detectPackageManager';
 
 const STEP_NAME = 'Added GitHub workflow';
 
@@ -89,7 +89,7 @@ async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
   }
 
   // The agent, not the name: Yarn 1 and Yarn 2+ install with different words.
-  const agent = (await detect({ cwd: workspaceRoot }))?.agent;
+  const agent = await detectPackageManager(workspaceRoot);
   const packageManager =
     agent === 'yarn' || agent === 'yarn@berry' || agent === 'pnpm' || agent === 'bun'
       ? agent

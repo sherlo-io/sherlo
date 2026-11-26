@@ -9,10 +9,12 @@ import { renderStepLine } from '../../../render/initSteps';
 import { workstation } from '../../../seams/workstation';
 import installSherlo from '../dependencies/installSherlo';
 import { printLines } from '../helpers';
-import getPackageVersion from '../requirements/getPackageVersion';
+import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
 
 async function sherloSdk(): Promise<void> {
-  const installedVersion = getPackageVersion(SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME);
+  const installedVersion = await getDeclaredPackageVersion(
+    SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME
+  );
 
   if (installedVersion === workstation().sherloVersion()) {
     printLines([

@@ -5,6 +5,7 @@
  * words, then to try again in a few minutes.
  */
 import { throwError } from '../../../helpers';
+import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
 import {
   renderLoginRejected,
   renderServiceFailed,
@@ -36,17 +37,34 @@ function refuseFailedServiceCall(error: Error, failedStep: string): never {
     throwError({ ...renderLoginRejected(), errorToReport: error });
   }
 
-  // A call that never reached the service carries the network's own code (ENOTFOUND, ECONNREFUSED)
-  // on its cause: the fix is the connection, said with that code, not a bug report.
-  const { cause } = error as { cause?: { code?: string; hostname?: string } };
-  if (cause?.code) {
+  // A call that never reached the service carries the network's own code (ENOTFOUND, ECONNREFUSED):
+  // the fix is the connection, said with that code, not a bug report.
+  const networkCode = networkErrorCode(error);
+  if (networkCode) {
     throwError({
-      ...renderServiceUnreachable({ host: cause.hostname, code: cause.code }),
+      // node-fetch names no host, so the host is the address every call goes to.
+      ...renderServiceUnreachable({ host: new URL(getEndpointUrl()).hostname, code: networkCode }),
       errorToReport: error,
     });
   }
 
   throwError({ ...renderServiceFailed({ reason: error.message }), errorToReport: error });
+}
+
+/**
+ * The network's own code when the call never reached the service. Both ways setup calls the service
+ * fetch through node-fetch 2: the team and project calls directly, the Sherlo client through
+ * isomorphic-fetch under Apollo, which keeps the fetch's error on `networkError`. node-fetch marks
+ * an error of the system under it (DNS, refused connection, reset) as `type: 'system'` with that
+ * code on `code` (node-fetch 2 lib/index.js, FetchError).
+ */
+function networkErrorCode(error: Error): string | undefined {
+  const raised = [error, (error as { networkError?: unknown }).networkError];
+  for (const candidate of raised) {
+    const { type, code } = (candidate ?? {}) as { type?: unknown; code?: unknown };
+    if (type === 'system' && typeof code === 'string') return code;
+  }
+  return undefined;
 }
 
 export default refuseFailedServiceCall;

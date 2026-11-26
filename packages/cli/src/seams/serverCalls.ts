@@ -868,7 +868,18 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       if (answer.errorName === 'ListTeamsAuthError') {
         throw new ListTeamsAuthError(String(answer.error));
       }
-      throw Object.assign(new Error(String(answer.error)), { cause: answer.cause });
+      // A call that never reached the service is raised as node-fetch raises it: a FetchError of
+      // type 'system' with the network's code, and no host. BUILD DEBT (init-for-agents): the pose
+      // field `cause` keeps its name and its unread `hostname` until the pose contract is next
+      // generated, as node-fetch puts neither on `cause`.
+      const networkCause = answer.cause as ApiError['cause'];
+      if (networkCause) {
+        throw Object.assign(new Error(String(answer.error)), {
+          type: 'system',
+          code: networkCause.code,
+        });
+      }
+      throw new Error(String(answer.error));
     }
 
     return next.answer;

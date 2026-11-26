@@ -4,14 +4,14 @@ import { renderNoReactNative } from '../../../render/initFixes';
 import findPackageJsonPaths from './findPackageJsonPaths';
 import hasDependency from './hasDependency';
 
+/**
+ * The app's OWN package.json lists react-native: React Native's autolinking reads that file, and a
+ * monorepo root that lists it would let any workspace in the repository pass for an app.
+ */
 async function validateHasReactNative(): Promise<void> {
-  const { current, monorepoRoot } = await findPackageJsonPaths();
+  const { current } = await findPackageJsonPaths();
 
-  const hasReactNative =
-    (await hasDependency(current, REACT_NATIVE_PACKAGE_NAME)) ||
-    (await hasDependency(monorepoRoot, REACT_NATIVE_PACKAGE_NAME));
-
-  if (!hasReactNative) {
+  if (!(await hasDependency(current, REACT_NATIVE_PACKAGE_NAME))) {
     throwError(renderNoReactNative());
   }
 }

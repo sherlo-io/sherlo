@@ -11,7 +11,6 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { detect } from 'package-manager-detector';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
 import { renderStorybookInstallFailed } from '../../../render/initFixes';
@@ -19,6 +18,7 @@ import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps'
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { addCommand } from '../dependencies/installSherlo';
 import { printLines } from '../helpers';
+import detectPackageManager from '../helpers/detectPackageManager';
 import findPackageJsonPaths, { pnpmWorkspaceFile } from '../requirements/findPackageJsonPaths';
 import getPackageVersion from '../requirements/getPackageVersion';
 
@@ -42,7 +42,7 @@ async function storybook({
   }
 
   const projectRoot = getCwd();
-  const tool = (await detect({ cwd: projectRoot }))?.agent ?? 'npm';
+  const tool = (await detectPackageManager(projectRoot)) ?? 'npm';
   // pnpm reads its settings only from the workspace root's file, never from an app folder's.
   const { monorepoRoot } = await findPackageJsonPaths();
   const workspaceSettingsFile = monorepoRoot && pnpmWorkspaceFile(path.dirname(monorepoRoot));

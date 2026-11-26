@@ -197,6 +197,12 @@ const FILE_EXCEPTIONS: { file: string; door: DoorViolation['door']; reason: stri
       "reads the CLI's own package.json (walking up from __dirname) to report its own version, not the project's",
   },
   {
+    file: 'commands/init/metroConfig/getMetroConfigPath.ts',
+    door: 'fs-root',
+    reason:
+      "reads only the home folder's path, to stop the search for the Metro config at the home folder as metro-config's own search does; every file it reads is the project folder or a folder above it",
+  },
+  {
     file: 'helpers/runShellCommand/executeCommand.ts',
     door: 'node-core',
     reason:
