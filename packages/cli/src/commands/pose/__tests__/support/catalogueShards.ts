@@ -1,10 +1,11 @@
 /**
- * THE CATALOGUE LAW, CUT INTO SHARDS. Running a pose is real work (116 of them take a few seconds
- * of CPU together) and a test file is held to five seconds of its own work, so the catalogue is
- * checked by several test files at once: `catalogue.test.ts` holds shard 1 and the other cases,
- * `catalogueShard2.test.ts` to `catalogueShard4.test.ts` hold the rest. A pose belongs to the
- * shard its place in the sorted catalogue gives it; `catalogue.test.ts` checks that the shards
- * together are the whole catalogue.
+ * THE CATALOGUE LAW, CUT INTO SHARDS. Running a pose is real work (about a quarter of a second
+ * each, measured: 52 poses took 11.9 s in one file) and a test file is held to five seconds of its
+ * own work, so the catalogue is checked by 16 test files at once, about 13 poses and 3 s apiece:
+ * `catalogue.test.ts` holds shard 1 and the other cases, `catalogueShard2.test.ts` to
+ * `catalogueShard16.test.ts` hold the rest. A pose belongs to the shard its place in the sorted
+ * catalogue gives it; `catalogue.test.ts` checks that the shards together are the whole catalogue
+ * and that each shard has its file.
  */
 import fs from 'fs';
 import type { CataloguedPose, PoseReader } from '../../catalogue';
@@ -12,7 +13,7 @@ import { renderPose } from '../../catalogue';
 import { runPose } from '../../pose';
 import { readPoseDocument } from '../../readPose';
 
-export const SHARD_COUNT = 4;
+export const SHARD_COUNT = 16;
 
 /** The title every shard's committed-bytes case begins with: the one the book pages cite. */
 export const COMMITTED_BYTES_TITLE =

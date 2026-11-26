@@ -167,9 +167,12 @@ function readPosedGit(value: unknown, path: string, problems: string[]): void {
       if ('remotes' in object2) {
         expectStringArray(object2.remotes, at(path, 'remotes'), problems);
       }
+      if ('gone' in object2) {
+        expectStringArray(object2.gone, at(path, 'gone'), problems);
+      }
       reportUnknownFields(
         object2,
-        ['branch', 'commit', 'dirty', 'historyFetchRefused', 'remotes'],
+        ['branch', 'commit', 'dirty', 'historyFetchRefused', 'remotes', 'gone'],
         path,
         problems
       );
@@ -177,7 +180,7 @@ function readPosedGit(value: unknown, path: string, problems: string[]): void {
   } else {
     reportWrongShape(
       oneOf1,
-      '`"none"`, `"unavailable"` or `{ branch: string; commit: string; dirty: boolean; historyFetchRefused?: string; remotes?: string[] }`',
+      '`"none"`, `"unavailable"` or `{ branch: string; commit: string; dirty: boolean; historyFetchRefused?: string; remotes?: string[]; gone?: string[] }`',
       path,
       problems
     );

@@ -86,6 +86,7 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldTimeoutMinutes(folded);
   folded = foldAuthFailureStatus(folded);
   folded = foldRunError(folded);
+  folded = foldSourceLocation(folded);
   folded = foldCommitSha(folded);
   folded = foldRunNamespace(folded);
   folded = foldAndroidBuild(folded);
@@ -145,6 +146,7 @@ export const CLASSES_THE_TOOL_FOLDS = [
   '<N>',
   '<STATUS>',
   '<RUN_ERROR>',
+  '<SOURCE_LOCATION>',
   '<SHA>',
   '<SHERLO_ANDROID_BUILD_PATH>',
   '<SHERLO_ANDROID_BUILD_FILE_NAME>',
@@ -417,6 +419,14 @@ function foldAuthFailureStatus(screen: string): string {
  */
 function foldRunError(screen: string): string {
   return screen.replace(/(The test ended as[^\n]*\n[^\n]*?Error: )[^\n\u001b]*/g, '$1<RUN_ERROR>');
+}
+
+/**
+ * Where in the CLI's own code an unexpected error was raised - `(in cli/dist/index.js:96393:27)`.
+ * It moves with every build, and the screen's point is the line above it.
+ */
+function foldSourceLocation(screen: string): string {
+  return screen.replace(/\(in [^\s()]+:\d+:\d+\)/g, '(in <SOURCE_LOCATION>)');
 }
 
 /** A commit id: forty hex characters and no more - a longer run is a digest, not a commit. */

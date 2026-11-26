@@ -38,6 +38,12 @@ export type Surroundings = {
    */
   readGitRemotes(projectRoot: string): Promise<string[]>;
   /**
+   * Whether git's history ever held a folder (relative to the project folder) that is gone now.
+   * Setup reads it to tell a missing Storybook folder that can be restored from one that never
+   * existed, whose configPath points at the wrong place.
+   */
+  wasEverInGit(projectRoot: string, folder: string): Promise<boolean>;
+  /**
    * What the clock answers while a command waits, in milliseconds since the epoch - the wait
    * loop's deadline and every "has the deadline passed" read come through here.
    */
@@ -62,6 +68,11 @@ export const liveSurroundings: Surroundings = {
   // project folder; a failed read is told apart from a repository with no remote.
   readGitRemotes: async () => {
     throw new Error('readGitRemotes is not available yet.');
+  },
+  // BUILD DEBT (init-for-agents, gap B47): whether any commit on any branch held the folder
+  // (`git log --all -1 -- <folder>`); a folder outside a repository or a failed read is false.
+  wasEverInGit: async () => {
+    throw new Error('wasEverInGit is not available yet.');
   },
   now: () => Date.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -109,6 +120,8 @@ export type PosedGit =
       historyFetchRefused?: string;
       /** The address of every remote the repository names; left out for a repository that has none yet. */
       remotes?: string[];
+      /** Folders git's history held that are gone from the project now; left out when there are none. */
+      gone?: string[];
     }
   | 'none'
   | 'unavailable';
@@ -183,6 +196,9 @@ export function posedSurroundings({
     },
 
     readGitRemotes: async () => (typeof git === 'object' ? (git.remotes ?? []) : []),
+
+    wasEverInGit: async (_projectRoot: string, folder: string) =>
+      typeof git === 'object' && (git.gone ?? []).includes(folder),
 
     readGitInfo: async (_projectRoot: string, options?: { branchOverride?: string }) => {
       // THE WORDING IS GIT'S OWN. `readGitInfoFromDisk` degrades on the stderr of a failed

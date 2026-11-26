@@ -15,17 +15,17 @@
 import path from 'path';
 import { getCwd } from '../../../helpers';
 import { workstation } from '../../../seams/workstation';
+import type { StoryListUnreadable } from '../../../render/initSteps';
 import someAppFile from './someAppFile';
-import { storybookFile } from './storybookFolder';
 
 const STORY_FILE = /\.stories\.(?:[cm]?[jt]sx?)$/;
 
-/** The app's stories, or the line saying why its main config could not be read. */
-export type OwnStories = { found: boolean } | { unreadable: string };
+/** The app's stories, or why its main config could not be read. */
+export type OwnStories = { found: boolean } | { unreadable: StoryListUnreadable };
 
 async function hasStoriesOfItsOwn(folder: string): Promise<OwnStories> {
   const storybookLoads = await storyFilesStorybookLoads(folder);
-  if (typeof storybookLoads === 'string') return { unreadable: storybookLoads };
+  if (typeof storybookLoads !== 'function') return { unreadable: storybookLoads };
   return {
     found: someAppFile((filePath) => STORY_FILE.test(filePath) && storybookLoads(filePath)),
   };
@@ -34,15 +34,14 @@ async function hasStoriesOfItsOwn(folder: string): Promise<OwnStories> {
 /**
  * Whether the app's Storybook loads a file: its main config is loaded and its `stories` turned
  * into matchers by `storybook/internal/common`, the code Storybook itself runs, and a file's path
- * from the app folder (`./src/Button.stories.tsx`) is tested against them. Or the line naming why
- * the list could not be read.
+ * from the app folder (`./src/Button.stories.tsx`) is tested against them. Or why the list could
+ * not be read.
  */
 async function storyFilesStorybookLoads(
   folder: string
-): Promise<((filePath: string) => boolean) | string> {
+): Promise<((filePath: string) => boolean) | StoryListUnreadable> {
   const appFolder = getCwd();
   const configDir = path.resolve(appFolder, folder);
-  const mainFile = storybookFile(folder, 'main');
   try {
     const storybook = workstation().storybookLoader(appFolder);
     const main = await storybook.loadMainConfig({ configDir, cwd: appFolder });
@@ -56,10 +55,10 @@ async function storyFilesStorybookLoads(
     };
   } catch (error) {
     // A folder with no main config: Storybook names that as its own error code.
-    if (isMainConfigMissing(error)) return `Couldn't find ${mainFile}, which lists your stories.`;
+    if (isMainConfigMissing(error)) return 'main-file-missing';
     // Storybook wraps the main config's own error (`data.error`), and its first line names it.
     const cause = (error as { data?: { error?: unknown } }).data?.error ?? error;
-    return `Couldn't load ${mainFile} to see which stories it lists: ${String(cause).split('\n')[0]}`;
+    return { loadError: String(cause).split('\n')[0] };
   }
 }
 

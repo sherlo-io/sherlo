@@ -20,8 +20,23 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 import type { CataloguedPose } from '../catalogue';
 
-/** The render files `sherlo init` prints its steps and its refusals through. */
-const INIT_RENDER_FILE = /[/\\]src[/\\]render[/\\]init(Steps|Fixes)\.ts$/;
+/**
+ * The files `sherlo init` prints its steps, its refusals and its errors through: every render file
+ * of setup's own, the login it shares with `sherlo login`, the install output it shows, and the
+ * error screen every refusal ends on.
+ */
+const INIT_RENDER_FILES = [
+  'initFixes.ts',
+  'initLines.ts',
+  'initSteps.ts',
+  'initWorkflow.ts',
+  'installOutput.ts',
+  'login.ts',
+  'throwError.ts',
+];
+const isInitRenderFile = (url: string) =>
+  /[/\\]src[/\\](render|helpers)[/\\][A-Za-z]+\.ts$/.test(url) &&
+  INIT_RENDER_FILES.includes(path.basename(url));
 
 /** Folder-less words, owed only while the install writes no Storybook folder (seams/workstation.ts). */
 const NO_FOLDER_YET =
@@ -33,6 +48,25 @@ const NOT_YET_DRAWN: Record<string, string> = {
   'initSteps.ts renderNextSteps: Set "stories" in your Storybook folder\'s main file to your code\'s folder.':
     NO_FOLDER_YET,
   "initSteps.ts defaultSetupChoice: your Storybook folder's index file": NO_FOLDER_YET,
+  'initWorkflow.ts versionInput: \\n with:\\n ${}: ${}':
+    "setup does not read the developer's own pnpm or Bun version for a project with no " +
+    'packageManager field yet (BUILD DEBT, init-for-agents), so it never passes one to the workflow',
+};
+
+/**
+ * Words of a file setup shares with other commands that only those commands print. Like NOT YET
+ * DRAWN, a listed message a setup pose now reaches fails until it is taken off.
+ */
+const OTHER_COMMANDS_ONLY: Record<string, string> = {
+  'login.ts renderLoggedIn is never called': "sherlo login's own line",
+  'login.ts renderAlreadyLoggedIn is never called': "sherlo login's own line",
+  'login.ts renderLoggedOut is never called': "sherlo logout's own line",
+  'login.ts renderNotLoggedIn is never called': "sherlo logout's own line",
+  'throwError.ts getErrorMessage: cause: ${}':
+    "no unexpected error of setup's carries a cause; a failed request of sherlo test does",
+  'throwError.ts describeCause: object':
+    "no unexpected error of setup's carries a cause; a failed request of sherlo test does",
+  'throwError.ts getErrorMessage: ↳ Learn more: ${}': "no refusal of setup's links to more reading",
 };
 
 type Range = { startOffset: number; endOffset: number; count: number };
@@ -65,8 +99,12 @@ describe('the init render layer', () => {
     }
 
     const { result } = await post<{ result: ScriptCoverage[] }>('Profiler.takePreciseCoverage');
+    const covered = result.filter(({ url }) => isInitRenderFile(url));
+    // A render file no pose loaded would pass with nothing measured: each one must have been seen.
+    expect(covered.map(({ url }) => path.basename(url)).sort()).toEqual(INIT_RENDER_FILES);
+
     const unreached = new Set<string>();
-    for (const script of result.filter(({ url }) => INIT_RENDER_FILE.test(url))) {
+    for (const script of covered) {
       const { scriptSource } = await post<{ scriptSource: string }>('Debugger.getScriptSource', {
         scriptId: script.scriptId,
       });
@@ -88,8 +126,9 @@ describe('the init render layer', () => {
     await post('Profiler.stopPreciseCoverage');
     session.disconnect();
 
-    const undrawn = [...unreached].filter((message) => !(message in NOT_YET_DRAWN));
-    const drawnNow = Object.keys(NOT_YET_DRAWN).filter((message) => !unreached.has(message));
+    const listed = { ...NOT_YET_DRAWN, ...OTHER_COMMANDS_ONLY };
+    const undrawn = [...unreached].filter((message) => !(message in listed));
+    const drawnNow = Object.keys(listed).filter((message) => !unreached.has(message));
     expect({ undrawn, drawnNow }).toEqual({ undrawn: [], drawnNow: [] });
   });
 });

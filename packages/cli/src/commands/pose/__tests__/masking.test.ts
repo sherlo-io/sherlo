@@ -263,6 +263,12 @@ describe('the masker folds every volatile class the tool prints', () => {
     );
   });
 
+  it("folds where in the CLI's code an unexpected error was raised, which moves with every build", () => {
+    expect(maskScreen(`${ESC}[2m(in cli/dist/index.js:96393:27)${ESC}[22m`, {})).toBe(
+      `${ESC}[2m(in <SOURCE_LOCATION>)${ESC}[22m`
+    );
+  });
+
   it('folds the team in the project a setup names', () => {
     const usingLine = `Using the project from your token: ${ESC}[1mAPiP7Oal/1${ESC}[22m`;
     // A team id may carry `_` and `-`, as server-made ids do.

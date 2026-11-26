@@ -25,7 +25,12 @@ describe('the Metro config is read by its syntax tree', () => {
     const code = readMetroConfigCode(
       "// wrap in withStorybook( later, from @sherlo/react-native-storybook/metro/withStorybook\nconst note = 'withStorybook(';\nmodule.exports = config;"
     );
-    expect(code).toEqual({ wiredForSherlo: false, mentionsWithStorybook: false, configPath: null });
+    expect(code).toEqual({
+      wiredForSherlo: false,
+      mentionsWithStorybook: false,
+      configPath: null,
+      configPathUnread: null,
+    });
   });
 
   it('reads a configPath string against the project root', () => {
@@ -43,11 +48,12 @@ describe('the Metro config is read by its syntax tree', () => {
     ).toEqual({ against: 'config-folder', path: '../.rnstorybook' });
   });
 
-  it('a configPath built any other way is not read', () => {
-    expect(
-      readMetroConfigCode('module.exports = withStorybook(config, { configPath: folder });')
-        ?.configPath
-    ).toBeNull();
+  it('a configPath built any other way is not read, and its code is kept to name it', () => {
+    const code = readMetroConfigCode(
+      "module.exports = withStorybook(config, { configPath: path.resolve(root, 'storybook') });"
+    );
+    expect(code?.configPath).toBeNull();
+    expect(code?.configPathUnread).toBe("path.resolve(root, 'storybook')");
   });
 
   it('code that does not parse is null', () => {

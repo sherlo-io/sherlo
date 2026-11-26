@@ -101,6 +101,12 @@ export function renderFailedStepLine(name: string): string[] {
  * connected; connecting it, or a CI token for another CI, is offered on the project page.
  */
 /**
+ * Why the app's story list could not be read: its Storybook folder has no main file, or the main
+ * file threw, with the first line of what it threw.
+ */
+export type StoryListUnreadable = 'main-file-missing' | { loadError: string };
+
+/**
  * ONE TEXT FOR A PERSON AND AN AGENT: each step says what to do and every detail needed to do it,
  * with no docs link. Most agents ask before opening a link, or run with no network, and Vercel's
  * evals found docs in front of an agent beat docs behind a link - so the whole how is in the output.
@@ -128,7 +134,7 @@ export function renderNextSteps({
    * null. With it, setup cannot tell the app's stories from Storybook's examples, so the line is
    * shown and the first test is not started for the person.
    */
-  storyListUnreadable: string | null;
+  storyListUnreadable: StoryListUnreadable | null;
   /**
    * The app's Storybook folder as the Metro wrapper finds it (../commands/init/steps/storybookFolder):
    * `.rnstorybook`, or `.storybook` kept by an app upgraded from Storybook 8. Null when setup found
@@ -268,27 +274,58 @@ export function renderNextSteps({
 
   // THE FIRST TEST COMES LAST, after the app's own stories, so it never photographs Storybook's
   // examples - and it is still listed, so an agent that wrote the stories knows what runs next.
-  const storybookSteps: Record<typeof storybook, Array<{ title: string; content: string[] }>> = {
-    installed: [notStartedStep, replaceExampleStoriesStep],
-    'default-setup': [],
-    // The app's Storybook is the person's own and already opens, but the stories are still
-    // Storybook's examples.
-    'example-stories': [replaceExampleStoriesStep],
-    'old-setup': [oldSetupStep],
-    'old-setup-example-stories': [oldSetupStep, replaceExampleStoriesStep],
-    'not-started': [notStartedStep],
-    'not-started-example-stories': [notStartedStep, replaceExampleStoriesStep],
-  };
+  // ONE BRANCH PER STATE, never a lookup table, so the render reach test sees which states a pose
+  // drew: V8 counts each case, label included, so a state no pose drew is named by its label.
+  const storybookSteps = (function storybookStepsOf(): Array<{
+    title: string;
+    content: string[];
+  }> {
+    switch (storybook) {
+      case 'installed':
+        return [notStartedStep, replaceExampleStoriesStep];
+      case 'default-setup':
+        return [];
+      // The app's Storybook is the person's own and already opens, but the stories are still
+      // Storybook's examples.
+      case 'example-stories':
+        return [replaceExampleStoriesStep];
+      case 'old-setup':
+        return [oldSetupStep];
+      case 'old-setup-example-stories':
+        return [oldSetupStep, replaceExampleStoriesStep];
+      case 'not-started':
+        return [notStartedStep];
+      case 'not-started-example-stories':
+        return [notStartedStep, replaceExampleStoriesStep];
+    }
+  })();
 
   // A STORY LIST SETUP COULD NOT READ IS A STEP OF ITS OWN, right before the first test, which would
-  // fail on it too. The step names the file and the error; a story list is only unreadable in a
-  // folder setup found, so the file is always named.
-  const fixStoryListStep = storyListUnreadable
-    ? [{ title: `Fix ${storybookMainFile}`, content: [storyListUnreadable] }]
-    : [];
+  // fail on it too. A story list is only unreadable in a folder setup found, so the folder is always
+  // named. A main file that is there is named with its error; one that is missing is never named by
+  // a guessed extension, as the person would look for a main.ts that was never there.
+  const fixStoryListStep = !storyListUnreadable
+    ? []
+    : storyListUnreadable === 'main-file-missing'
+      ? [
+          {
+            title: `Add a main file to ${storybookFolder}`,
+            content: [
+              `No main file (main.ts, main.tsx, main.js or main.jsx) in ${storybookFolder}, which lists your stories.`,
+            ],
+          },
+        ]
+      : [
+          {
+            title: `Fix ${storybookMainFile}`,
+            content: [
+              `Couldn't load ${storybookMainFile} to see which stories it lists: ${storyListUnreadable.loadError}`,
+            ],
+          },
+        ];
 
   const steps = [
-    ...storybookSteps[storybook],
+    ...storybookSteps,
     ...fixStoryListStep,
     {
       title: 'Run your first visual test',

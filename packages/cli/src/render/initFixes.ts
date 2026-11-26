@@ -284,22 +284,67 @@ export function renderMetroConfigUnreadable({ path }: { path: string }): InitRef
 }
 
 /**
+ * The Metro config gives withStorybook a configPath setup cannot follow (built from a variable), so
+ * setup cannot tell where the app's Storybook folder is. Guessing a default could read the wrong
+ * folder's stories, so the code is named and the one edit asked for.
+ */
+export function renderStorybookConfigPathUnread({
+  metroConfig,
+  configPath,
+}: {
+  /** The Metro config, from the app's folder. */
+  metroConfig: string;
+  /** The configPath's code as the config writes it. */
+  configPath: string;
+}): InitRefusal {
+  return refusal(`Setup can't tell which folder configPath names in ${metroConfig}`, [
+    `  ${renderCode(`configPath: ${configPath}`)}`,
+    '',
+    words("Write it as your Storybook folder's path from the app's folder:"),
+    `  ${renderCode("configPath: './<your Storybook folder>'")}`,
+    ...rerun(),
+  ]);
+}
+
+/**
  * The app has Storybook among its packages, but not the folder Storybook runs from: the one its
  * Metro config names, or with none named, either of Storybook's defaults. Setup stops before any
  * change, as every later step and next step reads that folder.
+ *
+ * A folder git once held was deleted, so it is restored. A named folder git never held was never
+ * there: the Metro config's configPath points at the wrong place, and restoring is no fix.
  */
-export function renderStorybookFolderMissing({
-  folder,
-}: {
-  /** The folder the Metro config names, or null when it names none and neither default exists. */
-  folder: string | null;
-}): InitRefusal {
-  return refusal(
-    folder
-      ? `Storybook is installed, but its folder ${folder} is missing`
-      : 'Storybook is installed, but its folder is missing (.rnstorybook or .storybook)',
-    [words('Restore the folder, for example from version control.'), ...rerun()]
-  );
+export function renderStorybookFolderMissing(
+  /**
+   * The folder the Metro config names, or null when it names none and neither default exists: a
+   * default folder is only ever chosen when it is there, so a missing one is always a Metro config's.
+   */
+  named: {
+    folder: string;
+    /** Whether git's history held the folder. */
+    wasInGit: boolean;
+    /** The Metro config that names it, from the app's folder. */
+    metroConfig: string;
+  } | null
+): InitRefusal {
+  if (!named) {
+    return refusal(
+      'Storybook is installed, but its folder is missing (.rnstorybook or .storybook)',
+      [words('Restore the folder, for example from version control.'), ...rerun()]
+    );
+  }
+
+  const { folder, wasInGit, metroConfig } = named;
+  const message = `Storybook is installed, but its folder ${folder} is missing`;
+  if (wasInGit) {
+    return refusal(message, [words(`Git held ${folder} before. Restore it from git.`), ...rerun()]);
+  }
+  return refusal(message, [
+    words(`Git never held ${folder}, so there is nothing to restore.`),
+    words(`Point configPath in ${metroConfig} at your Storybook folder:`),
+    `  ${renderCode("configPath: './<your Storybook folder>'")}`,
+    ...rerun(),
+  ]);
 }
 
 /**

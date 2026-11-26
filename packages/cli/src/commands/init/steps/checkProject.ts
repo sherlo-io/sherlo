@@ -20,12 +20,16 @@ import path from 'path';
 import {
   renderPackagesNotInstalled,
   renderReactNativeTooOld,
+  renderStorybookConfigPathUnread,
   renderStorybookFolderMissing,
   renderStorybookTooOld,
 } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
+import { surroundings } from '../../../seams/surroundings';
 import hasConfigFile from '../config/hasConfigFile';
 import readConfig from '../config/readConfig';
+import getMetroConfigPath from '../metroConfig/getMetroConfigPath';
+import readMetroConfigCode from '../metroConfig/readMetroConfigCode';
 import { packageManagerCommand, printLines } from '../helpers';
 import detectPackageManager from '../helpers/detectPackageManager';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
@@ -115,11 +119,37 @@ async function checkTheApp(): Promise<CheckedProject> {
       );
     }
     await refuseUnreadableMetroConfig();
+    // A CONFIGPATH SETUP CANNOT FOLLOW is named, never guessed past: a default folder in its place
+    // could be another Storybook's.
+    const metroConfigPath = getMetroConfigPath();
+    const configPathUnread = metroConfigPath
+      ? readMetroConfigCode(fs.readFileSync(metroConfigPath, 'utf8'))?.configPathUnread
+      : null;
+    if (metroConfigPath && configPathUnread) {
+      throwError(
+        renderStorybookConfigPathUnread({
+          metroConfig: path.relative(getCwd(), metroConfigPath),
+          configPath: configPathUnread,
+        })
+      );
+    }
     // THE FOLDER STORYBOOK RUNS FROM must be there: which setup the app uses, which stories are its
     // own and every next step read it, so a missing one stops here, before anything changes.
     const folder = storybookFolder();
     if (!folder || !fs.existsSync(path.join(getCwd(), folder))) {
-      throwError(renderStorybookFolderMissing({ folder }));
+      // A folder git once held is restored; one it never held was never there, so the Metro
+      // config's configPath points at the wrong place.
+      throwError(
+        renderStorybookFolderMissing(
+          folder && metroConfigPath
+            ? {
+                folder,
+                wasInGit: await surroundings().wasEverInGit(getCwd(), folder),
+                metroConfig: path.relative(getCwd(), metroConfigPath),
+              }
+            : null
+        )
+      );
     }
   }
 

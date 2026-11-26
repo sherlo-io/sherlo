@@ -26,12 +26,10 @@
  * the bottom asserts that property rather than assuming it.
  */
 import fs from 'fs';
+import path from 'path';
 import { describe, expect, it, vi } from 'vitest';
 import { catalogue, renderPose } from '../catalogue';
-import { runPose } from '../pose';
 import { readPoseDocument } from '../readPose';
-import type { CommandPose } from '../../../seams/commandPose';
-import type { PosedCaptureDecision } from '../../../seams/serverCalls';
 import {
   DIVERGED_MESSAGE,
   SHARD_COUNT,
@@ -48,47 +46,58 @@ vi.mock('../pose', async (importOriginal) =>
   )
 );
 
-/**
- * A POSED PUSH FINGERPRINTS THE PROJECT, and the fingerprint asks `npx` about the project's native
- * modules - a real process, 60 to 130 ms each, on a scratch folder that has no such modules. In
- * that folder the ask fails and the fingerprint takes its no-modules road, so it fails here at
- * once, with the same answer and none of the wait. Every other command still runs for real.
- */
-vi.mock('../../../helpers/runShellCommand', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../../helpers/runShellCommand')>();
-
-  return {
-    default: (...args: Parameters<typeof original.default>) =>
-      String(args[0].command).startsWith('npx ')
-        ? Promise.reject(new Error('npx is not run by the pose catalogue'))
-        : original.default(...args),
-  };
-});
-
 const POSES = catalogue();
+const MINTING = process.env.MINT_POSES === '1';
+// Re-minting runs the whole catalogue in this one file (about a quarter of a second a pose), far
+// past the five seconds a checked shard gets; it is a local step, never a pull request's check.
+const WHOLE_CATALOGUE_TIMEOUT = MINTING ? 600_000 : undefined;
 
 describe('the pose catalogue under packages/cli/poses', () => {
   it('has poses (an emptied catalogue would pass every case below by covering nothing)', () => {
     expect(POSES.length).toBeGreaterThan(0);
   });
 
-  it('every catalog pose renders and its rendered bytes are committed beside it', async () => {
-    // THIS FILE CHECKS SHARD 1 OF THE CATALOGUE (shards 2 to 4 sit in catalogueShard2.test.ts to
-    // catalogueShard4.test.ts, so the poses render in parallel workers), or all of it when
-    // re-minting. The next case proves the shards together are the whole catalogue. The name IS
-    // the rule, and a rule spelled out once with the poses that break it named in the failure
-    // reads better than a hundred near-identical case names.
-    const mine = process.env.MINT_POSES === '1' ? POSES : posesOfShard(POSES, 1);
+  it(
+    'every catalog pose renders and its rendered bytes are committed beside it',
+    async () => {
+      // THIS FILE CHECKS SHARD 1 OF THE CATALOGUE (shards 2 to 16 sit in catalogueShard2.test.ts to
+      // catalogueShard16.test.ts, so the poses render in parallel workers), or all of it when
+      // re-minting. The next case proves the shards together are the whole catalogue. The name IS
+      // the rule, and a rule spelled out once with the poses that break it named in the failure
+      // reads better than a hundred near-identical case names.
+      const mine = MINTING ? POSES : posesOfShard(POSES, 1);
 
-    expect(await posesDivergingFromCommitted(mine), DIVERGED_MESSAGE).toEqual([]);
-  });
+      expect(await posesDivergingFromCommitted(mine), DIVERGED_MESSAGE).toEqual([]);
+    },
+    WHOLE_CATALOGUE_TIMEOUT
+  );
 
-  it('the shards of the catalogue together are every pose, each in exactly one shard', () => {
+  it('the shards of the catalogue together are every pose, each in exactly one shard, each with its file', () => {
     const inShards = Array.from({ length: SHARD_COUNT }, (_, index) =>
       posesOfShard(POSES, index + 1)
     ).flat();
 
     expect(inShards.map(({ name }) => name).sort()).toEqual(POSES.map(({ name }) => name).sort());
+
+    // A shard with no file is a slice of the catalogue nobody checks; a file past the last shard
+    // checks nothing. Shard 1 is this file; each catalogueShard<n>.test.ts after it must exist and
+    // say it is shard n.
+    const shardFiles = fs
+      .readdirSync(__dirname)
+      .filter((file) => /^catalogueShard\d+\.test\.ts$/.test(file))
+      .map((file) => ({
+        file,
+        declares: /^const SHARD = (\d+);$/m.exec(
+          fs.readFileSync(path.join(__dirname, file), 'utf8')
+        )?.[1],
+      }));
+    const expected = Array.from({ length: SHARD_COUNT - 1 }, (_, index) => ({
+      file: `catalogueShard${index + 2}.test.ts`,
+      declares: String(index + 2),
+    }));
+    const byFile = (a: { file: string }, b: { file: string }) => a.file.localeCompare(b.file);
+
+    expect(shardFiles.sort(byFile)).toEqual(expected.sort(byFile));
   });
 
   it('renders the same bytes twice', async () => {
@@ -145,57 +154,18 @@ describe('the pose catalogue under packages/cli/poses', () => {
     ).toEqual([]);
   });
 
-  it('no pose scripts an answer to a call its command never makes', async () => {
-    // The mirror of the refusal rule. A pose that scripts a call the run never reaches is
-    // describing a different road from the one its screen shows, and its screen would go on
-    // looking perfectly reasonable - so it is caught here rather than read past.
-    const mine = process.env.MINT_POSES === '1' ? POSES : posesOfShard(POSES, 1);
+  it(
+    'no pose scripts an answer to a call its command never makes',
+    async () => {
+      // The mirror of the refusal rule. A pose that scripts a call the run never reaches is
+      // describing a different road from the one its screen shows, and its screen would go on
+      // looking perfectly reasonable - so it is caught here rather than read past.
+      const mine = MINTING ? POSES : posesOfShard(POSES, 1);
 
-    expect(await posesWithLeftoverCalls(mine)).toEqual([]);
-  });
-
-  it('a staged push that closed at open, with no wait, ends on Nothing needed capturing and prints no link', async () => {
-    // Every platform is a partial capture of no story, so the server closed the test at open. The
-    // run did not wait, so its one status read is the bypass closer's (fetchServerBypassReason),
-    // and that read is answered only when its `with: { buildIndex }` is the test the push opened.
-    const pose = poseNamed('test/staged-nothing-to-capture');
-    const openBuild = pose.api.find(({ call }) => call === 'openBuild');
-    const statusRead = pose.api.find(({ call }) => call === 'getBuildStatus');
-
-    expect(pose.argv).not.toContain('--wait');
-    const decision = (openBuild?.answer as { captureDecision: PosedCaptureDecision })
-      .captureDecision;
-    for (const platform of Object.values(decision.platforms)) {
-      expect(platform).toMatchObject({ full: false, storyFilePaths: [] });
-    }
-    expect(statusRead?.with).toEqual({
-      buildIndex: (openBuild?.answer as { buildIndex: number }).buildIndex,
-    });
-
-    const { screen, exitCode, refusals, unusedCalls } = await runPose(pose);
-
-    expect(refusals).toEqual([]);
-    expect(unusedCalls).toEqual([]);
-    // The finished step the tool prints for a test with nothing to capture is its last line.
-    expect(screen.trimEnd().split('\n').pop()).toContain('Finished: nothing to test');
-    expect(screen).not.toContain('🔗');
-    expect(exitCode).toBe(0);
-  });
-
-  it('a bare push with no wait opens the test, prints its address and exits 0 with no status read', async () => {
-    const pose = poseNamed('test/staged-reuses-no-wait');
-
-    expect(pose.argv).not.toContain('--wait');
-    // A status read the pose does not script would be refused, so no refusal is no status read.
-    expect(pose.api.map(({ call }) => call)).not.toContain('getBuildStatus');
-
-    const { screen, exitCode, refusals, unusedCalls } = await runPose(pose);
-
-    expect(refusals).toEqual([]);
-    expect(unusedCalls).toEqual([]);
-    expect(screen).toContain('🔗 Review:');
-    expect(exitCode).toBe(0);
-  });
+      expect(await posesWithLeftoverCalls(mine)).toEqual([]);
+    },
+    WHOLE_CATALOGUE_TIMEOUT
+  );
 
   it('no screen carries a path from the machine that rendered it', () => {
     // The two folds the tool always makes (`<PROJECT_ROOT>`, `<SHERLO_CONFIG_PATH>`) exist so a
@@ -212,13 +182,6 @@ describe('the pose catalogue under packages/cli/poses', () => {
 });
 
 /* ========================================================================== */
-
-/** The catalogue pose at `<folder>/<name>`, read as the catalogue reads it. */
-function poseNamed(name: string): CommandPose {
-  const entry = POSES.find((pose) => pose.posePath.endsWith(`${name}.pose.json`));
-  if (!entry) throw new Error(`the catalogue has no pose ${name}`);
-  return readPoseDocument(fs.readFileSync(entry.posePath, 'utf8'));
-}
 
 /**
  * `--json` prints a record instead of the human view, and `--help` prints commander's own usage

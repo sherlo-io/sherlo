@@ -26,6 +26,14 @@ export type MetroConfigCode = {
    * given, and when it is built any other way.
    */
   configPath: MetroConfigPath | null;
+  /**
+   * The code of a `configPath` built any other way (`path.resolve(root, 'storybook')`), as the
+   * config writes it, so setup names what it could not follow. Null when none is given or it is read.
+   *
+   * BUILD DEBT (init-for-agents, gap B46): follow a configPath built from a variable the config
+   * itself sets to a string or to `__dirname`.
+   */
+  configPathUnread: string | null;
 };
 
 /** Null when the code does not parse. */
@@ -41,6 +49,7 @@ function readMetroConfigCode(content: string): MetroConfigCode | null {
     wiredForSherlo: false,
     mentionsWithStorybook: false,
     configPath: null,
+    configPathUnread: null,
   };
   for (const node of allNodes(program)) {
     if (isSherloWithStorybookSource(node) || isCallOf(node, 'createSherloStorybook')) {
@@ -51,10 +60,14 @@ function readMetroConfigCode(content: string): MetroConfigCode | null {
     }
     if (
       code.configPath === null &&
+      code.configPathUnread === null &&
       node.type === 'ObjectProperty' &&
       keyName(node) === 'configPath'
     ) {
       code.configPath = configPathOf(node.value);
+      if (code.configPath === null) {
+        code.configPathUnread = content.slice(node.value.start, node.value.end);
+      }
     }
   }
   return code;
