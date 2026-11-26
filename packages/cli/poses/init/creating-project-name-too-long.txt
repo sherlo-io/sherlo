@@ -17,7 +17,13 @@ Setting up Sherlo...
 [32m✔[39m Using team             [2mAnna's team[22m
 [31m✖[39m Creating the project failed
 
-[31mERROR: createProject:tooLongName[39m
+[31mERROR: The project name "Acme Shop Customer Loyalty and Rewards Companion App for Retail Stores" is 70 characters, over Sherlo's limit of 64.[39m
+
+[0mCreate the project under a shorter name:[0m
+[36m  npx sherlo project create --name "<shorter name>" --team k7m2p9qx[39m
+
+[0mThen run setup with the projectIndex it prints:[0m
+[36m  npx sherlo init --project k7m2p9qx/<projectIndex>[39m
 
 [2m──────────[22m
 

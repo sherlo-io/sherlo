@@ -54,6 +54,32 @@ export class CreateProjectAuthError extends Error {
 }
 
 /**
+ * The service refused the project's name as longer than it takes (sherlo-api createProject). It
+ * carries the name and team the request sent, so a refusal can name both.
+ */
+export class CreateProjectNameTooLongError extends Error {
+  constructor(
+    message: string,
+    readonly asked: { name: string; teamId: string }
+  ) {
+    super(message);
+    this.name = 'CreateProjectNameTooLongError';
+  }
+}
+
+/**
+ * The service's own code for a name over its limit. sherlo-api's resolver throws it as its log
+ * label (`resolvers:mutations:createProject:tooLongName`, utils/throwAsyncError), the label alone
+ * on the error's first line: the code is read off that line's last two segments, never its prose.
+ */
+const NAME_TOO_LONG_CODE = ['createProject', 'tooLongName'];
+
+function isNameTooLongCode(message: string | undefined): boolean {
+  const segments = (message ?? '').split('\n')[0].split(':');
+  return segments.slice(-2).join(':') === NAME_TOO_LONG_CODE.join(':');
+}
+
+/**
  * The effects this request is made of, injected so a contract test can assert
  * the exact payload without a network. The default is the real thing.
  */
@@ -113,6 +139,11 @@ async function createProjectRequest(
     const isAuthError = json.errors.some((error) => isRefusalErrorType(error.errorType));
 
     if (isAuthError) throw new CreateProjectAuthError('GraphQL authorization error');
+
+    const nameTooLong = json.errors.find((error) => isNameTooLongCode(error.message));
+    if (nameTooLong) {
+      throw new CreateProjectNameTooLongError(nameTooLong.message ?? '', { name, teamId });
+    }
 
     // The api's own words. They are the server's prose about the request the
     // user made (an empty name, a name over the limit), never a credential.

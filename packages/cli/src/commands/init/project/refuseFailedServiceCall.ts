@@ -12,13 +12,17 @@ import { throwError } from '../../../helpers';
 import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
 import {
   renderLoginRejected,
+  renderProjectNameTooLong,
   renderServiceFailed,
   renderServiceUnreachable,
 } from '../../../render/initFixes';
 import { renderFailedStepLine } from '../../../render/initSteps';
 import { serverCalls } from '../../../seams/serverCalls';
 import { printLines } from '../helpers';
-import { CreateProjectAuthError } from '../../projectCreate/createProjectRequest';
+import {
+  CreateProjectAuthError,
+  CreateProjectNameTooLongError,
+} from '../../projectCreate/createProjectRequest';
 import { ListProjectsAuthError } from '../../projectList/listProjectsRequest';
 import { CreateTeamAuthError } from '../../teamCreate/createTeamRequest';
 import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
@@ -64,6 +68,12 @@ async function refuseFailedServiceCall(
 
   if (refusal === 'dead-login') {
     throwError({ ...renderLoginRejected(), errorToReport: error });
+  }
+
+  // A project name over the service's limit, by the service's own code: the limit, and a shorter
+  // name made the way that keeps the app's own.
+  if (error instanceof CreateProjectNameTooLongError) {
+    throwError({ ...renderProjectNameTooLong(error.asked), errorToReport: error });
   }
 
   // A call that never reached the service carries the network's own code (ENOTFOUND, ECONNREFUSED):

@@ -18,6 +18,7 @@ import chalk from 'chalk';
 import type { Agent } from 'package-manager-detector';
 import typedInitCommand from '../commands/init/typedInitCommand';
 import { LOGIN_COMMAND } from '../commands/login/constants';
+import { MAX_PROJECT_NAME_LENGTH } from '../constants';
 import {
   REJECTED_LOGIN_REASONS,
   REJECTED_LOGIN_SENTENCE,
@@ -443,6 +444,30 @@ export function renderLoginRejected(): InitRefusal {
     code(`npx sherlo ${LOGIN_COMMAND}`),
     ...rerun(),
   ]);
+}
+
+/**
+ * The service refused the project's name as over its limit: the name setup took from the app is
+ * too long. The way out keeps the app's own name: the project is made under a shorter name, and
+ * setup is run again naming it.
+ */
+export function renderProjectNameTooLong({
+  name,
+  teamId,
+}: {
+  name: string;
+  teamId: string;
+}): InitRefusal {
+  return refusal(
+    `The project name "${name}" is ${name.length} characters, over Sherlo's limit of ${MAX_PROJECT_NAME_LENGTH}.`,
+    [
+      words('Create the project under a shorter name:'),
+      code(`npx sherlo project create --name "<shorter name>" --team ${teamId}`),
+      '',
+      words('Then run setup with the projectIndex it prints:'),
+      code(`${typedInitCommand()} --project ${teamId}/<projectIndex>`),
+    ]
+  );
 }
 
 /**

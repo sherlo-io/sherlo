@@ -33,7 +33,9 @@ import {
 import authTokenFor from '../helpers/authTokenFor';
 import { ServiceRefusedTokenError, throwTokenRefusal } from './serviceRefusedToken';
 import liveGitHubTrade from './liveGitHubTrade';
-import createProjectRequest from '../commands/projectCreate/createProjectRequest';
+import createProjectRequest, {
+  CreateProjectNameTooLongError,
+} from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
 import listProjectsRequest, {
   ListProjectsAuthError,
@@ -407,9 +409,13 @@ export type ApiError = {
   error: string;
   /**
    * The client's own error kind, where a command answers it apart: a team the person is not in, or
-   * a refusal of the team list or of a team's project list.
+   * a refusal of the team list or of a team's project list, a project name over the service's limit.
    */
-  errorName?: 'TeamNotFoundError' | 'ListTeamsAuthError' | 'ListProjectsAuthError';
+  errorName?:
+    | 'TeamNotFoundError'
+    | 'ListTeamsAuthError'
+    | 'ListProjectsAuthError'
+    | 'CreateProjectNameTooLongError';
   /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
   cause?: { code: string; hostname?: string };
 };
@@ -875,6 +881,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       }
       if (answer.errorName === 'ListProjectsAuthError') {
         throw new ListProjectsAuthError(String(answer.error));
+      }
+      // A name over the service's limit: setup says the limit and how to give a shorter name.
+      if (answer.errorName === 'CreateProjectNameTooLongError') {
+        throw new CreateProjectNameTooLongError(String(answer.error), {
+          name: String(askedWith.name),
+          teamId: String(askedWith.teamId),
+        });
       }
       // A call that never reached the service is raised as node-fetch raises it: a FetchError of
       // type 'system' with the network's code, and no host. BUILD DEBT (init-for-agents): the pose

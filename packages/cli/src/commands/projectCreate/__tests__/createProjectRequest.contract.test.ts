@@ -22,6 +22,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import createProjectRequest, {
   CreateProjectAuthError,
+  CreateProjectNameTooLongError,
   type CreateProjectEffects,
 } from '../createProjectRequest';
 
@@ -155,7 +156,7 @@ describe('createProject response', () => {
 
   it("passes a non-auth GraphQL error through in the api's own words", async () => {
     const effects = effectsAnswering({
-      errors: [{ errorType: 'BadRequest', message: 'createProject:tooLongName' }],
+      errors: [{ errorType: 'BadRequest', message: 'createProject:emptyName' }],
     });
 
     await expect(
@@ -163,6 +164,20 @@ describe('createProject response', () => {
         { name: CREATED.name, teamId: 'team1234', personalToken: PERSONAL_TOKEN },
         effects
       )
-    ).rejects.toThrow('createProject:tooLongName');
+    ).rejects.toThrow('createProject:emptyName');
+  });
+
+  it("raises a name over the service's limit as its own kind, by the service's code", async () => {
+    // sherlo-api throws its log label, the error's details after a blank line.
+    const effects = effectsAnswering({
+      errors: [{ message: 'resolvers:mutations:createProject:tooLongName\n\ndetails' }],
+    });
+
+    await expect(
+      createProjectRequest(
+        { name: CREATED.name, teamId: 'team1234', personalToken: PERSONAL_TOKEN },
+        effects
+      )
+    ).rejects.toBeInstanceOf(CreateProjectNameTooLongError);
   });
 });

@@ -2391,7 +2391,12 @@ function readApiError(value: unknown, path: string, problems: string[]): void {
     if ('errorName' in object1) {
       expectOneOf(
         object1.errorName,
-        ['TeamNotFoundError', 'ListTeamsAuthError', 'ListProjectsAuthError'],
+        [
+          'TeamNotFoundError',
+          'ListTeamsAuthError',
+          'ListProjectsAuthError',
+          'CreateProjectNameTooLongError',
+        ],
         at(path, 'errorName'),
         problems
       );

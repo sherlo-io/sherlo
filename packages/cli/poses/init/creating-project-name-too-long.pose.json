@@ -87,7 +87,8 @@
         "name": "Acme Shop Customer Loyalty and Rewards Companion App for Retail Stores"
       },
       "answer": {
-        "error": "createProject:tooLongName"
+        "error": "resolvers:mutations:createProject:tooLongName",
+        "errorName": "CreateProjectNameTooLongError"
       }
     }
   ],
