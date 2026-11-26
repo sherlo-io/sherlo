@@ -15,9 +15,9 @@
         "start": "react-native start"
       },
       "dependencies": {
-        "@react-native/new-app-screen": "0.82.1",
-        "react": "19.1.1",
-        "react-native": "0.82.1",
+        "@react-native/new-app-screen": "0.88.1",
+        "react": "19.3.0",
+        "react-native": "0.88.1",
         "react-native-safe-area-context": "^5.5.2"
       }
     },
@@ -27,7 +27,7 @@
     "metro.config.js": "const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');\n\nconst config = {};\n\nmodule.exports = mergeConfig(getDefaultConfig(__dirname), config);\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",
-      "version": "0.82.1",
+      "version": "0.88.1",
       "main": "index.js"
     },
     "node_modules/react-native/index.js": ""
@@ -109,14 +109,12 @@
             "start": "react-native start"
           },
           "dependencies": {
-            "@react-native/new-app-screen": "0.82.1",
+            "@react-native/new-app-screen": "0.88.1",
             "@storybook/react-native": "10.7.2",
             "@storybook/react-native-ui-lite": "10.7.2",
-            "react": "19.1.1",
-            "react-native": "0.82.1",
-            "react-native-reanimated": "4.3.4",
+            "react": "19.3.0",
+            "react-native": "0.88.1",
             "react-native-safe-area-context": "^5.5.2",
-            "react-native-worklets": "0.8.3",
             "storybook": "10.6.8"
           }
         },
