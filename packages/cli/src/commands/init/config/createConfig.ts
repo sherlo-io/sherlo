@@ -8,7 +8,7 @@ import writeConfig from './writeConfig';
 async function createConfig(
   project: string
 ): Promise<{ createdConfig: InvalidatedConfig; hasAddedDefaultDevices: boolean }> {
-  const devices = defaultDevicesFor();
+  const devices = await defaultDevicesFor();
   const config = {
     project,
     devices,

@@ -24,7 +24,7 @@ import {
   type ServerCalls,
 } from '../../../seams/serverCalls';
 import { installSurroundings, posedSurroundings } from '../../../seams/surroundings';
-import { installWorkstation, type Workstation } from '../../../seams/workstation';
+import { installWorkstation, posedWorkstation, type Workstation } from '../../../seams/workstation';
 import config from '../config';
 import project from '../project';
 
@@ -362,6 +362,31 @@ describe('setup names the project', () => {
     expect(expoApp.config.devices).toContainEqual({ id: 'pixel.8', osVersion: '14' });
   });
 
+  it('an Expo app whose app.config sets its lowest Android to 14 gets an Android 14 phone in its config', async () => {
+    const resolved = JSON.stringify({
+      plugins: ['expo-router', ['expo-build-properties', { android: { minSdkVersion: 34 } }]],
+    });
+    for (const configFile of ['app.config.ts', 'app.config.js']) {
+      const run = await runConfigStep({
+        files: { [configFile]: 'export default {};\n' },
+        projectToWrite: `${TEAM_ID}/4`,
+        expoConfig: resolved,
+      });
+      expect(run.config.devices).toEqual([
+        { id: 'iphone.15.pro', osVersion: '17' },
+        { id: 'pixel.8', osVersion: '14' },
+      ]);
+    }
+
+    // An Expo command that fails never stops setup: the devices are today's.
+    const failed = await runConfigStep({
+      files: { 'app.config.ts': 'export default {};\n' },
+      projectToWrite: `${TEAM_ID}/4`,
+      expoConfig: new Error('expo is not installed'),
+    });
+    expect(failed.config.devices).toContainEqual({ id: 'pixel.7.pro', osVersion: '13' });
+  });
+
   it('an app whose lowest Android is 13 or below keeps the Pixel 7 Pro on Android 13', async () => {
     const keptDevices = [
       { id: 'iphone.15.pro', osVersion: '17' },
@@ -427,6 +452,7 @@ async function runProjectStep(world: {
     addPackage: () => Promise.reject(new Error('the project step installs nothing')),
     installPods: () => Promise.reject(new Error('the project step installs nothing')),
     readGit: () => Promise.reject(new Error('the project step reads no git')),
+    readExpoConfig: () => Promise.reject(new Error('the project step runs no Expo command')),
     podsAreCurrent: () => false,
     scenesFlag: () => undefined,
     askScenesFlag: async () => {},
@@ -489,15 +515,27 @@ async function runProjectStep(world: {
 async function runConfigStep({
   files,
   projectToWrite,
+  expoConfig = new Error('no Expo command in this test'),
 }: {
   files: PosedFiles;
   projectToWrite: string;
+  /** What the stand-in for Expo's config command answers: the JSON text, or the error it fails with. */
+  expoConfig?: string | Error;
 }) {
   const folder = posedProjectFiles(files);
   const api = posedServerCalls([
     { call: 'trackCliInit', with: { event: '5_config' }, answer: { sessionId: 'init-session-1' } },
   ]);
-  const uninstall = [installProjectFiles(folder), installServerCalls(api)];
+  const standIn: Workstation = {
+    ...posedWorkstation(undefined),
+    readExpoConfig: () =>
+      typeof expoConfig === 'string' ? Promise.resolve(expoConfig) : Promise.reject(expoConfig),
+  };
+  const uninstall = [
+    installProjectFiles(folder),
+    installServerCalls(api),
+    installWorkstation(standIn),
+  ];
 
   try {
     const { printed, refusal } = await capturePrinted(() =>

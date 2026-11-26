@@ -88,6 +88,9 @@ export type Workstation = {
   /** Run one git command line in the project folder; rejects when git fails (not a git folder). */
   readGit(params: { command: string; projectRoot: string }): Promise<string>;
 
+  /** The app's resolved Expo config as JSON text, from Expo's own command; rejects when it fails. */
+  readExpoConfig(projectRoot: string): Promise<string>;
+
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
 
@@ -143,6 +146,9 @@ export const liveWorkstation: Workstation = {
   askScenesFlag: decideScenesForProject,
 
   readGit: ({ command, projectRoot }) => runShellCommand({ command, projectRoot }),
+
+  readExpoConfig: (projectRoot) =>
+    runShellCommand({ command: 'npx expo config --json --type public', projectRoot }),
 
   /**
    * Is there a human at the keyboard who could actually press Enter? `isTTY` alone is not enough:
@@ -353,6 +359,9 @@ export function posedWorkstation(
 
     // A pose states no git history: a read of it fails as in a folder that is not a git folder.
     readGit: () => Promise.reject(new Error('the pose holds no git history')),
+
+    // A pose runs no Expo command: init then keeps today's devices.
+    readExpoConfig: () => Promise.reject(new Error('the pose runs no Expo command')),
 
     // A pose that says Enter was pressed or the terminal closed says somebody was asked, so the
     // prompt prints and `enter` below decides what they did. `nobody` is the run with no keyboard

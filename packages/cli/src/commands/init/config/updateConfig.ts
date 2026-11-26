@@ -17,7 +17,7 @@ async function updateConfig(
   const hasDevices = Array.isArray(config.devices) && config.devices.length > 0;
   const hasAddedDefaultDevices = !hasDevices;
 
-  const defaultDevices = defaultDevicesFor();
+  const defaultDevices = await defaultDevicesFor();
 
   const updatedConfig = {
     ...config,
