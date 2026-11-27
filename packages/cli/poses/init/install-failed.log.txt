@@ -32,7 +32,7 @@ If it doesn't open, use this link on any device:
 
 ERROR: Sherlo couldn't be installed
 
-YN0001: RequestError: getaddrinfo ENOTFOUND registry.yarnpkg.com
+YN0001: Error [ERR_SOCKET_CLOSED_BEFORE_CONNECTION]: Socket closed before the connection was established
 
 Full output: <LOG_FILE>
 

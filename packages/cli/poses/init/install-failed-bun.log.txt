@@ -33,6 +33,9 @@ If it doesn't open, use this link on any device:
 ERROR: Sherlo couldn't be installed
 
 error: ConnectionRefused downloading package manifest @sherlo/react-native-storybook
+bun add v1.4.5 (a7733435c)
+Resolving dependencies
+Resolved, downloaded and extracted [6]
 
 Full output: <LOG_FILE>
 

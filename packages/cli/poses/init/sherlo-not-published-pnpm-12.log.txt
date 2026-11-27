@@ -1,0 +1,61 @@
+
+             888                       888          
+             888                       888          
+             888                       888          
+    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
+    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
+    "Y8888b. 888  888 88888888 888     888 888  888 
+         X88 888  888 Y8b.     888     888 Y88..88P 
+    '88888P' 888  888  "Y8888  888     888  "Y88P"
+
+Make sure your mobile app looks perfect on every device
+
+Setting up Sherlo...
+
+✔ Checked the app        Expo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>
+
+Opening your browser to log in to Sherlo...
+If it doesn't open, use this link on any device:
+
+  <LOGIN_LINK>
+
+⏳ Waiting for you to click Authorize... (Ctrl+C to stop)
+
+✔ Logged in              anna@example.com
+✔ Created team           Anna's team
+✔ Created project        Acme Shop
+✔ Created config         sherlo.config.json, one device: Pixel 7 Pro
+- Installing Storybook...
+✔ Installed Storybook    @storybook/react-native <STORYBOOK_VERSION>
+✔ Created pnpm settings  pnpm-workspace.yaml
+- Installing Sherlo...
+✖ Installing Sherlo failed
+
+ERROR: Sherlo 3.0.0 isn't published yet
+
+Error: ERR_PNPM_NO_MATCHING_VERSION
+adding a new package
+Failed to resolve dependency tree: No matching version found for @sherlo/react-native-storybook@^3 while fetching it from https://registry.npmjs.org/
+Failed to resolve @sherlo/react-native-storybook@^3
+No matching version found for @sherlo/react-native-storybook@^3 while fetching it from https://registry.npmjs.org/
+help: The latest release of @sherlo/react-native-storybook is "2.0.2".
+Other releases are:
+* alpha: 2.0.0-alpha.1
+If you need the full list of all 98 published versions run "pnpm view @sherlo/react-native-storybook versions".
+
+Full output: <LOG_FILE>
+
+Run setup again later:
+  npx sherlo init
+
+AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.
+
+──────────
+
+Need help?
+➜ Discord: https://discord.gg/G7eqTBkWZt
+➜ Email: contact@sherlo.io
+
+AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: npx sherlo feedback --help
+
+[exit 1]

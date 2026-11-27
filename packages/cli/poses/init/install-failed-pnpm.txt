@@ -30,7 +30,9 @@ Opening your browser to log in to Sherlo...
 [31mERROR: Sherlo couldn't be installed[39m
 
 [2mERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook: request to https://registry.npmjs.org/@sherlo%2Freact-native-storybook failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org[22m
+[2mThis error happened while installing a direct dependency of /Users/anna/acme-shop[22m
 [2mWARN  GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook error (ENOTFOUND). Will retry in 10 seconds. 2 retries left.[22m
+[2mWARN  GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook error (ENOTFOUND). Will retry in 1 minute. 1 retries left.[22m
 
 [0mFull output: <LOG_FILE>[0m
 

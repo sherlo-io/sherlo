@@ -148,7 +148,7 @@
     "install": {
       "package": "@sherlo/react-native-storybook",
       "failed": {
-        "stdout": "{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"┌ Resolution step\"}\n{\"type\":\"error\",\"name\":1,\"displayName\":\"YN0001\",\"indent\":\"│ \",\"data\":\"RequestError: getaddrinfo ENOTFOUND registry.yarnpkg.com\"}\n{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"└ Completed in 30s 104ms\"}\n{\"type\":\"info\",\"name\":null,\"displayName\":\"YN0000\",\"indent\":\"\",\"data\":\"· Failed with errors in 30s 110ms\"}\n",
+        "stdout": "{\"type\":\"error\",\"name\":1,\"displayName\":\"YN0001\",\"indent\":\"│ \",\"data\":\"Error [ERR_SOCKET_CLOSED_BEFORE_CONNECTION]: Socket closed before the connection was established\\n    at TLSSocket.onClose (node:net:1305:10)\\n    at TLSSocket.wrapper (node:events:639:12)\\n    at TLSSocket.emit (node:events:526:24)\\n    at node:net:362:12\\n    at TCP.done (node:internal/tls/wrap:787:7)\"}\n{\"type\":\"error\",\"name\":0,\"displayName\":\"YN0000\",\"indent\":\"· \",\"data\":\"Failed with errors in 0s 119ms\"}\n",
         "stderr": ""
       }
     },

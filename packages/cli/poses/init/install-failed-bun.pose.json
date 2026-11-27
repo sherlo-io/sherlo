@@ -147,7 +147,7 @@
       "package": "@sherlo/react-native-storybook",
       "failed": {
         "stdout": "",
-        "stderr": "error: ConnectionRefused downloading package manifest @sherlo/react-native-storybook\n"
+        "stderr": "bun add v1.4.5 (a7733435c)\nResolving dependencies\nResolved, downloaded and extracted [6]\nerror: ConnectionRefused downloading package manifest @sherlo/react-native-storybook\n"
       }
     },
     "storybook": {

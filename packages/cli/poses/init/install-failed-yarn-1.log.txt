@@ -32,14 +32,13 @@ If it doesn't open, use this link on any device:
 
 ERROR: Sherlo couldn't be installed
 
-error An unexpected error occurred: "https://registry.yarnpkg.com/@sherlo%2freact-native-storybook: getaddrinfo ENOTFOUND registry.yarnpkg.com".
+error Error: getaddrinfo ENOTFOUND registry.yarnpkg.com
 yarn add v1.22.22
 [1/4] Resolving packages...
 info There appears to be trouble with your network connection. Retrying...
-info If you think this is a bug, please open a bug report with the information provided in "/Users/anna/acme-shop/yarn-error.log".
+at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)
 
 Full output: <LOG_FILE>
-yarn's own log: /Users/anna/acme-shop/yarn-error.log
 
 Fix the error, or install Sherlo yourself:
   yarn add @sherlo/react-native-storybook@<SHERLO_VERSION>

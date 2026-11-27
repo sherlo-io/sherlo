@@ -21,7 +21,7 @@ Setting up Sherlo...
 
 [31mERROR: Storybook couldn't be installed[39m
 
-[2mYN0001: RequestError: getaddrinfo ENOTFOUND registry.yarnpkg.com[22m
+[2mYN0001: Error [ERR_SOCKET_CLOSED_BEFORE_CONNECTION]: Socket closed before the connection was established[22m
 
 [0mFull output: <LOG_FILE>[0m
 

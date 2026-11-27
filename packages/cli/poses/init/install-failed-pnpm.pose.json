@@ -146,7 +146,7 @@
     "install": {
       "package": "@sherlo/react-native-storybook",
       "failed": {
-        "stdout": "\u2009WARN\u2009 GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook error (ENOTFOUND). Will retry in 10 seconds. 2 retries left.\n\u2009ERR_PNPM_META_FETCH_FAIL\u2009 GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook: request to https://registry.npmjs.org/@sherlo%2Freact-native-storybook failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org\n",
+        "stdout": "\u2009WARN\u2009 GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook error (ENOTFOUND). Will retry in 10 seconds. 2 retries left.\n\u2009WARN\u2009 GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook error (ENOTFOUND). Will retry in 1 minute. 1 retries left.\n\u2009ERR_PNPM_META_FETCH_FAIL\u2009 GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook: request to https://registry.npmjs.org/@sherlo%2Freact-native-storybook failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org\n\nThis error happened while installing a direct dependency of /Users/anna/acme-shop\n",
         "stderr": ""
       }
     },
@@ -183,6 +183,7 @@
         "node_modules/@storybook/react-native/index.js": "",
         "pnpm-workspace.yaml": "allowBuilds:\n  # Added by Sherlo: Storybook brings esbuild, whose install script your app does not need.\n  # Without an answer here, pnpm stops the install.\n  esbuild: false\n"
       }
-    }
+    },
+    "pnpmVersion": "10.12.1"
   }
 }
