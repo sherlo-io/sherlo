@@ -9,27 +9,19 @@ import {
 import { recordThrownByStandIn } from './mockDeclaration';
 import {
   callableTarget,
-  fixedKeysOf,
+  descriptionTargetAllows,
   hasOwn,
-  isFixedProperty,
   isObjectOrFunction,
+  keysTargetAllows,
 } from '../safeWrapping';
 import { overlay, writeUndoably } from './overlay';
 import { ModuleExports, MOCKED_MODULE_KEY } from './types';
 
 // A Proxy must keep every fixed own key of its target in its ownKeys answer and report that key's
 // real descriptor, or the engine throws. The stand-in targets below are meant to own no such key,
-// but a runtime may give one, so both shims stay honest about whatever their target fixes: the
-// descriptor a shim reports for `prop` is the target's own when it is fixed there, else the wanted
-// one claimed configurable (the targets hold nothing, so a configurable claim is legal).
-function reportDescriptor(
-  target: ModuleExports,
-  prop: PropertyKey,
-  wanted: PropertyDescriptor | undefined
-): PropertyDescriptor | undefined {
-  if (isFixedProperty(target, prop)) return Reflect.getOwnPropertyDescriptor(target, prop);
-  return wanted && { ...wanted, configurable: true };
-}
+// but a runtime may give one, so both shims report keys and descriptions as their target allows
+// (../safeWrapping): a key the target fixes as it has it, any other as wanted, claimed
+// configurable (the targets hold nothing, so a configurable claim is legal).
 
 // A fixed property cannot be promised: the stand-in holds nothing, so it is refused by name.
 function refuseFixedProperty(key: string, prop: PropertyKey, descriptor: PropertyDescriptor): void {
@@ -66,10 +58,13 @@ function createForwardingDefault(key: string, realModule: ModuleExports): Module
   return new Proxy(delegate, {
     get: (_target, prop) => activeDefault()[prop],
     has: (_target, prop) => prop in activeDefault(),
-    ownKeys: (target) =>
-      Array.from(new Set([...Reflect.ownKeys(activeDefault()), ...fixedKeysOf(target)])),
+    ownKeys: (target) => keysTargetAllows(target, Reflect.ownKeys(activeDefault())),
     getOwnPropertyDescriptor: (target, prop) =>
-      reportDescriptor(target, prop, Reflect.getOwnPropertyDescriptor(activeDefault(), prop)),
+      descriptionTargetAllows(
+        target,
+        prop,
+        Reflect.getOwnPropertyDescriptor(activeDefault(), prop)
+      ),
     // Writes land on the active default object itself (its own methods read `this`, so an
     // override layer beside it would never be seen by them) and are undone when the story ends.
     set: (_target, prop, value) =>
@@ -261,12 +256,11 @@ function buildMockable<T extends ModuleExports>(
         Reflect.ownKeys(mock).forEach((mockKey) => keys.add(mockKey));
       }
       getOverrides(key)?.forEach((_descriptor, written) => keys.add(written as string | symbol));
-      fixedKeysOf(target).forEach((fixed) => keys.add(fixed));
-      return Array.from(keys);
+      return keysTargetAllows(target, Array.from(keys));
     },
 
     getOwnPropertyDescriptor: (target, prop) =>
-      reportDescriptor(target, prop, currentDescriptor(prop)),
+      descriptionTargetAllows(target, prop, currentDescriptor(prop)),
 
     // Writes. The delegate target must never receive one: a plain set would define the property on
     // it as non-configurable, and the traps above would then contradict it (every later read or
