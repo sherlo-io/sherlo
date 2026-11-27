@@ -15,7 +15,11 @@
  *     ALLOW_LOCAL_TEST_EXEC=1 MINT_POSES=1 yarn test src/commands/pose/__tests__/catalogue.test.ts
  *
  * (under MINT_POSES this file mints the WHOLE catalogue and the shard files stand aside) and the
- * diff is read like any other diff. Without `MINT_POSES` this file only ever compares -
+ * diff is read like any other diff. A change to which init render words some pose reaches also
+ * re-mints the reach witnesses (see ./support/initRenderReach.ts), with:
+ *
+ *     ALLOW_LOCAL_TEST_EXEC=1 MINT_POSES=1 yarn test src/commands/pose/__tests__/initRenderReach.test.ts
+ * Without `MINT_POSES` this file only ever compares -
  * a ratchet that could quietly rewrite its own baseline is not a ratchet.
  *
  * ------------------------------------------------------------------------
@@ -60,8 +64,8 @@ describe('the pose catalogue under packages/cli/poses', () => {
   it(
     'every catalog pose renders and its rendered bytes are committed beside it',
     async () => {
-      // THIS FILE CHECKS SHARD 1 OF THE CATALOGUE (shards 2 to 16 sit in catalogueShard2.test.ts to
-      // catalogueShard16.test.ts, so the poses render in parallel workers), or all of it when
+      // THIS FILE CHECKS SHARD 1 OF THE CATALOGUE (shards 2 to 32 sit in catalogueShard2.test.ts to
+      // catalogueShard32.test.ts, so the poses render in parallel workers), or all of it when
       // re-minting. The next case proves the shards together are the whole catalogue. The name IS
       // the rule, and a rule spelled out once with the poses that break it named in the failure
       // reads better than a hundred near-identical case names.
