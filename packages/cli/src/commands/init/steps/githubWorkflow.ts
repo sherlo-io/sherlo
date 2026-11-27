@@ -16,7 +16,11 @@
 import fs from 'fs';
 import path from 'path';
 import { getCwd } from '../../../helpers';
-import { renderInitStepLine, renderNoGithubWorkflowLine } from '../../../render/initSteps';
+import {
+  renderInitStepLine,
+  renderNoGithubWorkflowLine,
+  renderWorkflowTestsAnotherAppLine,
+} from '../../../render/initSteps';
 import { GITHUB_WORKFLOW_PATH, renderSherloWorkflow } from '../../../render/initWorkflow';
 import { surroundings } from '../../../seams/surroundings';
 import { workstation } from '../../../seams/workstation';
@@ -111,6 +115,65 @@ export async function findGithubWorkflowPlace(): Promise<GithubWorkflowPlace> {
   };
 }
 
+/** A folder as a workflow writes it, from the repository's root: `./apps/mobile/` is `apps/mobile`, `.` is ''. */
+function asFolder(word: string): string {
+  return word.replace(/^\.\/?/, '').replace(/\/+$/, '');
+}
+
+/**
+ * Whether a workflow already in place tests this app, and which folders it tests when it does not.
+ * READ FROM THE FILE, NEVER GUESSED: each step that uses sherlo-io/sherlo runs in the
+ * `working-directory` renderSherloWorkflow writes under it, or in the root ('') when it has none.
+ * A file with no such step (written by hand, or unreadable) tests this app only when it names its
+ * folder, or when the app is the repository itself; it names no other folder.
+ */
+function readWorkflowTests(
+  workflowFile: string,
+  appFolder: string
+): { testsThisApp: boolean; testedFolders: string[] } {
+  let text = '';
+  try {
+    text = fs.readFileSync(workflowFile, 'utf8');
+  } catch {
+    // Unreadable: it names no folder.
+  }
+  const testedFolders = sherloStepFolders(text);
+  if (testedFolders.length > 0) {
+    return { testsThisApp: testedFolders.includes(appFolder), testedFolders };
+  }
+  const namesThisApp = text
+    .split(/[\s'"=:,]+/)
+    .map(asFolder)
+    .includes(appFolder);
+  return { testsThisApp: appFolder === '' || namesThisApp, testedFolders: [] };
+}
+
+/** The folder each step using sherlo-io/sherlo runs in, from the repository's root ('' is the root). */
+function sherloStepFolders(text: string): string[] {
+  const lines = text.split(/\r?\n/);
+  const indentOf = (line: string) => line.length - line.trimStart().length;
+  const folders: string[] = [];
+  lines.forEach((line, at) => {
+    const uses = /^(\s*(?:-\s+)?)uses:\s*['"]?sherlo-io\/sherlo@/.exec(line);
+    if (!uses) return;
+    // The step's own keys stand at the column of `uses`; its block ends at a line left of it.
+    const keyColumn = uses[1].length;
+    const inStep = (other: string) => other.trim() === '' || indentOf(other) >= keyColumn;
+    // `- uses:` opens its step; a `uses:` under `- name:` has its step's keys above it too.
+    let first = at;
+    const opensStep = uses[1].includes('-');
+    while (!opensStep && first > 0 && inStep(lines[first - 1])) first -= 1;
+    let last = at;
+    while (last < lines.length - 1 && inStep(lines[last + 1])) last += 1;
+    const workingDirectory = lines
+      .slice(first, last + 1)
+      .map((stepLine) => /^\s*working-directory:\s*['"]?([^'"#\s]+)/.exec(stepLine)?.[1])
+      .find((folder) => folder !== undefined);
+    folders.push(workingDirectory === undefined ? '' : asFolder(workingDirectory));
+  });
+  return folders;
+}
+
 /** Answers whether the project has Sherlo's workflow now, which the next steps name. */
 async function githubWorkflow(place: GithubWorkflowPlace): Promise<{ hasWorkflow: boolean }> {
   if (place === null) {
@@ -122,16 +185,29 @@ async function githubWorkflow(place: GithubWorkflowPlace): Promise<{ hasWorkflow
   const { workflowFile, repositoryRoot, workspaceRoot } = place;
   // Named from the app's folder, where the person ran setup: "../../.github/workflows/sherlo.yml".
   const workflowDetail = path.relative(projectRoot, workflowFile);
+  const appFolder = path.relative(repositoryRoot, projectRoot);
 
   if (fs.existsSync(workflowFile)) {
+    const { testsThisApp, testedFolders } = readWorkflowTests(workflowFile, appFolder);
+    if (testsThisApp) {
+      printLines([
+        renderInitStepLine({
+          step: 'added-github-workflow',
+          outcome: 'already',
+          detail: workflowDetail,
+        }),
+      ]);
+      return { hasWorkflow: true };
+    }
+    // ANOTHER APP'S WORKFLOW IS LEFT AS IT IS, and the line says this app gets no test from it.
+    // BUILD ROW B99 (init-for-agents): a job of its own for a second app of a monorepo.
     printLines([
-      renderInitStepLine({
-        step: 'added-github-workflow',
-        outcome: 'already',
-        detail: workflowDetail,
+      renderWorkflowTestsAnotherAppLine({
+        workflowFile: workflowDetail,
+        testedFolders: testedFolders.map((folder) => folder || '.'),
       }),
     ]);
-    return { hasWorkflow: true };
+    return { hasWorkflow: false };
   }
 
   // The agent, not the name: Yarn 1 and Yarn 2+ install with different words.
@@ -146,7 +222,7 @@ async function githubWorkflow(place: GithubWorkflowPlace): Promise<{ hasWorkflow
       renderSherloWorkflow({
         packageManager,
         installFolder: path.relative(repositoryRoot, workspaceRoot),
-        appFolder: path.relative(repositoryRoot, projectRoot),
+        appFolder,
       })
     );
   } catch (error) {

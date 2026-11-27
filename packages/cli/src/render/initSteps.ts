@@ -279,6 +279,25 @@ export function renderNoGithubWorkflowLine(): string {
   });
 }
 
+/**
+ * The workflow step's line when the repository's workflow already tests another app of the
+ * monorepo: setup leaves that file as it is, and says plainly this app gets no test on pull
+ * requests from it. `testedFolders`: the app folders the file runs Sherlo in, read from it; empty
+ * when it could not be read, so no folder is named.
+ */
+export function renderWorkflowTestsAnotherAppLine({
+  workflowFile,
+  testedFolders,
+}: {
+  /** The workflow, from the app's folder: `../../.github/workflows/sherlo.yml`. */
+  workflowFile: string;
+  testedFolders: string[];
+}): string {
+  const tested =
+    testedFolders.length > 0 ? `${testedFolders.join(' and ')}, not this app` : 'another app';
+  return `${chalk.yellow('◦')} ${'No GitHub workflow'.padEnd(STEP_NAME_WIDTH)} ${workflowFile} tests ${tested}, so this app gets no test on pull requests yet`;
+}
+
 /** Setup's steps that can stop the run, by what each one was doing. */
 export type FailedInitStep =
   | 'checking-the-app'
