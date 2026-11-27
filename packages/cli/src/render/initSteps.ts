@@ -29,10 +29,14 @@ export interface RootComponentFile {
   /**
    * How the file exports the root component, as its line reads, so the in-app way names the exact
    * change: `declared` for `export default function App() {` (or a class), `named` for a separate
-   * `export default App;`. Null when the file is missing or exports it another way (an arrow
-   * function, a call): the generic form is shown.
+   * `export default App;`, `wrapped` for `export default Sentry.wrap(App);` with `call` the wrapping
+   * call (`Sentry.wrap`), kept around the switch. Null when the file is missing or exports it
+   * another way (an anonymous arrow function, nested wrappers): the generic form is shown.
    */
-  defaultExport: { form: 'declared' | 'named'; line: string; name: string } | null;
+  defaultExport:
+    | { form: 'declared' | 'named'; line: string; name: string }
+    | { form: 'wrapped'; line: string; name: string; call: string }
+    | null;
 }
 
 /**
@@ -417,12 +421,26 @@ export function renderNextSteps({
         ]
       : defaultExport?.form === 'named'
         ? [`   Replace ${renderCode(defaultExport.line)} with:`, ...wrapperLines]
-        : [
-            rootComponent.found
-              ? `   Couldn't tell how ${rootComponent.file} exports your root component. Make this its default export, with your root component in place of YourApp:`
-              : "   Make this your root component's file's default export, with your root component in place of YourApp:",
-            ...wrapperLines,
-          ];
+        : // THE WRAPPER STAYS: the app's call (Sentry.wrap) moves onto the switch, so the app is
+          // wrapped as before and Storybook with it.
+          defaultExport?.form === 'wrapped'
+          ? [
+              `   Replace ${renderCode(defaultExport.line)} with:`,
+              ...[
+                'function AppOrStorybook() {',
+                '  if (isStorybookMode) return <Storybook />;',
+                `  return <${defaultExport.name} />;`,
+                '}',
+                `export default ${defaultExport.call}(AppOrStorybook);`,
+              ].map((line) => `     ${renderCode(line)}`),
+            ]
+          : [
+              rootComponent.found
+                ? `   Couldn't tell how ${rootComponent.file} exports your root component. Make this its default export, with your root component in place of YourApp:`
+                : "   Make this your root component's file's default export, with your root component in place of YourApp:",
+              ...wrapperLines,
+              '   If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.',
+            ];
   // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that
   // exports its routes for the server builds it too.
   const keepSetupChoice = [

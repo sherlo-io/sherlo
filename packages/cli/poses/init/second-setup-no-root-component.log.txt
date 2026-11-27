@@ -42,6 +42,7 @@ Setting up Sherlo...
           if (isStorybookMode) return <Storybook />;
           return <YourApp />;
         }
+      If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.
 
 2. Run your first visual test
    npx sherlo test

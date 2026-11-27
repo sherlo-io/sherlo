@@ -42,6 +42,7 @@ Setting up Sherlo...
           [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
           [35mreturn[39m [2m<[22m[33mYourApp[39m [2m/>;[22m
         [2m}[22m
+      If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.
 
 [1m2. Run your first visual test[22m
    [36mnpx sherlo test[39m

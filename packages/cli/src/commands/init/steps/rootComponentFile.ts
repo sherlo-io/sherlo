@@ -55,9 +55,10 @@ function rootComponentFile(hasExpoRouter: boolean): RootComponentFile {
 
 /**
  * How the root file exports its component, read off its lines: `export default function App(` or
- * `export default class App` declares it; `export default App;` names one declared above. Any other
- * form (an arrow function, a call such as `export default withProviders(App)`) is null: the next
- * step then gives the generic change, never a guessed one.
+ * `export default class App` declares it; `export default App;` names one declared above;
+ * `export default Sentry.wrap(App);` (or `codePush(options)(App)`) wraps one in a call, which the
+ * change keeps around the switch. Any other form (an anonymous arrow function, wrappers nested
+ * around it) is null: the next step then gives the generic change, never a guessed one.
  */
 function readDefaultExport(file: string): RootComponentFile['defaultExport'] {
   let code: string;
@@ -72,6 +73,10 @@ function readDefaultExport(file: string): RootComponentFile['defaultExport'] {
   if (declared) return { form: 'declared', line: declared[0].trim(), name: declared[1] };
   const named = /^export default ([A-Za-z_$][\w$]*);?[ \t]*$/m.exec(code);
   if (named) return { form: 'named', line: named[0].trim(), name: named[1] };
+  const wrapped = /^export default (.+)\(([A-Za-z_$][\w$]*)\);?[ \t]*$/m.exec(code);
+  if (wrapped) {
+    return { form: 'wrapped', line: wrapped[0].trim(), name: wrapped[2], call: wrapped[1] };
+  }
   return null;
 }
 
