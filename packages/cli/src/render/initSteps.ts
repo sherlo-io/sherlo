@@ -198,31 +198,38 @@ export type FailedInitStep =
 
 /** The red line of a setup step that stopped, above the error that says why. */
 export function renderFailedInitStepLine(step: FailedInitStep): string[] {
-  return renderFailedStepLine(failedInitStepName(step));
+  return renderFailedStepLine(`${initStepActivity(step)} failed`);
 }
 
-function failedInitStepName(step: FailedInitStep): string {
+/** The spinner's words while one of setup's two installs runs, the longest waits it has. */
+export function renderRunningInstallStep(
+  step: 'installing-storybook' | 'installing-sherlo'
+): string {
+  return `${initStepActivity(step)}...`;
+}
+
+function initStepActivity(step: FailedInitStep): string {
   switch (step) {
     case 'checking-the-app':
-      return 'Checking the app failed';
+      return 'Checking the app';
     case 'logging-in':
-      return 'Logging in failed';
+      return 'Logging in';
     case 'finding-the-project':
-      return 'Finding the project failed';
+      return 'Finding the project';
     case 'choosing-a-team':
-      return 'Choosing a team failed';
+      return 'Choosing a team';
     case 'choosing-a-project':
-      return 'Choosing a project failed';
+      return 'Choosing a project';
     case 'creating-a-team':
-      return 'Creating a team failed';
+      return 'Creating a team';
     case 'creating-the-project':
-      return 'Creating the project failed';
+      return 'Creating the project';
     case 'installing-storybook':
-      return 'Installing Storybook failed';
+      return 'Installing Storybook';
     case 'installing-sherlo':
-      return 'Installing Sherlo failed';
+      return 'Installing Sherlo';
     case 'updating-metro-config':
-      return 'Updating Metro config failed';
+      return 'Updating Metro config';
   }
 }
 

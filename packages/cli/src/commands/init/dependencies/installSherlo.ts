@@ -16,7 +16,11 @@ import {
   renderSherloHeldBackByYarn,
   renderStorybookPinsExactVersions,
 } from '../../../render/initFixes';
-import { renderFailedInitStepLine, renderInitStepLine } from '../../../render/initSteps';
+import {
+  renderFailedInitStepLine,
+  renderInitStepLine,
+  renderRunningInstallStep,
+} from '../../../render/initSteps';
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { setupReader } from '../../feedback/runningAgent';
 import { printLines } from '../helpers';
@@ -44,7 +48,7 @@ export function storybookPinsExactPeers(version: string): boolean {
 }
 
 async function installSherlo(): Promise<void> {
-  const spinner = createSpinner('Installing Sherlo...').start();
+  const spinner = createSpinner(renderRunningInstallStep('installing-sherlo')).start();
 
   let packageJson;
   const packageJsonPath = join(getCwd(), 'package.json');

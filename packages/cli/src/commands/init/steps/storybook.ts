@@ -18,6 +18,7 @@ import {
   renderFailedInitStepLine,
   renderInitStepLine,
   renderPnpmSettingsLine,
+  renderRunningInstallStep,
 } from '../../../render/initSteps';
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { addCommand } from '../dependencies/installSherlo';
@@ -61,7 +62,7 @@ async function storybook({
 
   // The longest step: a spinner in a terminal, and one line for an agent reading a pipe, so neither
   // takes the wait for a hang.
-  const spinner = createSpinner('Installing Storybook...').start();
+  const spinner = createSpinner(renderRunningInstallStep('installing-storybook')).start();
 
   // Read before the install writes it, so the line says Created for a file that was not there, as
   // the Metro config's does.
