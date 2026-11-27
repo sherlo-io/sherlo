@@ -12,7 +12,7 @@
 
 var path = require('path');
 var resolveConfigDir = require('./ensureStorybookRequires').resolveConfigDir;
-var getBabelParser = require('./babelParser');
+var parseScanTarget = require('./mockScan').parseScanTarget;
 var sourceFileCandidates = require('./sourceFiles').sourceFileCandidates;
 var firstExistingSourceFile = require('./sourceFiles').firstExistingSourceFile;
 
@@ -88,16 +88,9 @@ function registersRootComponent(node) {
  * @returns {object|null} the file's parsed program, or null when it cannot be parsed
  */
 function parseStorybookEntry(storybookEntrySource) {
-  try {
-    return getBabelParser().parse(storybookEntrySource, {
-      sourceType: 'unambiguous',
-      errorRecovery: true,
-      plugins: ['typescript', 'jsx'],
-    }).program;
-  } catch (_) {
-    // Not parseable even with error recovery: the caller reads it as registering nothing.
-    return null;
-  }
+  var syntaxTree = parseScanTarget(storybookEntrySource);
+  // Not parseable even with error recovery: the caller reads it as registering nothing.
+  return syntaxTree ? syntaxTree.program : null;
 }
 
 /**

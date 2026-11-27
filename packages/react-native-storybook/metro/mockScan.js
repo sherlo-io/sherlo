@@ -24,7 +24,7 @@
 var fs = require('fs');
 var path = require('path');
 
-var getBabelParser = require('./babelParser');
+var parsedOrNull = require('./babelParser').parsedOrNull;
 var sourceFiles = require('./sourceFiles');
 var SOURCE_EXTENSIONS = sourceFiles.SOURCE_EXTENSIONS;
 var basenameWithoutExtension = sourceFiles.basenameWithoutExtension;
@@ -287,15 +287,11 @@ function walkForMockKeys(ast, addMockKey) {
 // The syntax tree of a story or preview file's source, or null when it cannot be parsed. The
 // parse is shallow: TypeScript and JSX are read, nothing is evaluated.
 function parseScanTarget(source) {
-  try {
-    return getBabelParser().parse(source, {
-      sourceType: 'unambiguous',
-      errorRecovery: true,
-      plugins: ['typescript', 'jsx'],
-    });
-  } catch (_) {
-    return null;
-  }
+  return parsedOrNull(source, {
+    sourceType: 'unambiguous',
+    errorRecovery: true,
+    plugins: ['typescript', 'jsx'],
+  });
 }
 
 // Parse one file's source and return the distinct modules it declares a mock for: each as

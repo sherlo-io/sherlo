@@ -11,4 +11,15 @@ function loadBabelParser() {
   }
 }
 
+// The syntax tree of `source` parsed with `options`, or null when it cannot be parsed. The parse
+// is shallow: nothing is evaluated.
+function parsedOrNull(source, options) {
+  try {
+    return loadBabelParser().parse(source, options);
+  } catch (_) {
+    return null;
+  }
+}
+
 module.exports = loadBabelParser;
+module.exports.parsedOrNull = parsedOrNull;

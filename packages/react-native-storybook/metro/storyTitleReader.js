@@ -54,19 +54,7 @@
 var fs = require('fs');
 var path = require('path');
 
-var getBabelParser = require('./babelParser');
-
-function parseSource(source) {
-  try {
-    return getBabelParser().parse(source, {
-      sourceType: 'unambiguous',
-      errorRecovery: true,
-      plugins: ['typescript', 'jsx'],
-    });
-  } catch (_) {
-    return null;
-  }
-}
+var parseSource = require('./mockScan').parseScanTarget;
 
 function readFileOrNull(absPath) {
   try {
@@ -105,8 +93,8 @@ function propertyValue(objectExpression, name) {
       prop.key.type === 'Identifier'
         ? prop.key.name
         : prop.key.type === 'StringLiteral'
-        ? prop.key.value
-        : null;
+          ? prop.key.value
+          : null;
     if (key === name) return unwrapExpression(prop.value);
   }
   return null;
