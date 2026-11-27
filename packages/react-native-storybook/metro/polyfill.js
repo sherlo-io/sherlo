@@ -687,7 +687,9 @@ var exactUndo = require('../src/mocking/exactUndo');
   //   story: { module: 'global', method: 'notFromThePhone', args: [name, ...], kind: 'sync' }.
   // - What the quick check needs beyond the calls, each a note of module 'global' that answers
   //   nothing of itself: a global that cannot be replaced as its 'shape' ('laidAfter' when native
-  //   code laid it as a run of it ended), each function member's own 'shape' by its handle, and
+  //   code laid it as a run of it ended), each function member's own 'shape' by its handle, the
+  //   'shape' of a member that is one of the engine's own prototypes, the global in it written as
+  //   { $: 'link', handle: <the global's name>, type }, and
   //   what lies below them left unread as 'shapeCut' ['unread'] [handle, ...] (keepShape), the
   //   read of a module's method
   //   as 'memberRead' [module, key], and a lookup a story made as 'lookedUp' [lookup, name] with
@@ -2176,18 +2178,26 @@ var exactUndo = require('../src/mocking/exactUndo');
     // Data is written down, an object or function is named by where it hangs, a getter as one.
     // Neither the global nor its members can be stood in for: native reads the members back by
     // name, past every crossing the recorder sees, and would meet a stand-in, not its own value.
-    // Each member that is a function is put in `functions` by its handle, when it is given.
-    function shapeOf(name, value, functions) {
+    // Each member that is a function is put in `functions` by its handle, when it is given, and
+    // each that is one of the engine's own prototypes in `prototypes`, when it is given. A member
+    // that is `linked`, when it is given, the global the shape lies below, is written as a link to
+    // the global's name: { $: 'link', handle: <the global's name>, type }.
+    function shapeOf(name, value, functions, prototypes, linked) {
       var members = {};
       Object.getOwnPropertyNames(value).forEach(function (key) {
         var member = Object.getOwnPropertyDescriptor(value, key);
         if (!member) return;
         if (!('value' in member)) {
           members[key] = { $: 'accessor' };
+        } else if (linked && member.value === linked.value) {
+          members[key] = { $: 'link', handle: linked.name, type: typeof member.value };
         } else if (safeWrapping.isObjectOrFunction(member.value)) {
           var handle = name + '.' + key;
           members[key] = { $: 'native', handle: handle, type: typeof member.value };
           if (functions && typeof member.value === 'function') functions[handle] = member.value;
+          if (prototypes && enginePrototypes.indexOf(member.value) !== -1) {
+            prototypes[handle] = member.value;
+          }
         } else {
           members[key] = serialised(member.value);
         }
@@ -2199,12 +2209,20 @@ var exactUndo = require('../src/mocking/exactUndo');
     // below it the own shape of each member that is a function, by its handle. A function is never
     // an object native answers as it is asked: a native side's function keeps its members as the
     // engine keeps any function's, so reading their descriptions asks native nothing. An object
-    // member may be one, so it is never read. Nothing below the functions' own members is read.
+    // member may be one, so it is never read, but for one of the engine's own prototypes, known by
+    // identity: the engine made it, so it is never a host object. Such a prototype gets its own
+    // shape, its member that is the global a link to it, and each of its function members a shape
+    // of its own as the global's do. Nothing below the functions' own members is read.
     function shapesOf(name, value) {
       var functions = {};
-      var shapes = [[name, shapeOf(name, value, functions)]];
+      var prototypes = {};
+      var shapes = [[name, shapeOf(name, value, functions, prototypes, null)]];
+      var linked = { name: name, value: value };
+      Object.keys(prototypes).forEach(function (handle) {
+        shapes.push([handle, shapeOf(handle, prototypes[handle], functions, null, linked)]);
+      });
       Object.keys(functions).forEach(function (handle) {
-        shapes.push([handle, shapeOf(handle, functions[handle], null)]);
+        shapes.push([handle, shapeOf(handle, functions[handle], null, null, null)]);
       });
       return shapes;
     }
@@ -2224,8 +2242,9 @@ var exactUndo = require('../src/mocking/exactUndo');
     // the recorder asks nothing of an object below a shaped global that the app did not ask for
     // itself, and notes each member it left unread, by its handle, once with the shapes, for the
     // quick check to read a miss there: { module: 'global', method: 'shapeCut', args: ['unread'],
-    // kind: 'sync', answer: [handle, ...] }. A member whose own shape is noted is not unread.
-    // Each function member's shape is a 'shape' note of its handle, with the global's `laidAfter`.
+    // kind: 'sync', answer: [handle, ...] }. A member whose own shape is noted is not unread, nor
+    // a link. Each shape below the global, an engine prototype's or a function member's, is a
+    // 'shape' note of its handle, with the global's `laidAfter`.
     function keepShape(name, value, road, laidAfter) {
       var shapes = shapesOf(name, value);
       shapesKept[name] = {
@@ -2282,9 +2301,10 @@ var exactUndo = require('../src/mocking/exactUndo');
       }, value);
     };
 
-    // A global that cannot be replaced whose members, or whose function members' own, changed
-    // since its shapes were noted: what the story read of it may not be the shapes, so the
-    // story's road through it is unseen.
+    // A global that cannot be replaced whose members, or the own members of a member shaped below
+    // it (a function member, or one of the engine's own prototypes and its function members),
+    // changed since its shapes were noted: what the story read of it may not be the shapes, so
+    // the story's road through it is unseen.
     function noteChangedShapes() {
       Object.keys(shapesKept).forEach(function (name) {
         var kept = shapesKept[name];

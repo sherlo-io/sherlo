@@ -2,7 +2,8 @@
  * What the recorder (metro/polyfill.js) notes one level below a global that cannot be replaced:
  * each member that is a function gets a shape of its own, read through descriptions alone, so the
  * quick check can answer the load's reads of it as the phone did. An object below the global is
- * never read, nor anything below a function's own members.
+ * never read, but for one of the engine's own prototypes, nor anything below a function's own
+ * members.
  */
 import { startStoryRecording, storyRecordingOf } from '../nativeRecording';
 
@@ -62,6 +63,9 @@ const notesOf = (storyId: string, method: string) =>
     (entry) => entry.module === 'global' && entry.method === method
   );
 
+const roadsOf = (storyId: string) =>
+  (storyRecordingOf(storyId)?.blindRoads ?? []).map(({ name }) => name);
+
 describe('what the recorder notes below a global that cannot be replaced', () => {
   it('a function member of a global that cannot be replaced has its own members recorded by reading their descriptions alone, and what lies below them is named unread', () => {
     const native = nativeCore();
@@ -93,12 +97,76 @@ describe('what the recorder notes below a global that cannot be replaced', () =>
     expect(native.asked).toEqual([]);
   });
 
+  it("a shaped global's member that is one of the engine's own prototypes is shaped and not listed unread", () => {
+    startAppIn('testing', 'new', {}, { readOnly: { AppError: Error } });
+
+    startStoryRecording('error--first');
+    expect(notesOf('error--first', 'shape')).toContainEqual(
+      expect.objectContaining({
+        args: ['AppError.prototype'],
+        answer: {
+          $: 'shape',
+          type: 'object',
+          members: expect.objectContaining({
+            name: 'Error',
+            message: '',
+            toString: { $: 'native', handle: 'AppError.prototype.toString', type: 'function' },
+          }),
+        },
+      })
+    );
+    expect(notesOf('error--first', 'shape').map(({ args }) => args[0])).toContain(
+      'AppError.prototype.toString'
+    );
+    const unread = notesOf('error--first', 'shapeCut').flatMap(({ answer }) => answer);
+    expect(unread).not.toContain('AppError.prototype');
+    expect(unread).not.toContain('AppError.prototype.toString');
+  });
+
+  it("a shaped global's object member that is not an engine prototype stays unread", () => {
+    const native = nativeCore();
+    function Gadget() {}
+    const core = { ...native.core, Gadget, plain: Object.create(Object.prototype) };
+    startAppIn('testing', 'new', {}, { readOnly: { appCore: core } });
+
+    startStoryRecording('core--plain-objects');
+    const shaped = notesOf('core--plain-objects', 'shape').map(({ args }) => args[0]);
+    expect(shaped).not.toContain('appCore.plain');
+    expect(shaped).not.toContain('appCore.Gadget.prototype');
+    expect(shaped).not.toContain('appCore.Widget.prototype');
+    expect(notesOf('core--plain-objects', 'shapeCut').flatMap(({ answer }) => answer)).toEqual(
+      expect.arrayContaining([
+        'appCore.plain',
+        'appCore.Gadget.prototype',
+        'appCore.Widget.prototype',
+      ])
+    );
+    expect(native.asked).toEqual([]);
+  });
+
+  it("a prototype's constructor that is the shaped global is noted as a link to it", () => {
+    startAppIn('testing', 'new', {}, { readOnly: { AppError: Error } });
+
+    startStoryRecording('error--linked');
+    expect(notesOf('error--linked', 'shape')).toContainEqual(
+      expect.objectContaining({
+        args: ['AppError.prototype'],
+        answer: expect.objectContaining({
+          members: expect.objectContaining({
+            constructor: { $: 'link', handle: 'AppError', type: 'function' },
+          }),
+        }),
+      })
+    );
+    expect(notesOf('error--linked', 'shape').map(({ args }) => args[0])).not.toContain(
+      'AppError.prototype.constructor'
+    );
+  });
+
   it('a story that begins with a function member of a global that cannot be replaced changed by native is unseen through that global', () => {
     const native = nativeCore();
     const app = startAppIn('testing', 'new', {}, { readOnly: { appCore: native.core } });
     runFile(app, FABRIC_RENDERER, rendererSource);
-    const roadsOf = (storyId: string) =>
-      (storyRecordingOf(storyId)?.blindRoads ?? []).map(({ name }) => name);
 
     startStoryRecording('core--plain');
     expect(roadsOf('core--plain')).not.toContain('atStart:appCore');
@@ -108,6 +176,22 @@ describe('what the recorder notes below a global that cannot be replaced', () =>
     Object.defineProperty(native.Widget, 'kind', { value: 'fancy' });
     expect(roadsOf('core--changed')).toContain('atStart:appCore');
     expect(roadsOf('core--plain')).not.toContain('atStart:appCore');
+  });
+
+  it('a shaped engine prototype the app changes after its shapes were noted makes the road unseen', () => {
+    startAppIn('testing', 'new', {}, { readOnly: { AppError: Error } });
+
+    startStoryRecording('error--plain');
+    expect(roadsOf('error--plain')).not.toContain('atStart:AppError');
+
+    startStoryRecording('error--changed');
+    Object.defineProperty(Error.prototype, 'addedByTheApp', { value: 1, configurable: true });
+    try {
+      expect(roadsOf('error--changed')).toContain('atStart:AppError');
+      expect(roadsOf('error--plain')).not.toContain('atStart:AppError');
+    } finally {
+      delete (Error.prototype as { addedByTheApp?: number }).addedByTheApp;
+    }
   });
 
   it('the members of a function member of a global that cannot be replaced are listed as its shapes are noted and as a story starts or is read, never across a run of native reads', () => {
