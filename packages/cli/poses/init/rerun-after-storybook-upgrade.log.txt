@@ -41,9 +41,9 @@ Setting up Sherlo...
       Change export default function App() { to:
         function App() {
       At the end of App.tsx, add:
-        export default function AppOrStorybook() {
+        export default function AppOrStorybook(props: any) {
           if (isStorybookMode) return <Storybook />;
-          return <App />;
+          return <App {...props} />;
         }
 
 2. Replace the example stories

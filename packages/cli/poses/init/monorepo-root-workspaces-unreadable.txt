@@ -14,11 +14,14 @@ Setting up Sherlo...
 
 [31m✖[39m Checking the app failed
 
-[31mERROR: Setup can't read package.json[39m
+[31mERROR: "workspaces" in package.json isn't a list of folders[39m
 
-[0m"workspaces" is neither a list of folders nor { "packages": [...] }[0m
+[0mIt holds:[0m
+[36m  "workspaces": "apps/*"[39m
+[0mChange it to a list of your apps' folders, like:[0m
+[36m  "workspaces": ["apps/*"][39m
 
-[0mFix the error, then run setup again. It picks up where it stopped:[0m
+[0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

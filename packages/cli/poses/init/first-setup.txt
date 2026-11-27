@@ -44,12 +44,12 @@ Opening your browser to log in to Sherlo...
       At the top of src/app/_layout.tsx, add:
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'../../.rnstorybook'[39m[2m;[22m
-      Change [35mexport[39m [35mdefault[39m [35mfunction[39m [32mRootLayout[39m[2m()[22m [2m{[22m to:
-        [35mfunction[39m [32mRootLayout[39m[2m()[22m [2m{[22m
+      Change [35mexport[39m [35mdefault[39m [35mfunction[39m [32mTabLayout[39m[2m()[22m [2m{[22m to:
+        [35mfunction[39m [32mTabLayout[39m[2m()[22m [2m{[22m
       At the end of src/app/_layout.tsx, add:
-        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m()[22m [2m{[22m
+        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m([22m[34mprops[39m[2m:[22m any[2m)[22m [2m{[22m
           [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
-          [35mreturn[39m [2m<[22m[33mRootLayout[39m [2m/>;[22m
+          [35mreturn[39m [2m<[22m[33mTabLayout[39m [2m{...[22mprops[2m}[22m [2m/>;[22m
         [2m}[22m
 
 [1m2. Replace the example stories[22m

@@ -141,25 +141,37 @@ export function pickInstallOutput({
 
 /**
  * How each tool says the registry has no version the range allows, in its own words (read from the
- * same sources as the rule above). Yarn 4's day hold is not one of them: that version is published,
- * and Yarn says "are quarantined" for it.
+ * same sources as the rule above), as `readLines` gives the error line: the first group is the
+ * package it names. Yarn 4's day hold is not one of them: that version is published, and Yarn
+ * says "are quarantined" for it.
  */
 const VERSION_NOT_PUBLISHED: Partial<Record<Agent, RegExp>> = {
-  npm: /^npm (?:error|ERR!) code ETARGET$/m,
-  yarn: /^error Couldn't find any versions for /m,
-  'yarn@berry': /"displayName":"YN0082"/,
-  pnpm: /ERR_PNPM_NO_MATCHING_VERSION/,
-  'pnpm@6': /ERR_PNPM_NO_MATCHING_VERSION/,
-  bun: /^error: No version matching /m,
+  npm: /^npm (?:error|ERR!) notarget No matching version found for (@?[^@\s]+)@/,
+  yarn: /^error Couldn't find any versions for "([^"]+)"/,
+  'yarn@berry': /^YN0082: (@?[^@\s]+)@/,
+  pnpm: /^ERR_PNPM_NO_MATCHING_VERSION\s+No matching version found for (@?[^@\s]+)@/,
+  'pnpm@6': /^ERR_PNPM_NO_MATCHING_VERSION\s+No matching version found for (@?[^@\s]+)@/,
+  bun: /^error: No version matching "[^"]*" found for specifier "([^"]+)"/,
 };
 
-/** Whether the failed install says the registry has no version of the package the range allows. */
+/**
+ * Whether the failed install says the registry has no version of `packageName` the range allows.
+ * THE ERROR LINE MUST NAME THE PACKAGE: an install resolves the whole project, so another
+ * dependency with no matching version fails it in the same words, and that is the install-failed
+ * screen's, not this one's.
+ */
 export function saysVersionNotPublished({
   tool,
   output,
+  packageName,
 }: {
   tool: Agent;
   output: string;
+  packageName: string;
 }): boolean {
-  return VERSION_NOT_PUBLISHED[tool]?.test(output) ?? false;
+  const notPublished = VERSION_NOT_PUBLISHED[tool];
+  if (!notPublished) return false;
+  return readLines(tool, output).some(
+    ({ text, isError }) => isError && notPublished.exec(text)?.[1] === packageName
+  );
 }

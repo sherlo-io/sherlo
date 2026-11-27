@@ -3,10 +3,52 @@
  * from what that manager really printed for a version that is not published, then a little context.
  */
 import { describe, expect, it } from 'vitest';
-import { pickInstallOutput } from '../installOutput';
+import type { Agent } from 'package-manager-detector';
+import { pickInstallOutput, saysVersionNotPublished } from '../installOutput';
 
 /** pnpm pads its error code with U+2009 thin spaces, the edges of the badge it colours. */
 const THIN_SPACE = String.fromCodePoint(0x2009);
+
+/** What each tool printed for a version of `packageName` that is not published. */
+const NOT_PUBLISHED_OUTPUT: Array<[Agent, (packageName: string) => string]> = [
+  [
+    'npm',
+    (packageName) =>
+      `npm error code ETARGET\nnpm error notarget No matching version found for ${packageName}@^3.\n`,
+  ],
+  [
+    'yarn',
+    (packageName) =>
+      `yarn add v1.22.22\nerror Couldn't find any versions for "${packageName}" that matches "^3"\n`,
+  ],
+  [
+    'yarn@berry',
+    (packageName) =>
+      `${JSON.stringify({ type: 'error', name: 82, displayName: 'YN0082', indent: '│ ', data: `${packageName}@npm:^3: No candidates found` })}\n`,
+  ],
+  [
+    'pnpm',
+    (packageName) =>
+      `${THIN_SPACE}ERR_PNPM_NO_MATCHING_VERSION${THIN_SPACE} No matching version found for ${packageName}@^3 while fetching it from https://registry.npmjs.org/\n`,
+  ],
+  [
+    'bun',
+    (packageName) =>
+      `bun add v1.4.5\nerror: No version matching "^3" found for specifier "${packageName}" (but package exists)\n`,
+  ],
+];
+
+describe('the install says Sherlo is not published', () => {
+  it.each(NOT_PUBLISHED_OUTPUT)('%s: only when its error line names Sherlo', (tool, output) => {
+    const packageName = '@sherlo/react-native-storybook';
+
+    expect(saysVersionNotPublished({ tool, output: output(packageName), packageName })).toBe(true);
+    // Another dependency of the project with no matching version is an install that failed.
+    expect(
+      saysVersionNotPublished({ tool, output: output('react-native-reanimated'), packageName })
+    ).toBe(false);
+  });
+});
 
 describe('the lines a failed install shows', () => {
   it('npm: its error lines, without the complete-log line, and its debug log named', () => {

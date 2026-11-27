@@ -3,8 +3,7 @@
   "argv": ["init"],
   "workingFolder": "apps/mobile",
   "files": {
-    "apps/mobile/src/components/Button.tsx": "import { Text } from 'react-native';\n\nexport function Button({ title }: { title: string }) {\n  return <Text>{title}</Text>;\n}\n",
-    "apps/mobile/App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
+    "apps/mobile/App.tsx": "/**\n * Sample React Native App\n * https://github.com/facebook/react-native\n *\n * @format\n */\n\nimport { NewAppScreen } from '@react-native/new-app-screen';\nimport { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';\nimport {\n  SafeAreaProvider,\n  useSafeAreaInsets,\n} from 'react-native-safe-area-context';\n\nfunction App() {\n  const isDarkMode = useColorScheme() === 'dark';\n\n  return (\n    <SafeAreaProvider>\n      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />\n      <AppContent />\n    </SafeAreaProvider>\n  );\n}\n\nfunction AppContent() {\n  const safeAreaInsets = useSafeAreaInsets();\n\n  return (\n    <View style={styles.container}>\n      <NewAppScreen\n        templateFileName=\"App.tsx\"\n        safeAreaInsets={safeAreaInsets}\n      />\n    </View>\n  );\n}\n\nconst styles = StyleSheet.create({\n  container: {\n    flex: 1,\n  },\n});\n\nexport default App;\n",
     ".git/HEAD": "ref: refs/heads/main\n",
     "package.json": {
       "name": "acme",

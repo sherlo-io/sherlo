@@ -2,7 +2,7 @@
   "pose": 1,
   "argv": ["init"],
   "files": {
-    "src/app/_layout.tsx": "import { Stack } from 'expo-router';\n\nexport default function RootLayout() {\n  return <Stack />;\n}\n",
+    "src/app/_layout.tsx": "import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';\nimport * as SplashScreen from 'expo-splash-screen';\nimport { useColorScheme } from 'react-native';\n\nimport { AnimatedSplashOverlay } from '@/components/animated-icon';\nimport AppTabs from '@/components/app-tabs';\n\nSplashScreen.preventAutoHideAsync();\n\nexport default function TabLayout() {\n  const colorScheme = useColorScheme();\n  return (\n    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>\n      <AnimatedSplashOverlay />\n      <AppTabs />\n    </ThemeProvider>\n  );\n}\n",
     "package.json": {
       "name": "acme-shop",
       "version": "1.0.0",

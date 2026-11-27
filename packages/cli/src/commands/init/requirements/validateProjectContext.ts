@@ -12,6 +12,7 @@ import {
   renderFileAccessFailed,
   renderMonorepoRoot,
   renderNotInAnApp,
+  renderWorkspacesWrongShape,
 } from '../../../render/initFixes';
 import findPackageJsonPaths, { pnpmWorkspaceFile } from './findPackageJsonPaths';
 import hasDependency from './hasDependency';
@@ -69,12 +70,9 @@ async function workspacePatterns(rootFolder: string): Promise<string[]> {
         : Array.isArray(workspaces.packages)
           ? workspaces.packages
           : throwError(
-              renderFileAccessFailed({
-                access: 'read',
+              renderWorkspacesWrongShape({
                 file: relative(getCwd(), join(rootFolder, 'package.json')) || 'package.json',
-                cause: {
-                  reason: '"workspaces" is neither a list of folders nor { "packages": [...] }',
-                },
+                value: workspaces,
               })
             );
 

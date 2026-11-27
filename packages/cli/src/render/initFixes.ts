@@ -100,6 +100,28 @@ export function renderMonorepoRoot({ appFolders }: { appFolders: string[] }): In
   return refusal('This folder is a monorepo root', fix);
 }
 
+/**
+ * The monorepo root's `workspaces` is not a list of folders (npm, Yarn, Bun) nor Yarn's
+ * `{ "packages": [...] }`, e.g. the string `"apps/*"`. The fix prints the value it holds, then one
+ * example of the right shape: a fix built from the value would need a form per wrong shape (a
+ * string, a "packages" string, a number), each a branch no common mistake earns.
+ */
+export function renderWorkspacesWrongShape({
+  file,
+  value,
+}: {
+  file: string;
+  value: unknown;
+}): InitRefusal {
+  return refusal(`"workspaces" in ${file} isn't a list of folders`, [
+    words('It holds:'),
+    code(`"workspaces": ${JSON.stringify(value)}`),
+    words("Change it to a list of your apps' folders, like:"),
+    code('"workspaces": ["apps/*"]'),
+    ...rerun(),
+  ]);
+}
+
 /** package.json does not list react-native. */
 export function renderNoReactNative(): InitRefusal {
   return refusal(
@@ -170,18 +192,23 @@ export function renderPackagesNotInstalled({
  * Storybook's Metro to read. Yarn's own setting puts node_modules back. `yarnrc` is named from the
  * app's folder, e.g. `.yarnrc.yml`, `../../.yarnrc.yml`. `pnpLine` is the line that file already
  * holds, e.g. `nodeLinker: pnp`, to be changed rather than added beside; null when it has none.
+ * `yarnrcExists` is false when there is no such file yet, so the fix says to create it.
  */
 export function renderPlugNPlay({
   yarnrc,
   pnpLine,
+  yarnrcExists,
 }: {
   yarnrc: string;
   pnpLine: string | null;
+  yarnrcExists: boolean;
 }): InitRefusal {
   return refusal("Setup can't read packages installed with Yarn Plug'n'Play", [
     ...(pnpLine
       ? [words(`Change this line in ${yarnrc}:`), code(pnpLine), words('to:')]
-      : [words(`Add this line to ${yarnrc}:`)]),
+      : yarnrcExists
+        ? [words(`Add this line to ${yarnrc}:`)]
+        : [words(`Create ${yarnrc} with this line:`)]),
     code('nodeLinker: node-modules'),
     '',
     words('Install your dependencies, then run setup again:'),

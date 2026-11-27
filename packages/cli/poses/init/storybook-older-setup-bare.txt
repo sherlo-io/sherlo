@@ -36,14 +36,16 @@ Setting up Sherlo...
       Then remove your app's code that renders Storybook, and its import.
 
    [1mb) In-app integration[22m
+      First remove your app's code that renders Storybook, and its import.
       At the top of App.tsx, add:
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
-      Replace [35mexport[39m [35mdefault[39m [33mAppEntryPoint[39m[2m;[22m with:
-        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m()[22m [2m{[22m
+      Couldn't tell how App.tsx exports your root component. Make this its default export, with your root component in place of YourApp:
+        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m([22m[34mprops[39m[2m:[22m any[2m)[22m [2m{[22m
           [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
-          [35mreturn[39m [2m<[22m[33mAppEntryPoint[39m [2m/>;[22m
+          [35mreturn[39m [2m<[22m[33mYourApp[39m [2m{...[22mprops[2m}[22m [2m/>;[22m
         [2m}[22m
+      If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.
 
 [1m2. Run your first visual test[22m
    [36mnpx sherlo test[39m

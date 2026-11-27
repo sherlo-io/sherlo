@@ -54,11 +54,22 @@ function rootComponentFile(hasExpoRouter: boolean): RootComponentFile {
 }
 
 /**
+ * The name an unnamed root component is given, the first the file does not use already: a name the
+ * file imports or declares would clash with it.
+ */
+const NAMES_FOR_UNNAMED = ['App', 'Root', 'MainApp'];
+
+/**
  * How the root file exports its component, read off its lines: `export default function App(` or
  * `export default class App` declares it; `export default App;` names one declared above;
  * `export default Sentry.wrap(App);` (or `codePush(options)(App)`) wraps one in a call, which the
- * change keeps around the switch. Any other form (an anonymous arrow function, wrappers nested
- * around it) is null: the next step then gives the generic change, never a guessed one.
+ * change keeps around the switch; `export default () =>` (or `export default function (`) is
+ * unnamed, and the change names it, so the switch can render it. Any other form (wrappers nested
+ * around it, a call with more arguments) is null: the next step then gives the generic change,
+ * never a guessed one.
+ *
+ * A NAME IS A COMPONENT'S ONLY WHEN IT STARTS WITH A CAPITAL: JSX reads `<app />` as the built-in
+ * tag `app`, so an export of a lowercase name gets the generic change too.
  */
 function readDefaultExport(file: string): RootComponentFile['defaultExport'] {
   let code: string;
@@ -67,15 +78,61 @@ function readDefaultExport(file: string): RootComponentFile['defaultExport'] {
   } catch {
     return null;
   }
-  const declared = /^export default (?:async )?(?:function|class) ([A-Za-z_$][\w$]*)\b.*$/m.exec(
-    code
-  );
-  if (declared) return { form: 'declared', line: declared[0].trim(), name: declared[1] };
-  const named = /^export default ([A-Za-z_$][\w$]*);?[ \t]*$/m.exec(code);
-  if (named) return { form: 'named', line: named[0].trim(), name: named[1] };
-  const wrapped = /^export default (.+)\(([A-Za-z_$][\w$]*)\);?[ \t]*$/m.exec(code);
+  const declared = /^export default (?:async )?(?:function|class) ([A-Z][\w$]*)\b.*$/m.exec(code);
+  if (declared) {
+    const line = declared[0].trim();
+    return {
+      form: 'declared',
+      line,
+      rewritten: line.replace(/^export default /, ''),
+      name: declared[1],
+    };
+  }
+  const named = /^export default ([A-Z][\w$]*);?[ \t]*$/m.exec(code);
+  if (named) {
+    // STORYBOOK'S OLD SWITCH, as its docs gave it before 10: `let AppEntryPoint = App;`, then an
+    // `if` that sets it to the Storybook folder's export. The export names the switch, not the
+    // app, so the change removes the switch and renders the app it held.
+    const switchName = named[1].replace(/\$/g, '\\$');
+    const oldSwitch = new RegExp(
+      `^let ${switchName} = ([A-Z][\\w$]*);[ \\t]*\\n(?:[ \\t]*\\n)*` +
+        `if \\(.*\\) \\{[ \\t]*\\n[ \\t]*${switchName} = require\\(['"][^'"]+['"]\\)\\.default;[ \\t]*\\n\\}[ \\t]*$`,
+      'm'
+    ).exec(code);
+    if (oldSwitch) {
+      return {
+        form: 'switched',
+        line: named[0].trim(),
+        name: oldSwitch[1],
+        switchCode: oldSwitch[0].split('\n').filter((line) => line.trim() !== ''),
+      };
+    }
+    return { form: 'named', line: named[0].trim(), name: named[1] };
+  }
+  const wrapped = /^export default (.+)\(([A-Z][\w$]*)\);?[ \t]*$/m.exec(code);
   if (wrapped) {
     return { form: 'wrapped', line: wrapped[0].trim(), name: wrapped[2], call: wrapped[1] };
+  }
+
+  const arrow = /^export default ((?:async )?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/m.exec(code);
+  const anonymousFunction = /^export default ((?:async )?function)\s*(\()/m.exec(code);
+  const name = NAMES_FOR_UNNAMED.find((candidate) => !new RegExp(`\\b${candidate}\\b`).test(code));
+  if (!name) return null;
+  if (arrow) {
+    return {
+      form: 'declared',
+      line: arrow[0],
+      rewritten: `const ${name} = ${arrow[1]}`,
+      name,
+    };
+  }
+  if (anonymousFunction) {
+    return {
+      form: 'declared',
+      line: anonymousFunction[0],
+      rewritten: `${anonymousFunction[1]} ${name}(`,
+      name,
+    };
   }
   return null;
 }

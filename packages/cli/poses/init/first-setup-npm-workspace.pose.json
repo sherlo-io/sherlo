@@ -3,9 +3,7 @@
   "argv": ["init"],
   "workingFolder": "apps/mobile",
   "files": {
-    "apps/mobile/src/components/Button.tsx": "import { Text } from 'react-native';\n\nexport function Button({ title }: { title: string }) {\n  return <Text>{title}</Text>;\n}\n",
-    "apps/mobile/App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
-    "apps/mobile/index.ts": "import { registerRootComponent } from 'expo';\nimport App from './App';\n\nregisterRootComponent(App);\n",
+    "apps/mobile/src/app/_layout.tsx": "import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';\nimport * as SplashScreen from 'expo-splash-screen';\nimport { useColorScheme } from 'react-native';\n\nimport { AnimatedSplashOverlay } from '@/components/animated-icon';\nimport AppTabs from '@/components/app-tabs';\n\nSplashScreen.preventAutoHideAsync();\n\nexport default function TabLayout() {\n  const colorScheme = useColorScheme();\n  return (\n    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>\n      <AnimatedSplashOverlay />\n      <AppTabs />\n    </ThemeProvider>\n  );\n}\n",
     ".git/HEAD": "ref: refs/heads/main\n",
     "package.json": { "name": "acme", "private": true, "workspaces": ["apps/*"] },
     "package-lock.json": { "name": "acme", "lockfileVersion": 3, "requires": true, "packages": {} },
@@ -13,7 +11,7 @@
       "name": "acme-shop",
       "version": "1.0.0",
       "private": true,
-      "main": "index.ts",
+      "main": "expo-router/entry",
       "scripts": {
         "android": "expo run:android",
         "ios": "expo run:ios",
@@ -21,12 +19,15 @@
       },
       "dependencies": {
         "expo": "~58.0.26",
+        "expo-router": "~58.0.32",
         "react": "19.3.0",
         "react-native": "0.88.1",
         "react-native-safe-area-context": "~5.11.1"
       }
     },
-    "apps/mobile/app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "apps/mobile/app.json": {
+      "expo": { "name": "Acme Shop", "slug": "acme-shop", "plugins": ["expo-router"] }
+    },
     "apps/mobile/metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\n\nmodule.exports = getDefaultConfig(__dirname);\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",

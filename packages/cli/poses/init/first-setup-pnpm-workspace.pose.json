@@ -3,9 +3,8 @@
   "argv": ["init"],
   "workingFolder": "apps/mobile",
   "files": {
-    "apps/mobile/src/components/Button.tsx": "import { Text } from 'react-native';\n\nexport function Button({ title }: { title: string }) {\n  return <Text>{title}</Text>;\n}\n",
-    "apps/mobile/App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
-    "apps/mobile/index.ts": "import { registerRootComponent } from 'expo';\nimport App from './App';\n\nregisterRootComponent(App);\n",
+    "apps/mobile/App.tsx": "import { StatusBar } from 'expo-status-bar';\nimport { StyleSheet, Text, View } from 'react-native';\n\nexport default function App() {\n  return (\n    <View style={styles.container}>\n      <Text>Acme Shop</Text>\n      <StatusBar style=\"auto\" />\n    </View>\n  );\n}\n\nconst styles = StyleSheet.create({\n  container: {\n    flex: 1,\n    backgroundColor: '#fff',\n    alignItems: 'center',\n    justifyContent: 'center',\n  },\n});\n",
+    "apps/mobile/index.ts": "import { registerRootComponent } from 'expo';\n\nimport App from './App';\n\nregisterRootComponent(App);\n",
     "package.json": { "name": "acme", "private": true },
     "pnpm-workspace.yaml": "packages:\n  - apps/*\n",
     "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",

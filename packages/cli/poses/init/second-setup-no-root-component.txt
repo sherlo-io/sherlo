@@ -38,9 +38,9 @@ Setting up Sherlo...
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m [2m// path from App.tsx[22m
       Make this your root component's file's default export, with your root component in place of YourApp:
-        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m()[22m [2m{[22m
+        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m([22m[34mprops[39m[2m:[22m any[2m)[22m [2m{[22m
           [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
-          [35mreturn[39m [2m<[22m[33mYourApp[39m [2m/>;[22m
+          [35mreturn[39m [2m<[22m[33mYourApp[39m [2m{...[22mprops[2m}[22m [2m/>;[22m
         [2m}[22m
       If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.
 

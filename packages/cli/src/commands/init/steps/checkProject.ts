@@ -234,20 +234,23 @@ function refusePlugNPlay(): void {
     if (line) {
       if (!/^nodeLinker:\s*["']?pnp["']?\s*(#.*)?$/.test(line)) return;
       return throwError(
-        renderPlugNPlay({ yarnrc: path.relative(getCwd(), yarnrc), pnpLine: line.trim() })
+        renderPlugNPlay({
+          yarnrc: path.relative(getCwd(), yarnrc),
+          pnpLine: line.trim(),
+          yarnrcExists: true,
+        })
       );
     }
     if (directory === root) break;
     directory = path.dirname(directory);
   }
 
+  const yarnrc = path.join(folderHoldingYarnLock(getCwd()) ?? getCwd(), '.yarnrc.yml');
   throwError(
     renderPlugNPlay({
-      yarnrc: path.relative(
-        getCwd(),
-        path.join(folderHoldingYarnLock(getCwd()) ?? getCwd(), '.yarnrc.yml')
-      ),
+      yarnrc: path.relative(getCwd(), yarnrc),
       pnpLine: null,
+      yarnrcExists: fs.existsSync(yarnrc),
     })
   );
 }

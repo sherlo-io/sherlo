@@ -156,7 +156,11 @@ async function installSherlo(): Promise<void> {
     // command fails the same way and no fix of the person's helps - only time does.
     if (
       packageSpec.endsWith(`@${sherloSdkVersionRange(sherloVersion)}`) &&
-      saysVersionNotPublished({ tool, output })
+      saysVersionNotPublished({
+        tool,
+        output,
+        packageName: SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
+      })
     ) {
       throwError({
         ...renderSherloNotPublished({

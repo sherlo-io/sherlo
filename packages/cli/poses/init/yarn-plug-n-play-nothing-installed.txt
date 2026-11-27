@@ -16,7 +16,7 @@ Setting up Sherlo...
 
 [31mERROR: Setup can't read packages installed with Yarn Plug'n'Play[39m
 
-[0mAdd this line to .yarnrc.yml:[0m
+[0mCreate .yarnrc.yml with this line:[0m
 [36m  nodeLinker: node-modules[39m
 
 [0mInstall your dependencies, then run setup again:[0m

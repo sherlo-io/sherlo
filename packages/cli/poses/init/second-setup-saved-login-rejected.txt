@@ -48,9 +48,9 @@ Opening your browser to log in to Sherlo...
       Change [35mexport[39m [35mdefault[39m [35mfunction[39m [32mApp[39m[2m()[22m [2m{[22m to:
         [35mfunction[39m [32mApp[39m[2m()[22m [2m{[22m
       At the end of App.tsx, add:
-        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m()[22m [2m{[22m
+        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m([22m[34mprops[39m[2m:[22m any[2m)[22m [2m{[22m
           [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
-          [35mreturn[39m [2m<[22m[33mApp[39m [2m/>;[22m
+          [35mreturn[39m [2m<[22m[33mApp[39m [2m{...[22mprops[2m}[22m [2m/>;[22m
         [2m}[22m
 
 [1m2. Run your first visual test[22m

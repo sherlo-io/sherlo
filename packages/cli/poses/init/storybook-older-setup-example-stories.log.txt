@@ -39,10 +39,15 @@ Setting up Sherlo...
       At the top of App.tsx, add:
         import { isStorybookMode } from '@sherlo/react-native-storybook';
         import Storybook from './.rnstorybook';
+      Remove these lines from App.tsx:
+        let AppEntryPoint = App;
+        if (process.env.EXPO_PUBLIC_STORYBOOK_ENABLED === 'true') {
+          AppEntryPoint = require('./.rnstorybook').default;
+        }
       Replace export default AppEntryPoint; with:
-        export default function AppOrStorybook() {
+        export default function AppOrStorybook(props: any) {
           if (isStorybookMode) return <Storybook />;
-          return <AppEntryPoint />;
+          return <App {...props} />;
         }
 
 2. Replace the example stories

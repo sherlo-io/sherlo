@@ -14,11 +14,14 @@ Setting up Sherlo...
 
 ✖ Checking the app failed
 
-ERROR: Setup can't read package.json
+ERROR: "workspaces" in package.json isn't a list of folders
 
-"workspaces" is neither a list of folders nor { "packages": [...] }
+It holds:
+  "workspaces": "apps/*"
+Change it to a list of your apps' folders, like:
+  "workspaces": ["apps/*"]
 
-Fix the error, then run setup again. It picks up where it stopped:
+Then run setup again. It picks up where it stopped:
   npx sherlo init
 
 AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.

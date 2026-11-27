@@ -37,12 +37,13 @@ Setting up Sherlo...
       At the top of App.tsx, add:
         import { isStorybookMode } from '@sherlo/react-native-storybook';
         import Storybook from './.rnstorybook';
-      Couldn't tell how App.tsx exports your root component. Make this its default export, with your root component in place of YourApp:
-        export default function AppOrStorybook() {
+      Change export default () => to:
+        const App = () =>
+      At the end of App.tsx, add:
+        export default function AppOrStorybook(props: any) {
           if (isStorybookMode) return <Storybook />;
-          return <YourApp />;
+          return <App {...props} />;
         }
-      If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.
 
 2. Run your first visual test
    npx sherlo test

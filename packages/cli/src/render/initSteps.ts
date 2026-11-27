@@ -28,13 +28,19 @@ export interface RootComponentFile {
   found: boolean;
   /**
    * How the file exports the root component, as its line reads, so the in-app way names the exact
-   * change: `declared` for `export default function App() {` (or a class), `named` for a separate
-   * `export default App;`, `wrapped` for `export default Sentry.wrap(App);` with `call` the wrapping
-   * call (`Sentry.wrap`), kept around the switch. Null when the file is missing or exports it
-   * another way (an anonymous arrow function, nested wrappers): the generic form is shown.
+   * change: `declared` for `export default function App() {` (or a class, or an unnamed
+   * `export default () =>`) with `rewritten` the same start without the export (`const App = () =>`
+   * for an unnamed one), `named` for a separate `export default App;`, `wrapped` for
+   * `export default Sentry.wrap(App);` with `call` the wrapping call (`Sentry.wrap`), kept around
+   * the switch, `switched` for Storybook's old switch (`let AppEntryPoint = App;` set to Storybook
+   * in an `if`) with `name` the app it holds and `switchCode` its lines, to be removed. Null when
+   * the file is missing or exports it another way (nested wrappers, a lowercase name): the generic
+   * form is shown.
    */
   defaultExport:
-    | { form: 'declared' | 'named'; line: string; name: string }
+    | { form: 'declared'; line: string; rewritten: string; name: string }
+    | { form: 'named'; line: string; name: string }
+    | { form: 'switched'; line: string; name: string; switchCode: string[] }
     | { form: 'wrapped'; line: string; name: string; call: string }
     | null;
 }
@@ -404,47 +410,65 @@ export function renderNextSteps({
   // of hooks. The change named follows the export the file has, line for line; one setup could not
   // read gets the generic form, as Sherlo's docs give it (sherlo-www docs/docs/2_setup.mdx).
   const { defaultExport } = rootComponent;
-  const wrappedName = defaultExport?.name ?? 'YourApp';
-  const wrapperLines = [
-    'export default function AppOrStorybook() {',
+  // THE APP'S PROPS PASS THROUGH: a wrapper that adds props (connect(mapState)(App)) and a bare
+  // app's initialProperties reach the app as before. A TypeScript file types them `any`, the one
+  // annotation that compiles under strict whatever props the app takes; `object` fails an app with
+  // a required prop, and none fails noImplicitAny.
+  const propsParameter = /\.tsx?$/.test(rootComponent.file) ? 'props: any' : 'props';
+  const switchLines = (name: string) => [
+    `function AppOrStorybook(${propsParameter}) {`,
     '  if (isStorybookMode) return <Storybook />;',
-    `  return <${wrappedName} />;`,
+    `  return <${name} {...props} />;`,
     '}',
-  ].map((line) => `     ${renderCode(line)}`);
+  ];
+  const wrapperLines = switchLines(defaultExport?.name ?? 'YourApp').map(
+    (line, index) => `     ${renderCode(index === 0 ? `export default ${line}` : line)}`
+  );
   const rootSwapLines =
     defaultExport?.form === 'declared'
       ? [
           `   Change ${renderCode(defaultExport.line)} to:`,
-          `     ${renderCode(defaultExport.line.replace(/^export default /, ''))}`,
+          `     ${renderCode(defaultExport.rewritten)}`,
           `   At the end of ${rootComponent.file}, add:`,
           ...wrapperLines,
         ]
       : defaultExport?.form === 'named'
         ? [`   Replace ${renderCode(defaultExport.line)} with:`, ...wrapperLines]
-        : // THE WRAPPER STAYS: the app's call (Sentry.wrap) moves onto the switch, so the app is
-          // wrapped as before and Storybook with it.
-          defaultExport?.form === 'wrapped'
+        : // STORYBOOK'S OLD SWITCH GOES, and the wrapper renders the app it held: kept, the
+          // switch would hand the wrapper Storybook as the app.
+          defaultExport?.form === 'switched'
           ? [
+              `   Remove these lines from ${rootComponent.file}:`,
+              ...defaultExport.switchCode.map((line) => `     ${renderCode(line)}`),
               `   Replace ${renderCode(defaultExport.line)} with:`,
-              ...[
-                'function AppOrStorybook() {',
-                '  if (isStorybookMode) return <Storybook />;',
-                `  return <${defaultExport.name} />;`,
-                '}',
-                `export default ${defaultExport.call}(AppOrStorybook);`,
-              ].map((line) => `     ${renderCode(line)}`),
-            ]
-          : [
-              rootComponent.found
-                ? `   Couldn't tell how ${rootComponent.file} exports your root component. Make this its default export, with your root component in place of YourApp:`
-                : "   Make this your root component's file's default export, with your root component in place of YourApp:",
               ...wrapperLines,
-              '   If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.',
-            ];
+            ]
+          : // THE WRAPPER STAYS: the app's call (Sentry.wrap) moves onto the switch, so the app is
+            // wrapped as before and Storybook with it.
+            defaultExport?.form === 'wrapped'
+            ? [
+                `   Replace ${renderCode(defaultExport.line)} with:`,
+                ...[
+                  ...switchLines(defaultExport.name),
+                  `export default ${defaultExport.call}(AppOrStorybook);`,
+                ].map((line) => `     ${renderCode(line)}`),
+              ]
+            : [
+                rootComponent.found
+                  ? `   Couldn't tell how ${rootComponent.file} exports your root component. Make this its default export, with your root component in place of YourApp:`
+                  : "   Make this your root component's file's default export, with your root component in place of YourApp:",
+                ...wrapperLines,
+                '   If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.',
+              ];
   // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that
   // exports its routes for the server builds it too.
-  const keepSetupChoice = [
+  const keepSetupChoice = (removesOldRender: boolean) => [
     chalk.bold('b) In-app integration'),
+    // THE OLD WAY GOES FIRST: left in, it renders Storybook where the wrapper expects the app. Its
+    // lines are named when setup read them (the `switched` export), else said in words.
+    ...(removesOldRender && defaultExport?.form !== 'switched'
+      ? ["   First remove your app's code that renders Storybook, and its import."]
+      : []),
     // THE IMPORTS AT THE FILE'S TOP, THE WRAPPER AS ITS DEFAULT EXPORT: each place named, so the
     // code works when followed word for word.
     rootComponent.found
@@ -480,7 +504,7 @@ export function renderNextSteps({
       '',
       ...defaultSetupChoice(removesOldRender),
       '',
-      ...keepSetupChoice,
+      ...keepSetupChoice(removesOldRender),
     ],
   });
   // Just installed, or installed before and never started from the app: the same words.

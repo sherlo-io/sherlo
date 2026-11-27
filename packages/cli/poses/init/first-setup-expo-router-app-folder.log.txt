@@ -51,14 +51,14 @@ If it doesn't open, use this link on any device:
       Change export default function RootLayout() { to:
         function RootLayout() {
       At the end of app/_layout.tsx, add:
-        export default function AppOrStorybook() {
+        export default function AppOrStorybook(props: any) {
           if (isStorybookMode) return <Storybook />;
-          return <RootLayout />;
+          return <RootLayout {...props} />;
         }
 
 2. Replace the example stories
    Right now Sherlo would test Storybook's examples, not your app.
-   Set "stories" in .rnstorybook/main.ts to ['../src'].
+   Set "stories" in .rnstorybook/main.ts to ['../*.stories.?(ts|tsx|js|jsx)'].
 
    You can start with a few components or screens, one story per state:
      // Button.stories.tsx
