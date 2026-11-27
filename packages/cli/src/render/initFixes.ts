@@ -282,7 +282,11 @@ export function renderMetroConfigUnreadable({
 }): InitRefusal {
   const showsBoth = moduleStyle === 'unknown';
   return refusal(`Setup can't edit ${path}`, [
-    words("Wrap its export in Sherlo's withStorybook, the way your file loads modules:"),
+    words(
+      showsBoth
+        ? 'Add these lines, in the form your file uses:'
+        : "Wrap its export in Sherlo's withStorybook, the way your file loads modules:"
+    ),
     '',
     ...(showsBoth ? [choiceName('a) With require')] : []),
     ...(moduleStyle !== 'import'

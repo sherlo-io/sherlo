@@ -16,7 +16,7 @@ Setting up Sherlo...
 
 [31mERROR: Setup can't edit metro.config.js[39m
 
-[0mWrap its export in Sherlo's withStorybook, the way your file loads modules:[0m
+[0mAdd these lines, in the form your file uses:[0m
 
 [1ma) With require[22m
    [35mconst[39m withStorybook [2m=[22m [32mrequire[39m[2m([22m[32m'@sherlo/react-native-storybook/metro/withStorybook'[39m[2m);[22m
