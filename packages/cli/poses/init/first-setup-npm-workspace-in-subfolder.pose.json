@@ -44,7 +44,13 @@
       "version": "58.0.26",
       "main": "index.js"
     },
-    "frontend/node_modules/expo/index.js": ""
+    "frontend/node_modules/expo/index.js": "",
+    "frontend/node_modules/expo-router/package.json": {
+      "name": "expo-router",
+      "version": "58.0.32",
+      "main": "entry.js"
+    },
+    "frontend/node_modules/expo-router/entry.js": ""
   },
   "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": {
@@ -117,7 +123,7 @@
           "name": "acme-shop",
           "version": "1.0.0",
           "private": true,
-          "main": "index.ts",
+          "main": "expo-router/entry",
           "scripts": {
             "android": "expo run:android",
             "ios": "expo run:ios",
@@ -127,6 +133,7 @@
             "@storybook/react-native": "10.7.2",
             "@storybook/react-native-ui-lite": "10.7.2",
             "expo": "~58.0.26",
+            "expo-router": "~58.0.32",
             "react": "19.3.0",
             "react-native": "0.88.1",
             "react-native-safe-area-context": "~5.11.1",
