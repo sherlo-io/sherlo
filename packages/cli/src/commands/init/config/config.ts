@@ -9,7 +9,7 @@
  */
 import { DEVICES } from '@sherlo/shared';
 import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
-import { renderStepLine } from '../../../render/initSteps';
+import { renderConfigLine } from '../../../render/initSteps';
 import { InvalidatedConfig } from '../../../types';
 import { printLines, trackProgress } from '../helpers';
 import { DEFAULT_DEVICES, EVENT } from './constants';
@@ -32,10 +32,11 @@ async function config({
     if (existingConfig && existingConfig.project === project && hasDevices) {
       // No project id: the team and project lines above already name them.
       printLines([
-        renderStepLine({
+        renderConfigLine({
           outcome: 'already',
-          name: 'Created config',
-          detail: DEFAULT_CONFIG_FILENAME,
+          existed: true,
+          file: DEFAULT_CONFIG_FILENAME,
+          addedDevices: [],
         }),
       ]);
       await trackProgress({ event: EVENT, params: { action: 'already_created' }, sessionId });
@@ -49,15 +50,12 @@ async function config({
     };
     await writeConfig(newConfig);
 
-    const addedDevices = hasDevices
-      ? ''
-      : `, one device: ${DEFAULT_DEVICES.map(({ id }) => DEVICES[id].displayName).join(', ')}`;
-
     printLines([
-      renderStepLine({
+      renderConfigLine({
         outcome: 'done',
-        name: existingConfig ? 'Updated config' : 'Created config',
-        detail: `${DEFAULT_CONFIG_FILENAME}${addedDevices}`,
+        existed: !!existingConfig,
+        file: DEFAULT_CONFIG_FILENAME,
+        addedDevices: hasDevices ? [] : DEFAULT_DEVICES.map(({ id }) => DEVICES[id].displayName),
       }),
     ]);
 

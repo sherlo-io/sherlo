@@ -14,7 +14,11 @@ import path from 'path';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
 import { renderStorybookInstallFailed } from '../../../render/initFixes';
-import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
+import {
+  renderFailedStepLine,
+  renderPnpmSettingsLine,
+  renderStepLine,
+} from '../../../render/initSteps';
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { addCommand } from '../dependencies/installSherlo';
 import { printLines } from '../helpers';
@@ -114,13 +118,11 @@ async function storybook({
         detail: `${name} ${getPackageVersion(name) ?? declaredRange}`,
       })
     ),
-    // A file of the person's that setup changed is named, as metro.config.js is.
     ...(updatedPnpmSettings
       ? [
-          renderStepLine({
-            outcome: 'done',
-            name: hadPnpmSettings ? 'Updated pnpm settings' : 'Created pnpm settings',
-            detail: path.relative(projectRoot, pnpmSettingsFile),
+          renderPnpmSettingsLine({
+            had: hadPnpmSettings,
+            file: path.relative(projectRoot, pnpmSettingsFile),
           }),
         ]
       : []),

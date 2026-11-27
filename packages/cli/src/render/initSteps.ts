@@ -70,6 +70,40 @@ export function renderStepLine({
   return `${chalk.green('✔')} ${name.padEnd(STEP_NAME_WIDTH)} ${shownDetail}`;
 }
 
+/**
+ * The config step's line. `existed`: the app had a sherlo.config.json before this run, so setup
+ * updated it; `addedDevices`: the devices setup wrote because the file had none, by display name.
+ */
+export function renderConfigLine({
+  outcome,
+  existed,
+  file,
+  addedDevices,
+}: {
+  outcome: StepOutcome;
+  existed: boolean;
+  file: string;
+  addedDevices: string[];
+}): string {
+  return renderStepLine({
+    outcome,
+    name: outcome === 'done' && existed ? 'Updated config' : 'Created config',
+    detail: addedDevices.length > 0 ? `${file}, one device: ${addedDevices.join(', ')}` : file,
+  });
+}
+
+/**
+ * The line for the pnpm settings file setup wrote so pnpm runs Storybook's install scripts: a file
+ * of the person's that setup changed is named, as metro.config.js is. `had`: the file was there.
+ */
+export function renderPnpmSettingsLine({ had, file }: { had: boolean; file: string }): string {
+  return renderStepLine({
+    outcome: 'done',
+    name: had ? 'Updated pnpm settings' : 'Created pnpm settings',
+    detail: file,
+  });
+}
+
 /** The line a step that failed prints, above the error that says why. */
 export function renderFailedStepLine(name: string): string[] {
   return [`${chalk.red('✖')} ${name}`, ''];

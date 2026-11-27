@@ -18,7 +18,7 @@ import chalk from 'chalk';
 import type { Agent } from 'package-manager-detector';
 import typedInitCommand from '../commands/init/typedInitCommand';
 import { LOGIN_COMMAND } from '../commands/login/constants';
-import { MAX_PROJECT_NAME_LENGTH } from '../constants';
+import { FULL_INIT_COMMAND, MAX_PROJECT_NAME_LENGTH, TEAM_OPTION } from '../constants';
 import type { FolderHistory } from '../seams/surroundings';
 import { renderCode } from './initLines';
 import type { FeedbackReader } from './initSteps';
@@ -445,6 +445,42 @@ export function renderNoAccessToCreateProject({
   ]);
 }
 
+/**
+ * `--team` names a team, but the person is in none. A team id can't be right then: there is no list
+ * to pick from, and setup without `--team` makes the person's first team itself.
+ */
+export function renderNotInAnyTeam(): InitRefusal {
+  return refusal("You're not in any team yet", [
+    words('Run setup without a team, and it creates your first one:'),
+    code(FULL_INIT_COMMAND),
+  ]);
+}
+
+/**
+ * Setup can't tell which team to use: `--team` names one the person is not in (`teamFlag`), or no
+ * `--team` was given and the person is in several. The teams they are in are listed with their ids,
+ * so the rerun's `--team` is copied, never guessed.
+ */
+export function renderTeamNotChosen({
+  teamFlag,
+  teams,
+}: {
+  teamFlag: string | undefined;
+  teams: Array<{ id: string; name: string }>;
+}): InitRefusal {
+  return refusal(
+    teamFlag
+      ? `You're not in a team with the id ${teamFlag}`
+      : `You're in ${teams.length} teams, so setup can't choose one for you`,
+    [
+      ...teams.map(({ id, name }) => `  ${name.padEnd(24)} ${chalk.dim(id)}`),
+      '',
+      words('Run setup again with the team to use:'),
+      code(`${FULL_INIT_COMMAND} --${TEAM_OPTION} <id>`),
+    ]
+  );
+}
+
 /** A package install setup ran itself failed: what the screen needs of it. */
 export type FailedInstall = {
   /** The package manager's command as a person types it, with no flag setup added for itself. */
@@ -551,6 +587,28 @@ export function renderInvalidJson({ path, reason }: { path: string; reason: stri
     words(reason),
     '',
     words('Fix the file, then run setup again:'),
+    code(typedInitCommand()),
+  ]);
+}
+
+/**
+ * An installed package's package.json setup could not read: `reason` is the read's or the parser's
+ * own words. The install command is the project's own package manager's, which writes it again.
+ */
+export function renderInstalledPackageUnreadable({
+  file,
+  reason,
+  installCommand,
+}: {
+  file: string;
+  reason: string;
+  installCommand: string;
+}): InitRefusal {
+  return refusal(`Can't read ${file}`, [
+    words(reason),
+    '',
+    words('Reinstall your dependencies to write it fresh, then run setup again:'),
+    code(installCommand),
     code(typedInitCommand()),
   ]);
 }

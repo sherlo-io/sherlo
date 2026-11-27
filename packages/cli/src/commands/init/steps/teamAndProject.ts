@@ -9,13 +9,16 @@
  *     one command.
  *   - The project is made in that team, named after the app.
  */
-import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
-import { FULL_INIT_COMMAND, TEAM_OPTION } from '../../../constants';
 import { getCwd, throwError } from '../../../helpers';
 import getAppDomain from '../../../helpers/getAppDomain';
-import { renderNoAccessToCreateProject, renderNoAccessToProject } from '../../../render/initFixes';
+import {
+  renderNoAccessToCreateProject,
+  renderNoAccessToProject,
+  renderNotInAnyTeam,
+  renderTeamNotChosen,
+} from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { serverCalls } from '../../../seams/serverCalls';
 import type { SavedLogin } from '../../../seams/savedLogins';
@@ -131,28 +134,12 @@ async function chooseTeam(
   // makes the person's first team itself.
   if (teamFlag && teams.length === 0) {
     printLines(renderFailedStepLine('Choosing a team failed'));
-    throwError({
-      message: "You're not in any team yet",
-      below:
-        '\n' +
-        chalk.reset('Run setup without a team, and it creates your first one:\n') +
-        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
-    });
+    throwError(renderNotInAnyTeam());
   }
 
   if (teamFlag || teams.length > 1) {
     printLines(renderFailedStepLine('Choosing a team failed'));
-    throwError({
-      message: teamFlag
-        ? `You're not in a team with the id ${teamFlag}`
-        : `You're in ${teams.length} teams, so setup can't choose one for you`,
-      below:
-        '\n' +
-        teams.map(({ id, name }) => `  ${name.padEnd(24)} ${chalk.dim(id)}`).join('\n') +
-        '\n\n' +
-        chalk.reset('Run setup again with the team to use:\n') +
-        chalk.cyan(`  ${FULL_INIT_COMMAND} --${TEAM_OPTION} <id>`),
-    });
+    throwError(renderTeamNotChosen({ teamFlag, teams }));
   }
 
   const { name } = await serverCalls()

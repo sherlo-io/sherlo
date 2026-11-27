@@ -14,8 +14,13 @@ Setting up Sherlo...
 
 ✖ Checking the app failed
 
-UNEXPECTED ERROR: Package react-native was found at <PROJECT_ROOT>/node_modules/react-native/package.json but its package.json is invalid or inaccessible
-(in <SOURCE_LOCATION>)
+ERROR: Can't read node_modules/react-native/package.json
+
+Expected double-quoted property name in JSON at position 51 (line 4 column 1)
+
+Reinstall your dependencies to write it fresh, then run setup again:
+  yarn install
+  npx sherlo init
 
 AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.
 

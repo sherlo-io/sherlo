@@ -5,12 +5,14 @@
  * Each step prints one line, and a step the project already has says so, so a rerun picks up where
  * a failed run stopped. The run ends with the next steps, and the feedback line.
  */
-import { printSherloIntro } from '../../helpers';
+import path from 'path';
+import { getCwd, printSherloIntro, throwError } from '../../helpers';
+import { renderInstalledPackageUnreadable } from '../../render/initFixes';
 import { renderFeedbackLine, renderNextSteps, renderSetupIntro } from '../../render/initSteps';
 import { Options } from '../../types';
 import config from './config';
 import { THIS_COMMAND } from './constants';
-import { printLines, trackProgress } from './helpers';
+import { packageManagerCommand, printLines, trackProgress } from './helpers';
 import metroConfig from './metroConfig';
 import checkProject from './steps/checkProject';
 import githubWorkflow from './steps/githubWorkflow';
@@ -25,6 +27,7 @@ import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
 import { EXPO_ROUTER_PACKAGE_NAME, PROJECT_OPTION, TEAM_OPTION } from '../../constants';
 import getDeclaredPackageVersion from './requirements/getDeclaredPackageVersion';
+import { InstalledPackageUnreadableError } from './requirements/getPackageVersion';
 import { setupReader } from '../feedback/runningAgent';
 
 async function init(options: Options<THIS_COMMAND>) {
@@ -102,11 +105,35 @@ async function init(options: Options<THIS_COMMAND>) {
 
     await trackProgress({ event: '7_testing', sessionId, hasFinished: true });
   } catch (error) {
+    const shown = await refusalForUnreadableInstalledPackage(error);
     // A failed run ends with one block for feedback and help, in place of the usual help footer
     // (../../start prints it).
-    Object.assign(error as object, { showFeedbackLine: true });
-    throw error;
+    Object.assign(shown as object, { showFeedbackLine: true });
+    throw shown;
   }
 }
 
 export default init;
+
+/* ========================================================================== */
+
+/**
+ * AN INSTALLED PACKAGE.JSON SETUP COULD NOT READ is the person's to fix, so it is refused with the
+ * app's own install command; the shared read (getPackageVersion) names no package manager, as other
+ * commands have none to name. Any other error is shown as it was thrown.
+ */
+async function refusalForUnreadableInstalledPackage(error: unknown): Promise<unknown> {
+  const cause = (error as { cause?: unknown }).cause;
+  if (!(cause instanceof InstalledPackageUnreadableError)) return error;
+
+  const refusal = renderInstalledPackageUnreadable({
+    file: path.relative(getCwd(), cause.packageJsonPath),
+    reason: cause.reason,
+    installCommand: await packageManagerCommand('install'),
+  });
+  try {
+    return throwError(refusal);
+  } catch (thrown) {
+    return thrown;
+  }
+}

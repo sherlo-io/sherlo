@@ -14,8 +14,13 @@ Setting up Sherlo...
 
 [31m✖[39m Checking the app failed
 
-[31mUNEXPECTED ERROR: Package react-native was found at <PROJECT_ROOT>/node_modules/react-native/package.json but its package.json is invalid or inaccessible[39m
-[2m(in <SOURCE_LOCATION>)[22m
+[31mERROR: Can't read node_modules/react-native/package.json[39m
+
+[0mExpected double-quoted property name in JSON at position 51 (line 4 column 1)[0m
+
+[0mReinstall your dependencies to write it fresh, then run setup again:[0m
+[36m  yarn install[39m
+[36m  npx sherlo init[39m
 
 [2m──────────[22m
 

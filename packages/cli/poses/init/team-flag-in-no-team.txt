@@ -19,7 +19,7 @@ Setting up Sherlo...
 [31mERROR: You're not in any team yet[39m
 
 [0mRun setup without a team, and it creates your first one:[0m
-[0m[0m[36m  npx sherlo init[39m
+[36m  npx sherlo init[39m
 
 [2m──────────[22m
 

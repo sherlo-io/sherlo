@@ -22,7 +22,7 @@ Setting up Sherlo...
   Storefront               [2mtm000001[22m
 
 [0mRun setup again with the team to use:[0m
-[0m[0m[36m  npx sherlo init --team <id>[39m
+[36m  npx sherlo init --team <id>[39m
 
 [2m──────────[22m
 
