@@ -21,7 +21,7 @@ import type { WithStorybookCall } from '../commands/init/metroConfig/readMetroCo
 import { LOGIN_COMMAND } from '../commands/login/constants';
 import { FULL_INIT_COMMAND, MAX_PROJECT_NAME_LENGTH, TEAM_OPTION } from '../constants';
 import type { FolderHistory } from '../seams/surroundings';
-import { renderCode } from './initLines';
+import { renderCode, renderStorybookIndexFile, renderStorybookMainFile } from './initLines';
 import type { FeedbackReader } from './initSteps';
 import { pickInstallOutput } from './installOutput';
 
@@ -120,6 +120,22 @@ export function renderNoPackageManager(): InitRefusal {
 }
 
 /**
+ * Lockfiles of two package managers lie side by side and no `packageManager` field picks one:
+ * setup would run whichever its detector finds first, which may not be the person's. `lockfiles`
+ * are named from the app's folder, e.g. `yarn.lock`, `../../package-lock.json`.
+ */
+export function renderTwoLockfiles({ lockfiles }: { lockfiles: string[] }): InitRefusal {
+  return refusal("Can't tell which package manager this app uses", [
+    words('Lockfiles of more than one package manager:'),
+    ...lockfiles.map((lockfile) => code(lockfile)),
+    '',
+    words("Delete the lockfile of the one you don't use, or name yours in package.json:"),
+    `  ${renderCode('"packageManager": "<name>@<version>"')}`,
+    ...rerun(),
+  ]);
+}
+
+/**
  * A package package.json lists is not in node_modules: the dependencies were never installed.
  * `installCommand` is the project's own package manager's, e.g. `yarn install`.
  */
@@ -133,6 +149,22 @@ export function renderPackagesNotInstalled({
   return refusal(`${packageName} isn't installed`, [
     words('Install your dependencies, then run setup again:'),
     code(installCommand),
+    code(typedInitCommand()),
+  ]);
+}
+
+/**
+ * The app's packages are installed by Yarn Plug'n'Play, with no node_modules folder for setup or
+ * Storybook's Metro to read. Yarn's own setting puts node_modules back. `yarnrc` is named from the
+ * app's folder, e.g. `.yarnrc.yml`, `../../.yarnrc.yml`.
+ */
+export function renderPlugNPlay({ yarnrc }: { yarnrc: string }): InitRefusal {
+  return refusal("Setup can't read packages installed with Yarn Plug'n'Play", [
+    words(`Add this line to ${yarnrc}:`),
+    code('nodeLinker: node-modules'),
+    '',
+    words('Install your dependencies, then run setup again:'),
+    code('yarn install'),
     code(typedInitCommand()),
   ]);
 }
@@ -401,10 +433,27 @@ export function renderStorybookFolderMissing({
           ),
         ]
       : []),
-    words(`Create ${named ?? '.rnstorybook'} with Storybook's main.ts and index.ts.`),
+    // BOTH FILES WHOLE, so creating the folder needs nothing looked up: the main file loads the
+    // stories under src, the index file starts Storybook.
+    ...storybookFolderFiles(named ?? '.rnstorybook'),
     ...pointConfigPath(metroConfig),
     ...rerun(),
   ]);
+}
+
+/** A Storybook folder to create, its main file and index file written whole. */
+function storybookFolderFiles(storybookFolder: string): string[] {
+  const indented = (line: string): string => (line === '' ? '' : `    ${line}`);
+  return [
+    words(`Create ${storybookFolder} with two files:`),
+    words(`  ${storybookFolder}/main.ts:`),
+    ...renderStorybookMainFile({ storybookFolder, storiesFolder: 'src' }).map(indented),
+    // A BLANK LINE AFTER EACH FILE, so where one ends and the next part starts is seen at once.
+    '',
+    words(`  ${storybookFolder}/index.ts:`),
+    ...renderStorybookIndexFile().map(indented),
+    '',
+  ];
 }
 
 /**
@@ -639,6 +688,28 @@ export function renderInvalidJson({ path, reason }: { path: string; reason: stri
     words(reason),
     '',
     words('Fix the file, then run setup again:'),
+    code(typedInitCommand()),
+  ]);
+}
+
+/**
+ * A file of the app setup could not read or write: `file` is named from the app's folder, and
+ * `reason` is the system's own words without the path it names, e.g. "ENOTDIR: not a directory".
+ * The fix is the person's: the system said what is in the way.
+ */
+export function renderFileAccessFailed({
+  access,
+  file,
+  reason,
+}: {
+  access: 'read' | 'write';
+  file: string;
+  reason: string;
+}): InitRefusal {
+  return refusal(`Setup can't ${access} ${file}`, [
+    words(reason),
+    '',
+    words('Fix the error, then run setup again. It picks up where it stopped:'),
     code(typedInitCommand()),
   ]);
 }

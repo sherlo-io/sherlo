@@ -17,7 +17,23 @@ Setting up Sherlo...
 [31mERROR: Storybook is installed, but its folder is missing (.rnstorybook or .storybook)[39m
 
 [0mGit never held .rnstorybook or .storybook, so there is nothing to restore.[0m
-[0mCreate .rnstorybook with Storybook's main.ts and index.ts.[0m
+[0mCreate .rnstorybook with two files:[0m
+[0m  .rnstorybook/main.ts:[0m
+    [35mimport[39m type [2m{[22m [33mStorybookConfig[39m [2m}[22m [35mfrom[39m [32m'@storybook/react-native'[39m[2m;[22m
+
+    [35mconst[39m [34mmain[39m[2m:[22m [33mStorybookConfig[39m [2m=[22m [2m{[22m
+      [34mstories[39m[2m:[22m [2m[[22m[32m'../src/**/*.stories.?(ts|tsx|js|jsx)'[39m[2m],[22m
+    [2m};[22m
+
+    [35mexport[39m [35mdefault[39m main[2m;[22m
+
+[0m  .rnstorybook/index.ts:[0m
+    [35mimport[39m [2m{[22m view [2m}[22m [35mfrom[39m [32m'./storybook.requires'[39m[2m;[22m
+
+    [35mconst[39m [33mStorybookUIRoot[39m [2m=[22m view[2m.[22m[32mgetStorybookUI[39m[2m({[22m [34mshouldPersistSelection[39m[2m:[22m [34mfalse[39m [2m});[22m
+
+    [35mexport[39m [35mdefault[39m [33mStorybookUIRoot[39m[2m;[22m
+
 [0mThere is no Metro config to change: setup writes metro.config.js, which runs Storybook from .rnstorybook.[0m
 
 [0mThen run setup again. It picks up where it stopped:[0m

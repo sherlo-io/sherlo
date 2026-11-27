@@ -13,11 +13,13 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { type Agent, detect } from 'package-manager-detector';
-import { throwError } from '../../../helpers';
-import { renderNoPackageManager } from '../../../render/initFixes';
+import { type Agent, detect, LOCKS } from 'package-manager-detector';
+import { getCwd, throwError } from '../../../helpers';
+import { renderNoPackageManager, renderTwoLockfiles } from '../../../render/initFixes';
 
 async function detectPackageManager(folder: string): Promise<Agent> {
+  refuseTwoLockfiles(folder);
+
   const agent = (await detect({ cwd: folder }))?.agent;
   if (agent === undefined) return throwError(renderNoPackageManager());
   if (agent !== 'yarn') return agent;
@@ -30,6 +32,48 @@ async function detectPackageManager(folder: string): Promise<Agent> {
 export default detectPackageManager;
 
 /* ========================================================================== */
+
+/**
+ * TWO MANAGERS' LOCKFILES ARE REFUSED, NEVER PICKED BETWEEN: the detector stops at the nearest
+ * folder holding any lockfile and, with no `packageManager` field there, takes the first in its own
+ * order (bun, deno, pnpm, yarn, npm), which says nothing about which one the person runs. A field
+ * there settles it, as it settles it for the detector. bun.lock beside bun.lockb is one manager.
+ */
+function refuseTwoLockfiles(folder: string): void {
+  let directory = path.resolve(folder);
+  const { root } = path.parse(directory);
+  while (directory !== root) {
+    const lockfiles = Object.keys(LOCKS).filter((lockfile) =>
+      isFile(path.join(directory, lockfile))
+    );
+    if (lockfiles.length > 0) {
+      const managers = new Set(lockfiles.map((lockfile) => LOCKS[lockfile]));
+      if (managers.size > 1 && !hasPackageManagerField(path.join(directory, 'package.json'))) {
+        throwError(
+          renderTwoLockfiles({
+            lockfiles: lockfiles.map((lockfile) =>
+              path.relative(getCwd(), path.join(directory, lockfile))
+            ),
+          })
+        );
+      }
+      return;
+    }
+    directory = path.dirname(directory);
+  }
+}
+
+function isFile(file: string): boolean {
+  return fs.statSync(file, { throwIfNoEntry: false })?.isFile() ?? false;
+}
+
+function hasPackageManagerField(packageJson: string): boolean {
+  try {
+    return typeof JSON.parse(readText(packageJson)).packageManager === 'string';
+  } catch {
+    return false;
+  }
+}
 
 /** The nearest folder at or above this one with a yarn.lock, walked as the detector walks. */
 function folderHoldingYarnLock(folder: string): string | undefined {

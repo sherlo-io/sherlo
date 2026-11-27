@@ -17,7 +17,23 @@ Setting up Sherlo...
 ERROR: Storybook is installed, but its folder .ondevice is missing
 
 Git never held .ondevice, so there is nothing to restore.
-Create .ondevice with Storybook's main.ts and index.ts.
+Create .ondevice with two files:
+  .ondevice/main.ts:
+    import type { StorybookConfig } from '@storybook/react-native';
+
+    const main: StorybookConfig = {
+      stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'],
+    };
+
+    export default main;
+
+  .ondevice/index.ts:
+    import { view } from './storybook.requires';
+
+    const StorybookUIRoot = view.getStorybookUI({ shouldPersistSelection: false });
+
+    export default StorybookUIRoot;
+
 Or point configPath in metro.config.js at your Storybook folder:
   withStorybook(getDefaultConfig(__dirname), { configPath: './<your Storybook folder>' })
 

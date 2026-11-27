@@ -11,7 +11,13 @@
 import chalk from 'chalk';
 import path from 'path';
 import { WRITING_STORIES_GUIDE } from '../constants';
-import { renderCode, renderSectionTitle } from './initLines';
+import {
+  importPath,
+  renderCode,
+  renderSectionTitle,
+  renderStorybookMainFile,
+  storiesGlob,
+} from './initLines';
 
 /**
  * The file the app's root component is in, relative to the app's folder. `found` is false when the
@@ -194,7 +200,11 @@ export type FailedInitStep =
   | 'creating-the-project'
   | 'installing-storybook'
   | 'installing-sherlo'
-  | 'updating-metro-config';
+  | 'creating-config'
+  | 'updating-config'
+  | 'creating-metro-config'
+  | 'updating-metro-config'
+  | 'adding-github-workflow';
 
 /** The red line of a setup step that stopped, above the error that says why. */
 export function renderFailedInitStepLine(step: FailedInitStep): string[] {
@@ -228,8 +238,16 @@ function initStepActivity(step: FailedInitStep): string {
       return 'Installing Storybook';
     case 'installing-sherlo':
       return 'Installing Sherlo';
+    case 'creating-config':
+      return 'Creating config';
+    case 'updating-config':
+      return 'Updating config';
+    case 'creating-metro-config':
+      return 'Creating Metro config';
     case 'updating-metro-config':
       return 'Updating Metro config';
+    case 'adding-github-workflow':
+      return 'Adding GitHub workflow';
   }
 }
 
@@ -368,11 +386,14 @@ export function renderNextSteps({
   // exports its routes for the server builds it too.
   const keepSetupChoice = [
     chalk.bold('b) In-app integration'),
+    // THE IMPORTS AT THE FILE'S TOP, THE `if` INSIDE THE COMPONENT: the two places it must go, so
+    // the code works when followed word for word.
     rootComponent.found
-      ? `   At the top of your root component (${rootComponent.file}), add:`
-      : '   At the top of your root component, add:',
+      ? `   At the top of ${rootComponent.file}, add:`
+      : "   At the top of your root component's file, add:",
     `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
     `     ${renderCode(rootComponent.found || !storybookFolder ? storybookImport : `${storybookImport} // path from ${rootComponent.file}`)}`,
+    '   As the first line inside your root component, add:',
     `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
   ];
   // EACH CHOICE IS A BLOCK: its name bold and alone on its line, a blank line between the two, so
@@ -414,6 +435,23 @@ export function renderNextSteps({
     { removesOldRender: true }
   );
 
+  // HOW TO WRITE A STORY, said once for every step that asks for stories.
+  const writeStoriesLines = [
+    'You can start with a few components or screens, one story per state:',
+    // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
+    // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
+    `  ${renderCode('// Button.stories.tsx')}`,
+    `  ${renderCode("import { Button } from './Button';")}`,
+    `  ${renderCode('export default { component: Button };')}`,
+    // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
+    `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
+    `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
+    '',
+    // AN INSTRUCTION, NOT A TOPIC: "How to write stories" read as basics the snippet covers.
+    'Before you write stories, read:',
+    `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
+  ];
+
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
   // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
   const replaceExampleStoriesStep = {
@@ -427,7 +465,7 @@ export function renderNextSteps({
         ? [
             "Right now Sherlo would test Storybook's examples, not your app.",
             `Your story ${leftOutStory} isn't in "stories" in ${storybookMainFile}, so Storybook never loads it.`,
-            `Set "stories" to ${renderCode(`['${importPath(storybookFolder, path.posix.dirname(leftOutStory))}/**/*.stories.?(ts|tsx|js|jsx)']`)}.`,
+            `Set "stories" to ${renderCode(`[${storiesGlob({ storybookFolder, storiesFolder: path.posix.dirname(leftOutStory) })}]`)}.`,
           ]
         : [
             // WHY FIRST, THEN A SMALL START: the examples must go because Sherlo would test them, and
@@ -441,19 +479,7 @@ export function renderNextSteps({
             // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
             // found without reading the others.
             '',
-            'You can start with a few components or screens, one story per state:',
-            // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
-            // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
-            `  ${renderCode('// Button.stories.tsx')}`,
-            `  ${renderCode("import { Button } from './Button';")}`,
-            `  ${renderCode('export default { component: Button };')}`,
-            // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
-            `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
-            `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
-            '',
-            // AN INSTRUCTION, NOT A TOPIC: "How to write stories" read as basics the snippet covers.
-            'Before you write stories, read:',
-            `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
+            ...writeStoriesLines,
           ],
   };
 
@@ -486,36 +512,39 @@ export function renderNextSteps({
   })();
 
   // A STORY LIST SETUP COULD NOT READ IS A STEP OF ITS OWN, right before the first test, which would
-  // fail on it too. A story list is only unreadable in a folder setup found, so the folder is always
-  // named. A main file that is there is named with its error; one that is missing is never named by
-  // a guessed extension, as the person would look for a main.ts that was never there.
+  // fail on it too. A story list is only unreadable in a folder setup found, so the folder is named.
+  // A main file that is there is named with its error; a missing one is written whole, in the form
+  // Storybook's own template writes, its `stories` loading the folder of the app's story, or src
+  // when the app has none yet - and then writing a story is a step of its own.
   const fixStoryListStep = !storyListUnreadable
     ? []
     : storyListUnreadable === 'main-file-missing'
-      ? [
-          // THE WHOLE FILE IS ON THE SCREEN when the app has a story: its `stories` load that story's
-          // folder, read from the app's files, in the form Storybook's own template writes.
-          leftOutStory && storybookFolder
-            ? {
-                title: `Add ${storybookFolder}/main.ts`,
-                content: [
-                  `${storybookFolder} has no main file, which lists your stories. Add ${storybookFolder}/main.ts:`,
-                  `  ${renderCode("import type { StorybookConfig } from '@storybook/react-native';")}`,
-                  '',
-                  `  ${renderCode('const main: StorybookConfig = {')}`,
-                  `  ${renderCode(`  stories: ['${importPath(storybookFolder, path.posix.dirname(leftOutStory))}/**/*.stories.?(ts|tsx|js|jsx)'],`)}`,
-                  `  ${renderCode('};')}`,
-                  '',
-                  `  ${renderCode('export default main;')}`,
-                ],
-              }
-            : {
-                title: `Add a main file to ${storybookFolder}`,
-                content: [
-                  `No main file (main.ts, main.tsx, main.js or main.jsx) in ${storybookFolder}, which lists your stories.`,
-                ],
-              },
-        ]
+      ? storybookFolder
+        ? [
+            {
+              title: `Add ${storybookFolder}/main.ts`,
+              content: [
+                `${storybookFolder} has no main file, which lists your stories. Add ${storybookFolder}/main.ts:`,
+                ...renderStorybookMainFile({
+                  storybookFolder,
+                  storiesFolder: leftOutStory ? path.posix.dirname(leftOutStory) : 'src',
+                }).map((line) => (line === '' ? '' : `  ${line}`)),
+              ],
+            },
+            ...(leftOutStory
+              ? []
+              : [
+                  {
+                    title: 'Write your first stories',
+                    content: [
+                      'Your app has no stories yet. Write them in src, where main.ts looks.',
+                      '',
+                      ...writeStoriesLines,
+                    ],
+                  },
+                ]),
+          ]
+        : []
       : [
           {
             title: `Fix ${storybookMainFile}`,
@@ -584,12 +613,6 @@ const FEEDBACK_HELP = 'npx sherlo feedback --help';
  * One separator for every side note at the end of a run, finished or failed.
  * Functions, not constants: colour is decided per run, after this module loads.
  */
-/** The path an import in `fromFolder` writes to reach `target`: `./src`, `../app.json`. */
-function importPath(fromFolder: string, target: string): string {
-  const relative = path.posix.relative(fromFolder, target);
-  return /^\.\.?(?:\/|$)/.test(relative) ? relative : `./${relative}`;
-}
-
 // A THIN LINE, NOT THE SECTION TITLES' DOUBLE ONE, so a side note never
 // reads as a section of its own.
 const sideNoteSeparator = (): string[] => [chalk.dim('─'.repeat(10)), ''];

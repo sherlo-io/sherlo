@@ -36,9 +36,10 @@ Setting up Sherlo...
       Then remove your app's code that renders Storybook, and its import.
 
    b) In-app integration
-      At the top of your root component (App.tsx), add:
+      At the top of App.tsx, add:
         import { isStorybookMode } from '@sherlo/react-native-storybook';
         import Storybook from './.rnstorybook';
+      As the first line inside your root component, add:
         if (isStorybookMode) return <Storybook />;
 
 2. Replace the example stories

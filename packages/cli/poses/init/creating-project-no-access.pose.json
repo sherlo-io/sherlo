@@ -58,19 +58,19 @@
       "call": "listTeams",
       "with": {},
       "answer": {
-        "teams": [{ "id": "k7m2p9qx", "name": "Storefront", "projectCount": 0, "role": "user" }]
+        "teams": [{ "id": "tm000001", "name": "Storefront", "projectCount": 0, "role": "user" }]
       }
     },
     {
       "call": "createProject",
-      "with": { "teamId": "k7m2p9qx", "name": "Acme Shop" },
+      "with": { "teamId": "tm000001", "name": "Acme Shop" },
       "answer": { "error": "GraphQL authorization error", "errorName": "CreateProjectAuthError" }
     },
     {
       "call": "listTeams",
       "with": {},
       "answer": {
-        "teams": [{ "id": "k7m2p9qx", "name": "Storefront", "projectCount": 0, "role": "user" }]
+        "teams": [{ "id": "tm000001", "name": "Storefront", "projectCount": 0, "role": "user" }]
       }
     },
     {

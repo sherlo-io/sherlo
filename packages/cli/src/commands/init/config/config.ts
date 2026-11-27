@@ -11,8 +11,9 @@ import { DEVICES } from '@sherlo/shared';
 import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
 import { renderConfigLine } from '../../../render/initSteps';
 import { InvalidatedConfig } from '../../../types';
-import { printLines, trackProgress } from '../helpers';
+import { printLines, refuseFileAccess, trackProgress } from '../helpers';
 import { DEFAULT_DEVICES, EVENT } from './constants';
+import getConfigPath from './getConfigPath';
 import hasConfigFile from './hasConfigFile';
 import readConfig from './readConfig';
 import writeConfig from './writeConfig';
@@ -48,7 +49,14 @@ async function config({
       project,
       devices: hasDevices ? existingConfig!.devices : DEFAULT_DEVICES,
     };
-    await writeConfig(newConfig);
+    await writeConfig(newConfig).catch((error: unknown) =>
+      refuseFileAccess({
+        failedStep: existingConfig ? 'updating-config' : 'creating-config',
+        access: 'write',
+        file: getConfigPath(),
+        error,
+      })
+    );
 
     printLines([
       renderConfigLine({

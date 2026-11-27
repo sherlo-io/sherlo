@@ -3,7 +3,7 @@ import path from 'path';
 import { EXPO_PACKAGE_NAME } from '../../../constants';
 import { getCwd, throwError } from '../../../helpers';
 import { renderFailedInitStepLine, renderInitStepLine } from '../../../render/initSteps';
-import { printLines, trackProgress } from '../helpers';
+import { printLines, refuseFileAccess, trackProgress } from '../helpers';
 import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
 import { EVENT } from './constants';
 import metroConfigUnreadableRefusal from './metroConfigUnreadableRefusal';
@@ -22,16 +22,33 @@ async function metroConfig(sessionId: string | null): Promise<void> {
     state = await readMetroConfigState();
   } catch (error) {
     await trackProgress({ event: EVENT, params: { status: 'failed', error }, sessionId });
-    throw error;
+    // The search found a file, so only the system refuses this read; its error names the file.
+    refuseFileAccess({
+      failedStep: 'updating-metro-config',
+      access: 'read',
+      file: (error as NodeJS.ErrnoException).path ?? path.join(getCwd(), 'metro.config.js'),
+      error,
+    });
   }
 
   if (!state.path) {
     const createdPath = path.join(getCwd(), 'metro.config.js');
-    await fs.promises.writeFile(
-      createdPath,
-      defaultMetroConfig({ isExpo: !!(await getDeclaredPackageVersion(EXPO_PACKAGE_NAME)) }),
-      'utf-8'
-    );
+    const isExpo = !!(await getDeclaredPackageVersion(EXPO_PACKAGE_NAME));
+    try {
+      await fs.promises.writeFile(createdPath, defaultMetroConfig({ isExpo }), 'utf-8');
+    } catch (error) {
+      await trackProgress({
+        event: EVENT,
+        params: { status: 'failed', error, path: createdPath },
+        sessionId,
+      });
+      refuseFileAccess({
+        failedStep: 'creating-metro-config',
+        access: 'write',
+        file: createdPath,
+        error,
+      });
+    }
     printLines([
       renderInitStepLine({
         step: 'created-metro-config',
@@ -70,7 +87,12 @@ async function metroConfig(sessionId: string | null): Promise<void> {
       params: { status: 'failed', error, path: state.path },
       sessionId,
     });
-    throw error;
+    refuseFileAccess({
+      failedStep: 'updating-metro-config',
+      access: 'write',
+      file: state.path,
+      error,
+    });
   }
 
   if (!result.applied) {

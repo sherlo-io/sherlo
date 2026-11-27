@@ -19,6 +19,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   renderPackagesNotInstalled,
+  renderPlugNPlay,
   renderReactNativeTooOld,
   renderStorybookConfigPathUnread,
   renderStorybookFolderMissing,
@@ -184,11 +185,21 @@ async function checkTheApp(): Promise<CheckedProject> {
 
 /**
  * The version node_modules holds. A package package.json lists but node_modules lacks means the
- * dependencies were never installed, and the refusal gives the install command.
+ * dependencies were never installed, and the refusal gives the install command - unless Yarn
+ * Plug'n'Play installed them, where an install changes nothing and the refusal names its setting.
  */
 async function installedVersion(packageName: string): Promise<string> {
   const version = getPackageVersion(packageName);
   if (version) return version;
+
+  const plugNPlayFolder = folderHoldingPlugNPlay(getCwd());
+  if (plugNPlayFolder) {
+    throwError(
+      renderPlugNPlay({
+        yarnrc: path.relative(getCwd(), path.join(plugNPlayFolder, '.yarnrc.yml')),
+      })
+    );
+  }
 
   return throwError(
     renderPackagesNotInstalled({
@@ -196,6 +207,17 @@ async function installedVersion(packageName: string): Promise<string> {
       installCommand: await packageManagerCommand('install'),
     })
   );
+}
+
+/** The nearest folder at or above this one holding Yarn Plug'n'Play's loader, .pnp.cjs. */
+function folderHoldingPlugNPlay(folder: string): string | undefined {
+  let directory = path.resolve(folder);
+  const { root } = path.parse(directory);
+  while (directory !== root) {
+    if (fs.existsSync(path.join(directory, '.pnp.cjs'))) return directory;
+    directory = path.dirname(directory);
+  }
+  return undefined;
 }
 
 /**

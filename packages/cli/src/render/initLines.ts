@@ -8,6 +8,7 @@
  * `./init*.ts` files beside this one.
  */
 import chalk from 'chalk';
+import path from 'path';
 
 /**
  * A section title, underlined, with two blank lines above it and one below.
@@ -69,6 +70,62 @@ export function renderCode(line: string): string {
       return chalk.dim(token);
     }
   );
+}
+
+/**
+ * A Storybook folder's main file, as Storybook's own template (@storybook/react-native 10.6.0,
+ * template/cli/main.ts) writes it, less the on-device addons: its `stories` load every story file
+ * under `storiesFolder`, given from the app's folder.
+ */
+export function renderStorybookMainFile({
+  storybookFolder,
+  storiesFolder,
+}: {
+  storybookFolder: string;
+  storiesFolder: string;
+}): string[] {
+  return [
+    renderCode("import type { StorybookConfig } from '@storybook/react-native';"),
+    '',
+    renderCode('const main: StorybookConfig = {'),
+    renderCode(`  stories: [${storiesGlob({ storybookFolder, storiesFolder })}],`),
+    renderCode('};'),
+    '',
+    renderCode('export default main;'),
+  ];
+}
+
+/**
+ * A Storybook folder's index file, as Storybook's own template (@storybook/react-native 10.6.0,
+ * template/cli/index.ts) writes it, less the AsyncStorage package the app may not have: with no
+ * storage the last story opened cannot be remembered, so remembering it is off, as setup's own
+ * Storybook folder has it.
+ */
+export function renderStorybookIndexFile(): string[] {
+  return [
+    renderCode("import { view } from './storybook.requires';"),
+    '',
+    renderCode('const StorybookUIRoot = view.getStorybookUI({ shouldPersistSelection: false });'),
+    '',
+    renderCode('export default StorybookUIRoot;'),
+  ];
+}
+
+/** A main file's entry for every story file under `storiesFolder`, quoted, as it is written. */
+export function storiesGlob({
+  storybookFolder,
+  storiesFolder,
+}: {
+  storybookFolder: string;
+  storiesFolder: string;
+}): string {
+  return `'${importPath(storybookFolder, storiesFolder)}/**/*.stories.?(ts|tsx|js|jsx)'`;
+}
+
+/** The path an import in `fromFolder` writes to reach `target`: `./src`, `../app.json`. */
+export function importPath(fromFolder: string, target: string): string {
+  const relative = path.posix.relative(fromFolder, target);
+  return /^\.\.?(?:\/|$)/.test(relative) ? relative : `./${relative}`;
 }
 
 /* ========================================================================== */

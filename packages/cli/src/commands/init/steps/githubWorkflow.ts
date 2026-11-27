@@ -21,7 +21,7 @@ import { GITHUB_WORKFLOW_PATH, renderSherloWorkflow } from '../../../render/init
 import { surroundings } from '../../../seams/surroundings';
 import { workstation } from '../../../seams/workstation';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
-import { printLines } from '../helpers';
+import { printLines, refuseFileAccess } from '../helpers';
 import detectPackageManager from '../helpers/detectPackageManager';
 
 /**
@@ -116,15 +116,24 @@ async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
   // BUILD DEBT (init-for-agents): Deno has no workflow of its own yet and gets npm's, untested.
   const packageManager = agent === 'pnpm@6' ? 'pnpm' : agent === 'deno' ? 'npm' : agent;
 
-  fs.mkdirSync(path.dirname(workflowFile), { recursive: true });
-  fs.writeFileSync(
-    workflowFile,
-    renderSherloWorkflow({
-      packageManager,
-      installFolder: path.relative(repositoryRoot, workspaceRoot),
-      appFolder: path.relative(repositoryRoot, projectRoot),
-    })
-  );
+  try {
+    fs.mkdirSync(path.dirname(workflowFile), { recursive: true });
+    fs.writeFileSync(
+      workflowFile,
+      renderSherloWorkflow({
+        packageManager,
+        installFolder: path.relative(repositoryRoot, workspaceRoot),
+        appFolder: path.relative(repositoryRoot, projectRoot),
+      })
+    );
+  } catch (error) {
+    refuseFileAccess({
+      failedStep: 'adding-github-workflow',
+      access: 'write',
+      file: workflowFile,
+      error,
+    });
+  }
 
   printLines([
     renderInitStepLine({ step: 'added-github-workflow', outcome: 'done', detail: workflowDetail }),

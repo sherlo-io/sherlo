@@ -26,10 +26,30 @@ Setting up Sherlo...
 👉 Next steps
 ═════════════
 
-1. Add a main file to .rnstorybook
-   No main file (main.ts, main.tsx, main.js or main.jsx) in .rnstorybook, which lists your stories.
+1. Add .rnstorybook/main.ts
+   .rnstorybook has no main file, which lists your stories. Add .rnstorybook/main.ts:
+     import type { StorybookConfig } from '@storybook/react-native';
 
-2. Run your first visual test
+     const main: StorybookConfig = {
+       stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'],
+     };
+
+     export default main;
+
+2. Write your first stories
+   Your app has no stories yet. Write them in src, where main.ts looks.
+
+   You can start with a few components or screens, one story per state:
+     // Button.stories.tsx
+     import { Button } from './Button';
+     export default { component: Button };
+     export const Default = { args: { title: 'Default' } };
+     export const Disabled = { args: { title: 'Disabled', disabled: true } };
+
+   Before you write stories, read:
+     node_modules/@sherlo/react-native-storybook/guides/writing-stories.md
+
+3. Run your first visual test
    npx sherlo test
    AI agents: the first run builds the app and can take a long time, so don't let it time out.
 

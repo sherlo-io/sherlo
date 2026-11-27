@@ -25,10 +25,30 @@ Setting up Sherlo...
 [1m👉 Next steps[22m
 [2m═════════════[22m
 
-[1m1. Add a main file to .rnstorybook[22m
-   No main file (main.ts, main.tsx, main.js or main.jsx) in .rnstorybook, which lists your stories.
+[1m1. Add .rnstorybook/main.ts[22m
+   .rnstorybook has no main file, which lists your stories. Add .rnstorybook/main.ts:
+     [35mimport[39m type [2m{[22m [33mStorybookConfig[39m [2m}[22m [35mfrom[39m [32m'@storybook/react-native'[39m[2m;[22m
 
-[1m2. Run your first visual test[22m
+     [35mconst[39m [34mmain[39m[2m:[22m [33mStorybookConfig[39m [2m=[22m [2m{[22m
+       [34mstories[39m[2m:[22m [2m[[22m[32m'../src/**/*.stories.?(ts|tsx|js|jsx)'[39m[2m],[22m
+     [2m};[22m
+
+     [35mexport[39m [35mdefault[39m main[2m;[22m
+
+[1m2. Write your first stories[22m
+   Your app has no stories yet. Write them in src, where main.ts looks.
+
+   You can start with a few components or screens, one story per state:
+     [2m// Button.stories.tsx[22m
+     [35mimport[39m [2m{[22m [33mButton[39m [2m}[22m [35mfrom[39m [32m'./Button'[39m[2m;[22m
+     [35mexport[39m [35mdefault[39m [2m{[22m [34mcomponent[39m[2m:[22m [33mButton[39m [2m};[22m
+     [35mexport[39m [35mconst[39m [33mDefault[39m [2m=[22m [2m{[22m [34margs[39m[2m:[22m [2m{[22m [34mtitle[39m[2m:[22m [32m'Default'[39m [2m}[22m [2m};[22m
+     [35mexport[39m [35mconst[39m [33mDisabled[39m [2m=[22m [2m{[22m [34margs[39m[2m:[22m [2m{[22m [34mtitle[39m[2m:[22m [32m'Disabled'[39m[2m,[22m [34mdisabled[39m[2m:[22m [34mtrue[39m [2m}[22m [2m};[22m
+
+   Before you write stories, read:
+     [36mnode_modules/@sherlo/react-native-storybook/guides/writing-stories.md[39m
+
+[1m3. Run your first visual test[22m
    [36mnpx sherlo test[39m
 
 [exit 0]

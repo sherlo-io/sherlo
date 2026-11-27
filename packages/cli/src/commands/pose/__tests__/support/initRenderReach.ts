@@ -71,7 +71,16 @@ const OLD_PROJECT_STEP =
   'old project step no setup run calls: setup asks nothing now (BUILD DEBT, init-for-agents), ' +
   'and the step is deleted with it';
 
+/** The config write's failure, which needs a config setup can read but not write. */
+const CONFIG_WRITE_FAILED =
+  'a pose sets no file modes, and any other config setup cannot write fails the app check first, ' +
+  'which reads sherlo.config.json before anything is written (config-unreadable draws that)';
+
 const NOT_YET_DRAWN: Record<string, string> = {
+  'initSteps.ts initStepActivity: creating-config': CONFIG_WRITE_FAILED,
+  'initSteps.ts initStepActivity: Creating config': CONFIG_WRITE_FAILED,
+  'initSteps.ts initStepActivity: updating-config': CONFIG_WRITE_FAILED,
+  'initSteps.ts initStepActivity: Updating config': CONFIG_WRITE_FAILED,
   'initSteps.ts renderNextSteps: <your Storybook folder>': NO_FOLDER_YET,
   'initSteps.ts renderNextSteps: Set "stories" in your Storybook folder\'s main file to your code\'s folder.':
     NO_FOLDER_YET,
