@@ -2159,7 +2159,12 @@ var exactUndo = require('../src/mocking/exactUndo');
     // Each function member's shape is a 'shape' note of its handle, with the global's `laidAfter`.
     function keepShape(name, value, road, laidAfter) {
       var shapes = shapesOf(name, value);
-      shapesKept[name] = { value: value, road: road, written: JSON.stringify(shapes) };
+      shapesKept[name] = {
+        value: value,
+        road: road,
+        written: JSON.stringify(shapes),
+        isNative: isNativeValue(value),
+      };
       var shaped = {};
       shapes.forEach(function (named) {
         shaped[named[0]] = true;
@@ -2190,6 +2195,23 @@ var exactUndo = require('../src/mocking/exactUndo');
         true
       );
     }
+
+    // The bundle's reads of a member of the global object, as its code names them, routed here at
+    // transform time (metro/lockedGlobalReads.js). Each gets the member as it is, but for a native
+    // global noted as a shape and still the value noted: that one gets its stand-in, under the
+    // global's name, which leaves the global itself in place for native, so each read below it is
+    // a use recorded as any other.
+    global.__sherloGlobalRead = function (object, name) {
+      var value = object[name];
+      if (object !== global || !safeWrapping.hasOwn(shapesKept, name)) return value;
+      var kept = shapesKept[name];
+      if (!kept.isNative || kept.value !== value) return value;
+      return quietly(function () {
+        return fromNative(value, function (real) {
+          return standInFor(real, name);
+        });
+      }, value);
+    };
 
     // A global that cannot be replaced whose members, or whose function members' own, changed
     // since its shapes were noted: what the story read of it may not be the shapes, so the
