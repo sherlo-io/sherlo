@@ -39,7 +39,7 @@ Setting up Sherlo...
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
       Remove these lines from App.tsx:
-        let [33mAppEntryPoint[39m [2m=[22m [33mApp[39m[2m;[22m
+        [35mlet[39m [33mAppEntryPoint[39m [2m=[22m [33mApp[39m[2m;[22m
         [35mif[39m [2m([22mprocess[2m.[22menv[2m.[22m[33mEXPO_PUBLIC_STORYBOOK_ENABLED[39m [2m===[22m [32m'true'[39m[2m)[22m [2m{[22m
           [33mAppEntryPoint[39m [2m=[22m [32mrequire[39m[2m([22m[32m'./.rnstorybook'[39m[2m).[22m[35mdefault[39m[2m;[22m
         [2m}[22m

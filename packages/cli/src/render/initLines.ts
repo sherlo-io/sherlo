@@ -140,7 +140,7 @@ export function importPath(fromFolder: string, target: string): string {
  * function's name, a capitalised name, a run of brackets and punctuation.
  */
 const CODE_TOKEN =
-  /(\/\/.*$)|('[^']*')|\b(import|from|export|default|const|if|return|as|function)\b|\b(true|false|null|\d+)\b|\b([A-Za-z_]\w*)(?=\s*:)|\b([A-Za-z_]\w*)(?=\()|\b[A-Z]\w*|[[\]{}();,=<>/.:]+/g;
+  /(\/\/.*$)|('[^']*')|\b(import|from|export|default|const|let|var|if|else|return|as|function)\b|\b(true|false|null|\d+)\b|\b([A-Za-z_]\w*)(?=\s*:)|\b([A-Za-z_]\w*)(?=\()|\b[A-Z]\w*|[[\]{}();,=<>/.:]+/g;
 
 const CHECK_LINE_LOOK = {
   success: { color: 'green', icon: '✔' },

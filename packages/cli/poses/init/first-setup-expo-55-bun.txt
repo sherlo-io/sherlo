@@ -54,7 +54,7 @@ Setting up Sherlo...
    Set "stories" in .rnstorybook/main.js to [2m[[22m[32m'../*.stories.?(ts|tsx|js|jsx)'[39m[2m][22m.
 
    You can start with a few components or screens, one story per state:
-     [2m// Button.stories.tsx[22m
+     [2m// Button.stories.js[22m
      [35mimport[39m [2m{[22m [33mButton[39m [2m}[22m [35mfrom[39m [32m'./Button'[39m[2m;[22m
      [35mexport[39m [35mdefault[39m [2m{[22m [34mcomponent[39m[2m:[22m [33mButton[39m [2m};[22m
      [35mexport[39m [35mconst[39m [33mDefault[39m [2m=[22m [2m{[22m [34margs[39m[2m:[22m [2m{[22m [34mtitle[39m[2m:[22m [32m'Default'[39m [2m}[22m [2m};[22m

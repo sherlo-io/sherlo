@@ -30,7 +30,6 @@
         "slug": "acme-shop"
       }
     },
-    "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\n\nmodule.exports = getDefaultConfig(__dirname);\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",
       "version": "0.88.1",

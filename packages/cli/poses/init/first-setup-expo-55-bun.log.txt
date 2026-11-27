@@ -56,7 +56,7 @@ Setting up Sherlo...
    Set "stories" in .rnstorybook/main.js to ['../*.stories.?(ts|tsx|js|jsx)'].
 
    You can start with a few components or screens, one story per state:
-     // Button.stories.tsx
+     // Button.stories.js
      import { Button } from './Button';
      export default { component: Button };
      export const Default = { args: { title: 'Default' } };

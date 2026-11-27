@@ -33,7 +33,6 @@
     "frontend/apps/mobile/app.json": {
       "expo": { "name": "Acme Shop", "slug": "acme-shop", "plugins": ["expo-router"] }
     },
-    "frontend/apps/mobile/metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\n\nmodule.exports = getDefaultConfig(__dirname);\n",
     "frontend/node_modules/react-native/package.json": {
       "name": "react-native",
       "version": "0.88.1",

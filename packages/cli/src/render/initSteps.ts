@@ -414,7 +414,8 @@ export function renderNextSteps({
   // app's initialProperties reach the app as before. A TypeScript file types them `any`, the one
   // annotation that compiles under strict whatever props the app takes; `object` fails an app with
   // a required prop, and none fails noImplicitAny.
-  const propsParameter = /\.tsx?$/.test(rootComponent.file) ? 'props: any' : 'props';
+  const isTypeScript = /\.tsx?$/.test(rootComponent.file);
+  const propsParameter = isTypeScript ? 'props: any' : 'props';
   const switchLines = (name: string) => [
     `function AppOrStorybook(${propsParameter}) {`,
     '  if (isStorybookMode) return <Storybook />;',
@@ -521,8 +522,10 @@ export function renderNextSteps({
   const writeStoriesLines = [
     'You can start with a few components or screens, one story per state:',
     // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
-    // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
-    `  ${renderCode('// Button.stories.tsx')}`,
+    // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships. THE FILE
+    // IN THE APP'S OWN LANGUAGE: a JavaScript app's story is named like its root component's file
+    // (App.js, Button.stories.js), and the snippet holds no TypeScript-only syntax either way.
+    `  ${renderCode(`// Button.stories${isTypeScript ? '.tsx' : path.posix.extname(rootComponent.file)}`)}`,
     `  ${renderCode("import { Button } from './Button';")}`,
     `  ${renderCode('export default { component: Button };')}`,
     // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
