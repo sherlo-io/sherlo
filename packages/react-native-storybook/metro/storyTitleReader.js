@@ -54,19 +54,10 @@
 var fs = require('fs');
 var path = require('path');
 
-var getBabelParser = require('./babelParser');
+var mockScan = require('./mockScan');
 
-function parseSource(source) {
-  try {
-    return getBabelParser().parse(source, {
-      sourceType: 'unambiguous',
-      errorRecovery: true,
-      plugins: ['typescript', 'jsx'],
-    });
-  } catch (_) {
-    return null;
-  }
-}
+var parseSource = mockScan.parseScanTarget;
+var unwrapExpression = mockScan.unwrapExpression;
 
 function readFileOrNull(absPath) {
   try {
@@ -74,23 +65,6 @@ function readFileOrNull(absPath) {
   } catch (_) {
     return null;
   }
-}
-
-// Strip TypeScript-only expression wrappers so we can see the ObjectExpression
-// underneath `x satisfies T`, `x as T`, `<T>x`, `x!`, and `(x)`. Same set
-// mockScan.js unwraps.
-function unwrapExpression(node) {
-  while (
-    node &&
-    (node.type === 'TSAsExpression' ||
-      node.type === 'TSSatisfiesExpression' ||
-      node.type === 'TSNonNullExpression' ||
-      node.type === 'TSTypeAssertion' ||
-      node.type === 'ParenthesizedExpression')
-  ) {
-    node = node.expression;
-  }
-  return node;
 }
 
 // The value of an object property whose key is written plainly as `name`.
@@ -105,8 +79,8 @@ function propertyValue(objectExpression, name) {
       prop.key.type === 'Identifier'
         ? prop.key.name
         : prop.key.type === 'StringLiteral'
-        ? prop.key.value
-        : null;
+          ? prop.key.value
+          : null;
     if (key === name) return unwrapExpression(prop.value);
   }
   return null;
