@@ -45,6 +45,12 @@ Setting up Sherlo...
         }
 
    b) In-app integration
+      Create .rnstorybook/index.ts:
+        import { view } from './storybook.requires';
+
+        const StorybookUIRoot = view.getStorybookUI({ shouldPersistSelection: false });
+
+        export default StorybookUIRoot;
       At the top of App.tsx, add:
         import { isStorybookMode } from '@sherlo/react-native-storybook';
         import Storybook from './.rnstorybook';

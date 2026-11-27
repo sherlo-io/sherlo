@@ -44,6 +44,12 @@ Setting up Sherlo...
         [2m}[22m
 
    [1mb) In-app integration[22m
+      Create .rnstorybook/index.ts:
+        [35mimport[39m [2m{[22m view [2m}[22m [35mfrom[39m [32m'./storybook.requires'[39m[2m;[22m
+
+        [35mconst[39m [33mStorybookUIRoot[39m [2m=[22m view[2m.[22m[32mgetStorybookUI[39m[2m({[22m [34mshouldPersistSelection[39m[2m:[22m [34mfalse[39m [2m});[22m
+
+        [35mexport[39m [35mdefault[39m [33mStorybookUIRoot[39m[2m;[22m
       At the top of App.tsx, add:
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m

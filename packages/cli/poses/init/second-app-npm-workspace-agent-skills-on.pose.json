@@ -1,0 +1,172 @@
+{
+  "pose": 1,
+  "argv": ["init"],
+  "workingFolder": "apps/admin",
+  "files": {
+    ".git/HEAD": "ref: refs/heads/main\n",
+    "package.json": { "name": "acme", "private": true, "workspaces": ["apps/*", "packages/*"] },
+    "package-lock.json": {
+      "name": "acme",
+      "lockfileVersion": 3,
+      "requires": true,
+      "packages": {}
+    },
+    "packages/ui/package.json": {
+      "name": "@acme/ui",
+      "version": "1.0.0",
+      "private": true,
+      "peerDependencies": { "react": "*" }
+    },
+    "AGENTS.md": "<!-- sherlo-tests:start -->\nFor finding untested screens or writing Sherlo stories, use the sherlo-tests skill first, and run its commands in apps/mobile.\n<!-- sherlo-tests:end -->\n",
+    ".agents/skills/sherlo-tests/SKILL.md": "---\nname: sherlo-tests\n---\n",
+    ".claude/skills/sherlo-tests/SKILL.md": "---\nname: sherlo-tests\n---\n",
+    ".github/workflows/sherlo.yml": "name: Sherlo\n",
+    "apps/mobile/package.json": {
+      "name": "acme-shop",
+      "version": "0.0.1",
+      "private": true,
+      "dependencies": {
+        "@sherlo/react-native-storybook": "2.0.2",
+        "@storybook/react-native": "10.7.2",
+        "react": "19.3.0",
+        "react-native": "0.88.1"
+      }
+    },
+    "apps/mobile/sherlo.config.json": {
+      "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaak7m2p9qx1",
+      "devices": [{ "id": "pixel.7.pro", "osVersion": "14" }]
+    },
+    "apps/admin/App.tsx": "import { Text, View } from 'react-native';\n\nfunction App() {\n  return (\n    <View>\n      <Text>Acme Admin</Text>\n    </View>\n  );\n}\n\nexport default App;\n",
+    "apps/admin/package.json": {
+      "name": "acme-admin",
+      "version": "0.0.1",
+      "private": true,
+      "scripts": {
+        "android": "react-native run-android",
+        "ios": "react-native run-ios",
+        "start": "react-native start"
+      },
+      "dependencies": {
+        "react": "19.3.0",
+        "react-native": "0.88.1"
+      }
+    },
+    "apps/admin/app.json": {
+      "name": "AcmeAdmin",
+      "displayName": "Acme Admin"
+    },
+    "apps/admin/index.js": "import { AppRegistry } from 'react-native';\nimport App from './App';\nimport { name as appName } from './app.json';\n\nAppRegistry.registerComponent(appName, () => App);\n",
+    "apps/admin/android/app/src/main/java/com/acmeadmin/MainActivity.kt": "package com.acmeadmin\n\nimport com.facebook.react.ReactActivity\n\nclass MainActivity : ReactActivity() {\n  override fun getMainComponentName(): String = \"AcmeAdmin\"\n}\n",
+    "apps/admin/metro.config.js": "const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');\n\nconst config = {};\n\nmodule.exports = mergeConfig(getDefaultConfig(__dirname), config);\n",
+    "node_modules/react-native/package.json": {
+      "name": "react-native",
+      "version": "0.88.1",
+      "main": "index.js"
+    },
+    "node_modules/react-native/index.js": ""
+  },
+  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": {
+    "branch": "main",
+    "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+    "dirty": false,
+    "remotes": ["git@github.com:acme/acme.git"]
+  },
+  "bundles": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  },
+  "api": [
+    {
+      "call": "trackCliInit",
+      "with": { "event": "0_init" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "1_requirements" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": [
+          {
+            "id": "k7m2p9qx",
+            "name": "Anna's team",
+            "projectCount": 1,
+            "role": "owner",
+            "featureFlags": { "agentSkills": true }
+          }
+        ]
+      }
+    },
+    {
+      "call": "createProject",
+      "with": { "teamId": "k7m2p9qx", "name": "acme-admin" },
+      "answer": {
+        "name": "acme-admin",
+        "index": 2,
+        "projectToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaak7m2p9qx1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "5_config" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "2_dependencies" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "3_metro_config" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "7_testing" },
+      "answer": { "sessionId": "init-session-1" }
+    }
+  ],
+  "masks": {},
+  "workstation": {
+    "install": { "package": "@sherlo/react-native-storybook" },
+    "storybook": {
+      "wrote": {
+        "package.json": {
+          "name": "acme-admin",
+          "version": "0.0.1",
+          "private": true,
+          "scripts": {
+            "android": "react-native run-android",
+            "ios": "react-native run-ios",
+            "start": "react-native start"
+          },
+          "dependencies": {
+            "@storybook/react-native": "10.7.2",
+            "@storybook/react-native-ui-lite": "10.7.2",
+            "react": "19.3.0",
+            "react-native": "0.88.1",
+            "storybook": "10.6.8"
+          }
+        },
+        "metro.config.js": "const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');\nconst { withStorybook } = require('@storybook/react-native/metro/withStorybook');\n\nconst config = {};\n\nmodule.exports = withStorybook(mergeConfig(getDefaultConfig(__dirname), config), { liteMode: true });\n",
+        ".rnstorybook/storybook.requires.ts": "/* do not change this file, it is auto generated by storybook. */\nimport { start, updateView, View } from '@storybook/react-native';\n\nconst normalizedStories = [];\n\nconst annotations = [require('@storybook/react-native/preview')];\n\nif (!global.view) {\n  global.view = start({ annotations, storyEntries: normalizedStories });\n} else {\n  updateView(global.view, annotations, normalizedStories);\n}\n\nexport const view: View = global.view;\n",
+        ".rnstorybook/index.ts": "import { LiteUI } from '@storybook/react-native-ui-lite';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({\n  CustomUIComponent: LiteUI,\n  shouldPersistSelection: false,\n});\n\nexport default StorybookUIRoot;\n",
+        "../../node_modules/@storybook/react-native/package.json": {
+          "name": "@storybook/react-native",
+          "version": "10.7.2",
+          "main": "index.js"
+        },
+        "../../node_modules/@storybook/react-native/index.js": ""
+      }
+    }
+  }
+}

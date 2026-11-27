@@ -104,4 +104,32 @@ describe('the skill setup writes', () => {
     expect(fs.existsSync(path.join(appFolder, 'AGENTS.md'))).toBe(false);
     expect(fs.existsSync(path.join(appFolder, '.agents'))).toBe(false);
   });
+
+  it("a second app's setup in a monorepo keeps the first app's line, and a rerun changes nothing", async () => {
+    const setUpIn = async (app: string) => {
+      putBackProjectFiles();
+      putBackProjectFiles = installProjectFiles({ root: () => path.join(root, 'apps', app) });
+      await skill(root);
+    };
+    const section = (...lines: string[]) =>
+      `${SECTION_START}\n${lines.join('\n')}\n<!-- sherlo-tests:end -->\n`;
+
+    await setUpIn('a');
+    await setUpIn('b');
+    expect(read('AGENTS.md')).toBe(
+      section(pointerFor(false, 'apps/a'), pointerFor(false, 'apps/b'))
+    );
+
+    await setUpIn('b');
+    expect(read('AGENTS.md')).toBe(
+      section(pointerFor(false, 'apps/a'), pointerFor(false, 'apps/b'))
+    );
+
+    // A rerun whose team turned scenes on changes its own folder's line, where it stands.
+    scenesFlag = 'on';
+    await setUpIn('a');
+    expect(read('AGENTS.md')).toBe(
+      section(pointerFor(true, 'apps/a'), pointerFor(false, 'apps/b'))
+    );
+  });
 });

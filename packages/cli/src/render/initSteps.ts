@@ -21,6 +21,7 @@ import {
   importPath,
   renderCode,
   renderSectionTitle,
+  renderStorybookIndexFile,
   renderStorybookMainFile,
   storiesGlob,
 } from './initLines';
@@ -565,6 +566,14 @@ export function renderNextSteps({
   // exports its routes for the server builds it too.
   const keepSetupChoice = (removesOldRender: boolean) => [
     chalk.bold('b) In-app integration'),
+    // A FOLDER WITH NO START FILE gets the file the import below loads, as a missing Storybook
+    // folder gets it (./initFixes storybookFolderFiles): without it the import cannot resolve.
+    ...(storybookIndexFile && !hasStartFile
+      ? [
+          `   Create ${storybookIndexFile}:`,
+          ...renderStorybookIndexFile().map((line) => (line ? `     ${line}` : '')),
+        ]
+      : []),
     // THE OLD WAY GOES FIRST: left in, it renders Storybook where the wrapper expects the app. Its
     // lines are named when setup read them (the `switched` and `ternary` exports), else said in
     // words.

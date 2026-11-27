@@ -13,22 +13,36 @@ const SECTION_END = '<!-- sherlo-tests:end -->';
 // own, so a mention of the file in a sentence is not one.
 const IMPORTS_AGENTS_FILE = /^@AGENTS\.md[ \t]*$/m;
 
-/** The file's text with the marked section put in: replaced when it is there, else added at the end. */
-function withMarkedSection(existing: string, pointer: string): string {
-  const section = `${SECTION_START}\n${pointer}\n${SECTION_END}`;
+/**
+ * The file's text with this app folder's pointer in the marked section, added at the end when there
+ * is none. ONE LINE PER APP FOLDER SET UP: in a monorepo a second app's run keeps the first app's
+ * line, so an agent working on either app is sent to its own folder. This folder's line, with
+ * scenes on or off, is replaced where it stands; a rerun in the same folder changes no byte.
+ */
+function withMarkedSection(existing: string, pointer: string, appFolder: string): string {
   const start = existing.indexOf(SECTION_START);
   const end = existing.indexOf(SECTION_END);
-  if (start >= 0 && end > start) {
-    return existing.slice(0, start) + section + existing.slice(end + SECTION_END.length);
+  if (!(start >= 0 && end > start)) {
+    const section = `${SECTION_START}\n${pointer}\n${SECTION_END}`;
+    return existing === '' ? `${section}\n` : `${existing.replace(/\n*$/, '\n\n')}${section}\n`;
   }
-  return existing === '' ? `${section}\n` : `${existing.replace(/\n*$/, '\n\n')}${section}\n`;
+  const thisFolderLines = [pointerFor(true, appFolder), pointerFor(false, appFolder)];
+  const lines = existing
+    .slice(start + SECTION_START.length, end)
+    .split('\n')
+    .filter((line) => line.trim() !== '');
+  const at = lines.findIndex((line) => thisFolderLines.includes(line));
+  const kept =
+    at >= 0 ? lines.map((line, index) => (index === at ? pointer : line)) : [...lines, pointer];
+  const section = `${SECTION_START}\n${kept.join('\n')}\n${SECTION_END}`;
+  return existing.slice(0, start) + section + existing.slice(end + SECTION_END.length);
 }
 
 /**
  * Leaves the person's coding agent the Sherlo guide, with scenes only when the team has them on: the
  * same file in both skill folders, and a marked section pointing at it in AGENTS.md (made when
  * missing) and in CLAUDE.md when it exists and does not import AGENTS.md. A second run replaces the
- * guide and the text between the markers only. It prints nothing.
+ * guide and its own app folder's line between the markers only. It prints nothing.
  *
  * AT THE REPOSITORY'S ROOT, where the GitHub workflow goes: a coding agent started there finds no
  * guide in an app's subfolder (Codex looks for skills only from where it starts up to the root, and
@@ -37,7 +51,8 @@ function withMarkedSection(existing: string, pointer: string): string {
  */
 async function skill(repositoryRoot: string): Promise<void> {
   const scenesAreOn = workstation().scenesFlag() === 'on';
-  const pointer = pointerFor(scenesAreOn, path.relative(repositoryRoot, getCwd()));
+  const appFolder = path.relative(repositoryRoot, getCwd());
+  const pointer = pointerFor(scenesAreOn, appFolder);
 
   for (const folder of SKILL_FOLDERS) {
     const file = path.join(repositoryRoot, folder, 'SKILL.md');
@@ -47,13 +62,13 @@ async function skill(repositoryRoot: string): Promise<void> {
 
   const agentsFile = path.join(repositoryRoot, 'AGENTS.md');
   const agents = fs.existsSync(agentsFile) ? fs.readFileSync(agentsFile, 'utf8') : '';
-  fs.writeFileSync(agentsFile, withMarkedSection(agents, pointer));
+  fs.writeFileSync(agentsFile, withMarkedSection(agents, pointer, appFolder));
 
   const claudeFile = path.join(repositoryRoot, 'CLAUDE.md');
   if (!fs.existsSync(claudeFile)) return;
   const claude = fs.readFileSync(claudeFile, 'utf8');
   if (IMPORTS_AGENTS_FILE.test(claude)) return;
-  fs.writeFileSync(claudeFile, withMarkedSection(claude, pointer));
+  fs.writeFileSync(claudeFile, withMarkedSection(claude, pointer, appFolder));
 }
 
 export default skill;
