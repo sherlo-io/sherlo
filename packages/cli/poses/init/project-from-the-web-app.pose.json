@@ -123,6 +123,13 @@
       }
     },
     {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": [{ "id": "tm000001", "name": "Storefront", "projectCount": 1, "role": "owner" }]
+      }
+    },
+    {
       "call": "trackCliInit",
       "with": {
         "event": "2_dependencies"

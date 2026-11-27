@@ -145,6 +145,21 @@
       }
     },
     {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": [
+          {
+            "id": "k7m2p9qx",
+            "name": "Anna's team",
+            "projectCount": 1,
+            "role": "owner",
+            "featureFlags": { "scenes": true, "agentSkills": true }
+          }
+        ]
+      }
+    },
+    {
       "call": "trackCliInit",
       "with": {
         "event": "2_dependencies"
@@ -179,9 +194,5 @@
       "token": "sht_poselogintoken00000000000000000"
     }
   },
-  "workstation": {
-    "install": { "package": "@sherlo/react-native-storybook" },
-    "scenes": "on",
-    "agentSkills": "on"
-  }
+  "workstation": { "install": { "package": "@sherlo/react-native-storybook" } }
 }

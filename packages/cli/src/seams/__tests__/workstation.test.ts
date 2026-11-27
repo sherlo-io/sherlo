@@ -117,7 +117,7 @@ describe('the scenes flag at the workstation', () => {
     await liveWorkstation.askScenesFlag('zz9999zz/1');
     expect(liveWorkstation.scenesFlag()).toBe('off');
 
-    // A posed run asks nothing and answers what its pose states.
+    // A posed open or capture asks nothing and answers what its pose states.
     const posed = posedWorkstation({
       install: { package: '@sherlo/react-native-storybook@2.0.2' },
       enter: 'pressed',
@@ -128,6 +128,69 @@ describe('the scenes flag at the workstation', () => {
 
     restores.forEach((restore) => restore());
     forgetScenesFlag();
+  });
+});
+
+describe("setup's team flags at a posed workstation", () => {
+  const install = { package: '@sherlo/react-native-storybook@2.0.2' };
+  let restores: (() => void)[] = [];
+
+  afterEach(() => {
+    restores.forEach((restore) => restore());
+    restores = [];
+  });
+
+  const serverListing = (featureFlags: { scenes?: boolean; agentSkills?: boolean }) => {
+    const listTeams = vi.fn(async () => ({
+      teams: [{ id: 'k3j9x2ab', name: 'T', projectCount: 1, role: null, featureFlags }],
+    }));
+    restores.push(
+      installServerCalls({ ...liveServerCalls, listTeams }),
+      installSavedLogins({ ...liveSavedLogins, read: () => ({ token: 't', email: 'a@b.c' }) })
+    );
+    return listTeams;
+  };
+
+  it('keeps the flags setup listed, and asks nothing', async () => {
+    const listTeams = serverListing({});
+    const posed = posedWorkstation({ install });
+
+    await posed.settleTeamFlags('k3j9x2ab/1', { agentSkills: true });
+
+    expect(listTeams).not.toHaveBeenCalled();
+    expect(posed.scenesFlag()).toBe('off');
+    expect(posed.agentSkillsFlag()).toBe('on');
+  });
+
+  it("asks the team list for the config project's team when setup listed none", async () => {
+    const listTeams = serverListing({ scenes: true, agentSkills: true });
+    const posed = posedWorkstation({ install });
+
+    await posed.settleTeamFlags('k3j9x2ab/1', undefined);
+
+    expect(listTeams).toHaveBeenCalledWith({ personalToken: 't' });
+    expect(posed.scenesFlag()).toBe('on');
+    expect(posed.agentSkillsFlag()).toBe('on');
+    expect(posed.refusals()).toEqual([]);
+  });
+
+  it('reads both flags off for a team the list does not hold', async () => {
+    serverListing({ scenes: true, agentSkills: true });
+    const posed = posedWorkstation({ install });
+
+    await posed.settleTeamFlags('zz9999zz/1', undefined);
+
+    expect(posed.scenesFlag()).toBe('off');
+    expect(posed.agentSkillsFlag()).toBe('off');
+  });
+
+  it('refuses a pose that states scenes in its workstation', async () => {
+    serverListing({});
+    const posed = posedWorkstation({ install, scenes: 'on' });
+
+    await posed.settleTeamFlags('k3j9x2ab/1', {});
+
+    expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'settleTeamFlags' })]);
   });
 });
 

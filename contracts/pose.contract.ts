@@ -341,7 +341,10 @@ export type ScriptedCall =
   | {
       call: 'listTeams';
       with: Record<string, never>;
-      /** `role` is the caller's membership role, or null when the API does not say. */
+      /**
+       * `role` is the caller's membership role, or null when the API does not say. `featureFlags` is
+       * what the service switched on for the team; a flag left out is off.
+       */
       answer:
         | ApiError
         | {
@@ -350,6 +353,10 @@ export type ScriptedCall =
               name: string;
               projectCount: number;
               role: string | null;
+              featureFlags?: {
+                scenes?: boolean;
+                agentSkills?: boolean;
+              };
             }>;
           };
     }
@@ -687,10 +694,12 @@ export type PosedWorkstation = {
    * the installed pods already match the lockfile, so setup skips `pod install` and never asks it.
    */
   pods?: 'installed' | 'current';
-  /** Whether the service has scenes on for the project's team. Left out: nothing answers, so off. */
+  /**
+   * Whether the service has scenes on for the project's team, for a command that asks nothing
+   * (open, capture). Left out: nothing answers. Setup asks the pose's `api` instead (its team
+   * list), so a setup that reaches the team's flags with this stated is a refusal of the pose.
+   */
   scenes?: 'on' | 'off';
-  /** Whether the service has agent skills on for the project's team. Left out: off, as scenes. */
-  agentSkills?: 'on' | 'off';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
    * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without

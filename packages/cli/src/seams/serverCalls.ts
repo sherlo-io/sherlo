@@ -674,9 +674,20 @@ export type ScriptedCall =
   | {
       call: 'listTeams';
       with: Record<string, never>;
-      /** `role` is the caller's membership role, or null when the API does not say. */
+      /**
+       * `role` is the caller's membership role, or null when the API does not say. `featureFlags`
+       * is what the service switched on for the team; a flag left out is off.
+       */
       answer:
-        | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> }
+        | {
+            teams: Array<{
+              id: string;
+              name: string;
+              projectCount: number;
+              role: string | null;
+              featureFlags?: { scenes?: boolean; agentSkills?: boolean };
+            }>;
+          }
         | ApiError;
     }
   | {

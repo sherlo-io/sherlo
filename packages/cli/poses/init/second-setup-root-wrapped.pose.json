@@ -142,6 +142,13 @@
       }
     },
     {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": [{ "id": "k7m2p9qx", "name": "Anna's team", "projectCount": 1, "role": "owner" }]
+      }
+    },
+    {
       "call": "trackCliInit",
       "with": {
         "event": "2_dependencies"

@@ -20,6 +20,7 @@ import {
   renderTeamNotChosen,
 } from '../../../render/initFixes';
 import { renderFailedInitStepLine, renderInitStepLine } from '../../../render/initSteps';
+import type { TeamFeatureFlags } from '../../../render/teamList';
 import { serverCalls } from '../../../seams/serverCalls';
 import type { SavedLogin } from '../../../seams/savedLogins';
 import hasConfigFile from '../config/hasConfigFile';
@@ -31,8 +32,16 @@ import { TeamNotFoundError } from '../../projectList/listProjectsRequest';
 import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
 import { spendTheLogin, type Person } from './logIn';
 
-/** The project setup settled, as the config holds it, and its page in the web app. */
-export type SettledProject = { projectId: string; projectPageUrl: string };
+/**
+ * The project setup settled, as the config holds it, and its page in the web app. `listedFlags`
+ * are its team's flags when setup listed the teams (a team it made has none on); undefined when
+ * the project was looked up by name, which lists no team.
+ */
+export type SettledProject = {
+  projectId: string;
+  projectPageUrl: string;
+  listedFlags?: TeamFeatureFlags;
+};
 
 async function teamAndProject(
   person: Person,
@@ -53,7 +62,7 @@ async function teamAndProject(
   const { team, login } = await chooseTeam(person, teamFlag);
   const project = await createProject(team, login);
 
-  return settled(project);
+  return { ...settled(project), listedFlags: team.featureFlags ?? {} };
 }
 
 export default teamAndProject;
@@ -106,7 +115,10 @@ async function showProjectInConfig(project: ProjectAddress, person: Person): Pro
 async function chooseTeam(
   person: Person,
   teamFlag: string | undefined
-): Promise<{ team: { id: string; name: string }; login: SavedLogin }> {
+): Promise<{
+  team: { id: string; name: string; featureFlags?: TeamFeatureFlags };
+  login: SavedLogin;
+}> {
   const {
     answer: { teams },
     login,

@@ -47,15 +47,16 @@ async function init(options: Options<THIS_COMMAND>) {
     const person = await logIn();
     // BUILD DEBT (init-for-agents): `--team` joins init's options type in ../../types.
     const teamFlag = (options as { [TEAM_OPTION]?: string })[TEAM_OPTION];
-    const { projectId } = await teamAndProject(person, {
+    const { projectId, listedFlags } = await teamAndProject(person, {
       teamFlag,
       projectFlag: options[PROJECT_OPTION],
     });
     // Written as soon as the project exists, so a run that fails at any later step leaves the
     // project in the config, and a rerun uses it rather than making a second one.
     await config({ sessionId, project: projectId });
-    // The team's flags decide two steps below: scenes' start file and the agent skill.
-    await workstation().askScenesFlag(projectId);
+    // The team's flags decide two steps below: scenes' start file and the agent skill. A rerun
+    // looked its project up by name and listed no team, so the service is asked for them here.
+    await workstation().settleTeamFlags(projectId, listedFlags);
 
     const { installedNow } = await storybook({ hasStorybook: project.hasStorybook });
     await sherloSdk();

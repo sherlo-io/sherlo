@@ -73,7 +73,15 @@
       "call": "listTeams",
       "with": {},
       "answer": {
-        "teams": [{ "id": "k7m2p9qx", "name": "Anna's team", "projectCount": 0, "role": "owner" }]
+        "teams": [
+          {
+            "id": "k7m2p9qx",
+            "name": "Anna's team",
+            "projectCount": 0,
+            "role": "owner",
+            "featureFlags": { "agentSkills": true }
+          }
+        ]
       }
     },
     {
@@ -113,5 +121,5 @@
       "token": "sht_poselogintoken00000000000000000"
     }
   },
-  "workstation": { "install": { "package": "@sherlo/react-native-storybook" }, "agentSkills": "on" }
+  "workstation": { "install": { "package": "@sherlo/react-native-storybook" } }
 }
