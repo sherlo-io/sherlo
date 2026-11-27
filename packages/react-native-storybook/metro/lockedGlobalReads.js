@@ -11,9 +11,12 @@
 // optional chaining, or a string key) is routed through the recorder's read
 // (__sherloGlobalRead, metro/polyfill.js). The recorder hands back the member as it is, except
 // a global it noted as one it cannot replace, which it hands back as its stand-in, so every read
-// below it is recorded. Where there is no recorder (outside a test run, in the quick check's
-// replay) the read runs as it was written. A write, a delete and a call of the member itself are
-// left as written, as is a read written any other way: it stays unrecorded.
+// below it is recorded. The recorder's read is reached only as a member of the global object the
+// read already names, never by a name of its own: code a compiler moves to another JS runtime
+// then takes nothing new with it. Where there is no recorder (outside a test run, in the quick
+// check's replay, on another runtime) the read runs as it was written. A write, a delete and a
+// call of the member itself are left as written, as is a read written any other way: it stays
+// unrecorded.
 
 var mockScan = require('./mockScan');
 var babelParser = require('./babelParser');
@@ -114,14 +117,19 @@ function routeGlobalReads(filename, source) {
   var routedReads = reads.map(function (read) {
     var node = read.node;
     var object = node.object.name;
-    var call = READ_FUNCTION + '(' + object + ', ' + JSON.stringify(read.name) + ')';
-    if (node.optional) call = '(' + object + ' == null ? void 0 : ' + call + ')';
+    var reader = object + '.' + READ_FUNCTION;
     var text =
-      '(typeof ' +
-      READ_FUNCTION +
+      '(' +
+      object +
+      ' != null && typeof ' +
+      reader +
       " === 'function' ? " +
-      call +
-      ' : ' +
+      reader +
+      '(' +
+      object +
+      ', ' +
+      JSON.stringify(read.name) +
+      ') : ' +
       source.slice(node.start, node.end) +
       ')';
     // A statement that began with the read must not begin with a parenthesis: the line before
