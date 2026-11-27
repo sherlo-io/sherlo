@@ -9,6 +9,10 @@
  */
 import chalk from 'chalk';
 import path from 'path';
+import {
+  STORYBOOK_UI_ROOT,
+  STORYBOOK_VIEW_IMPORT,
+} from '../commands/init/storybookAccess/startFileBranch';
 
 /**
  * A section title, underlined, with two blank lines above it and one below.
@@ -103,9 +107,9 @@ export function renderStorybookMainFile({
  */
 export function renderStorybookIndexFile(): string[] {
   return [
-    renderCode("import { view } from './storybook.requires';"),
+    renderCode(STORYBOOK_VIEW_IMPORT),
     '',
-    renderCode('const StorybookUIRoot = view.getStorybookUI({ shouldPersistSelection: false });'),
+    renderCode(STORYBOOK_UI_ROOT),
     '',
     renderCode('export default StorybookUIRoot;'),
   ];

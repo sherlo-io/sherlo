@@ -41,7 +41,7 @@ describe("the Storybook entry's require of the app", () => {
     write('package.json', JSON.stringify({ name: 'acme-app' }));
     write('index.ts', '');
 
-    writeStartFile(root);
+    writeStartFile(root, '.rnstorybook');
 
     expect(read('.rnstorybook/index.tsx')).toContain("require('../index');");
   });
@@ -51,7 +51,7 @@ describe("the Storybook entry's require of the app", () => {
     write('src/main.js', '');
     write('index.ts', '');
 
-    writeStartFile(root);
+    writeStartFile(root, '.rnstorybook');
 
     expect(read('.rnstorybook/index.tsx')).toContain("require('../src/main');");
   });
@@ -60,7 +60,7 @@ describe("the Storybook entry's require of the app", () => {
     write('package.json', JSON.stringify({ name: 'acme-app' }));
     const log = vi.spyOn(console, 'log');
 
-    expect(writeStartFile(root)).toEqual({ left: 'no-app-entry' });
+    expect(writeStartFile(root, '.rnstorybook')).toEqual({ left: 'no-app-entry' });
 
     expect(read('.rnstorybook/index.tsx')).toBe(START_FILE);
     expect(log).not.toHaveBeenCalled();

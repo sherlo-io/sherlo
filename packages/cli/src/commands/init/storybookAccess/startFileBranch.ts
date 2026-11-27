@@ -23,3 +23,29 @@ export function startFileBranch(registration: string, appRequest: string): strin
     '}',
   ];
 }
+
+/** Storybook's UI, built from the story list Storybook generates beside the start file. */
+export const STORYBOOK_VIEW_IMPORT = "import { view } from './storybook.requires';";
+export const STORYBOOK_UI_ROOT =
+  'const StorybookUIRoot = view.getStorybookUI({ shouldPersistSelection: false });';
+
+/**
+ * A whole start file, for a Storybook folder that has none: the registration's imports, Storybook's
+ * UI, and its registration, under `isStorybookMode` when scenes need the app (`appRequest`). Blank
+ * strings are blank lines.
+ */
+export function wholeStartFile(
+  imports: string[],
+  registration: string,
+  appRequest: string | null
+): string[] {
+  return [
+    ...imports,
+    ...(appRequest ? [modeImportLine(true)] : []),
+    STORYBOOK_VIEW_IMPORT,
+    '',
+    STORYBOOK_UI_ROOT,
+    '',
+    ...(appRequest ? startFileBranch(registration, appRequest) : [registration]),
+  ];
+}

@@ -20,7 +20,7 @@ Setting up Sherlo...
 - Installing Sherlo...
 ✔ Installed Sherlo       @sherlo/react-native-storybook <SHERLO_VERSION>
 ✔ Updated Metro config   metro.config.js
-✔ Updated Storybook start file .rnstorybook/index.ts
+✔ Updated start file     .rnstorybook/index.ts
 ✔ Added GitHub workflow  .github/workflows/sherlo.yml
 
 

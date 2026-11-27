@@ -6,9 +6,10 @@
  * puts its one registration under `isStorybookMode` and loads the app's entry otherwise.
  *
  * The file is found and read by the SDK's own rules (react-native-storybook
- * metro/detectStorybookSetup.js). Left as it is, with the reason answered: a start file that already
- * branches on Storybook mode, one that registers nothing yet (the next step prints the branched
- * registration, from the same text, ./startFileBranch), and one setup cannot rewrite.
+ * metro/detectStorybookSetup.js), in the Storybook folder setup found (../steps/storybookFolder).
+ * Left as it is, with the reason answered: a start file that already branches on Storybook mode, one
+ * that registers nothing yet or is not there (the next step prints the branched registration, or the
+ * whole file, from the same text, ./startFileBranch), and one setup cannot rewrite.
  * Tested in ./__tests__/writeStartFile.
  */
 import fs from 'fs';
@@ -20,7 +21,7 @@ import { modeImportLine, startFileBranch } from './startFileBranch';
 const DEFAULT_MAIN = 'index.js';
 
 type StorybookSetupReader = {
-  findStorybookEntry(projectRoot: string): string | null;
+  findStorybookEntry(projectRoot: string, configPath: string): string | null;
   detectStorybookSetup(source: string): 'default' | 'old';
   findRootRegistrations(source: string): {
     registrations: { start: number; end: number }[];
@@ -31,9 +32,9 @@ type StorybookSetupReader = {
 /**
  * What setup did with the start file. `written` and `already`: the file branches on Storybook mode.
  * `unregistered`: it registers nothing yet, so the next step names the registration to add, branched,
- * requiring `appRequest`. `left`: setup cannot make it branch, for the reason named:
+ * requiring `appRequest`. `missing`: the folder has no index file, so the next step prints the whole
+ * file to create there, branched. `left`: setup cannot make it branch, for the reason named:
  *
- *     no-start-file         - the Storybook folder has no index file
  *     not-one-registration  - the file registers a root more than once, or inside other code
  *     no-app-entry          - package.json's "main" names no file and the app has no index file
  */
@@ -41,13 +42,22 @@ export type StartFileOutcome =
   | { written: string }
   | { already: string }
   | { unregistered: string; appRequest: string }
-  | { left: 'no-start-file' | 'not-one-registration' | 'no-app-entry' };
+  | { missing: string; appRequest: string }
+  | { left: 'not-one-registration' | 'no-app-entry' };
 
-/** Rewrite the start file to branch on Storybook mode, and answer what was done. */
-function writeStartFile(projectRoot: string): StartFileOutcome {
+/**
+ * Rewrite the start file in `storybookFolder` (from the app's folder, one the app has) to branch on
+ * Storybook mode, and answer what was done.
+ */
+function writeStartFile(projectRoot: string, storybookFolder: string): StartFileOutcome {
   const reader = storybookSetupReader();
-  const startFile = reader.findStorybookEntry(projectRoot);
-  if (!startFile) return { left: 'no-start-file' };
+  const startFile = reader.findStorybookEntry(projectRoot, storybookFolder);
+  if (!startFile) {
+    // The name Storybook's installer writes; the app request is the same from any name in the folder.
+    const missing = path.join(projectRoot, storybookFolder, 'index.ts');
+    const appRequest = appEntryRequest(projectRoot, missing);
+    return appRequest ? { missing, appRequest } : { left: 'no-app-entry' };
+  }
 
   const source = fs.readFileSync(startFile, 'utf8');
   if (/\bisStorybookMode\b/.test(source)) return { already: startFile };

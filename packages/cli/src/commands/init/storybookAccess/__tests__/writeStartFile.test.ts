@@ -48,7 +48,9 @@ describe('setup writes the app start file', () => {
   it('the start file registers Storybook only in Storybook mode and loads the app otherwise, through registerRootComponent', () => {
     write('.rnstorybook/index.tsx', DEFAULT_SETUP_START_FILE);
 
-    expect(writeStartFile(root)).toEqual({ written: path.join(root, '.rnstorybook/index.tsx') });
+    expect(writeStartFile(root, '.rnstorybook')).toEqual({
+      written: path.join(root, '.rnstorybook/index.tsx'),
+    });
 
     const written = read('.rnstorybook/index.tsx');
     expect(written).toBe(
@@ -74,7 +76,7 @@ describe('setup writes the app start file', () => {
     // An app whose entry is a package's is loaded by that package's name.
     write('.rnstorybook/index.tsx', DEFAULT_SETUP_START_FILE);
     write('package.json', JSON.stringify({ name: 'acme-app', main: 'expo-router/entry' }));
-    writeStartFile(root);
+    writeStartFile(root, '.rnstorybook');
     expect(read('.rnstorybook/index.tsx')).toContain("require('expo-router/entry');");
   });
 
@@ -93,7 +95,9 @@ describe('setup writes the app start file', () => {
     ].join('\n');
     write('.rnstorybook/index.tsx', branching);
 
-    expect(writeStartFile(root)).toEqual({ already: path.join(root, '.rnstorybook/index.tsx') });
+    expect(writeStartFile(root, '.rnstorybook')).toEqual({
+      already: path.join(root, '.rnstorybook/index.tsx'),
+    });
     expect(read('.rnstorybook/index.tsx')).toBe(branching);
   });
 
@@ -103,7 +107,7 @@ describe('setup writes the app start file', () => {
       "import { view } from './storybook.requires';\n\nexport default view.getStorybookUI({});\n";
     write('.rnstorybook/index.tsx', oldSetup);
 
-    expect(writeStartFile(root)).toEqual({
+    expect(writeStartFile(root, '.rnstorybook')).toEqual({
       unregistered: path.join(root, '.rnstorybook/index.tsx'),
       appRequest: '../index',
     });
@@ -114,12 +118,25 @@ describe('setup writes the app start file', () => {
     const twice = `${DEFAULT_SETUP_START_FILE}registerRootComponent(StorybookUIRoot);\n`;
     write('.rnstorybook/index.tsx', twice);
 
-    expect(writeStartFile(root)).toEqual({ left: 'not-one-registration' });
+    expect(writeStartFile(root, '.rnstorybook')).toEqual({ left: 'not-one-registration' });
     expect(read('.rnstorybook/index.tsx')).toBe(twice);
   });
 
-  it('an app with no Storybook start file gets none', () => {
-    expect(writeStartFile(root)).toEqual({ left: 'no-start-file' });
-    expect(fs.existsSync(path.join(root, '.rnstorybook'))).toBe(false);
+  it('a Storybook folder with no start file gets none, answering the app entry the file to create requires', () => {
+    write('.rnstorybook/main.ts', 'export default { stories: [] };\n');
+
+    expect(writeStartFile(root, '.rnstorybook')).toEqual({
+      missing: path.join(root, '.rnstorybook/index.ts'),
+      appRequest: '../index',
+    });
+    expect(fs.readdirSync(path.join(root, '.rnstorybook'))).toEqual(['main.ts']);
+  });
+
+  it('the start file is found in the folder setup names, not only in the default ones', () => {
+    write('storybook/index.tsx', DEFAULT_SETUP_START_FILE);
+
+    expect(writeStartFile(root, 'storybook')).toEqual({
+      written: path.join(root, 'storybook/index.tsx'),
+    });
   });
 });

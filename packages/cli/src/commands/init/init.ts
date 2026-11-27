@@ -5,6 +5,7 @@
  * Each step prints one line, and a step the project already has says so, so a rerun picks up where
  * a failed run stopped. The run ends with the next steps, and the feedback line.
  */
+import fs from 'fs';
 import path from 'path';
 import { getCwd, printSherloIntro, throwError } from '../../helpers';
 import { renderInstalledPackageUnreadable } from '../../render/initFixes';
@@ -84,6 +85,7 @@ async function init(options: Options<THIS_COMMAND>) {
     // No folder found is named as none: a default name would send the reader to a folder the app
     // does not have.
     const folder = storybookFolder();
+    const storybookIndexFile = folder && storybookFile(folder, 'index');
     const ownStories = installedNow || !folder ? null : await hasStoriesOfItsOwn(folder);
     // A story list that could not be read says nothing of examples: the line naming why stands in.
     const examplesOnly = !!ownStories && 'found' in ownStories && !ownStories.found;
@@ -109,7 +111,9 @@ async function init(options: Options<THIS_COMMAND>) {
           ownStories && 'unreadable' in ownStories ? ownStories.unreadable : null,
         leftOutStory: ownStories && 'leftOut' in ownStories ? ownStories.leftOut : null,
         storybookFolder: folder,
-        storybookIndexFile: folder && storybookFile(folder, 'index'),
+        storybookIndexFile,
+        hasStartFile:
+          !!storybookIndexFile && fs.existsSync(path.join(getCwd(), storybookIndexFile)),
         storybookMainFile: folder && storybookFile(folder, 'main'),
         storiesFolder: await folderForStories(),
         rootRegistration: rootRegistration(),

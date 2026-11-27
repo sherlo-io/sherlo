@@ -20,7 +20,6 @@ Setting up Sherlo...
 - Installing Sherlo...
 ✔ Installed Sherlo       @sherlo/react-native-storybook <SHERLO_VERSION>
 ✔ Updated Metro config   metro.config.js
-◦ Scenes can't start yet Storybook has no start file: add .rnstorybook/index.ts, then run npx sherlo init
 ✔ Added GitHub workflow  .github/workflows/sherlo.yml
 
 
@@ -31,9 +30,19 @@ Setting up Sherlo...
    Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it. Pick one:
 
    a) Entry-point swapping (Storybook's default, recommended)
-      In .rnstorybook/index.ts, below StorybookUIRoot, add:
+      Create .rnstorybook/index.ts:
         import { registerRootComponent } from 'expo';
-        registerRootComponent(StorybookUIRoot);
+        import { isStorybookMode } from '@sherlo/react-native-storybook';
+        import { view } from './storybook.requires';
+
+        const StorybookUIRoot = view.getStorybookUI({ shouldPersistSelection: false });
+
+        // Storybook in Storybook mode; the app otherwise, as a scene launch needs it.
+        if (isStorybookMode) {
+          registerRootComponent(StorybookUIRoot);
+        } else {
+          require('../index');
+        }
 
    b) In-app integration
       At the top of App.tsx, add:

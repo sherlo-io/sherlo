@@ -35,7 +35,7 @@ Setting up Sherlo...
    Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it. Pick one:
 
    a) Entry-point swapping (Storybook's default, recommended)
-      In .rnstorybook/index.js, below StorybookUIRoot, add:
+      In .rnstorybook/index.ts, below StorybookUIRoot, add:
         import { registerRootComponent } from 'expo';
         registerRootComponent(StorybookUIRoot);
 
@@ -53,7 +53,7 @@ Setting up Sherlo...
 
 2. Replace the example stories
    Right now Sherlo would test Storybook's examples, not your app.
-   Set "stories" in .rnstorybook/main.js to ['../*.stories.?(ts|tsx|js|jsx)'].
+   Set "stories" in .rnstorybook/main.ts to ['../*.stories.?(ts|tsx|js|jsx)'].
 
    You can start with a few components or screens, one story per state:
      // Button.stories.js

@@ -10,7 +10,11 @@
  */
 import chalk from 'chalk';
 import path from 'path';
-import { modeImportLine, startFileBranch } from '../commands/init/storybookAccess/startFileBranch';
+import {
+  modeImportLine,
+  startFileBranch,
+  wholeStartFile,
+} from '../commands/init/storybookAccess/startFileBranch';
 import typedInitCommand from '../commands/init/typedInitCommand';
 import { WRITING_STORIES_GUIDE } from '../constants';
 import {
@@ -199,10 +203,10 @@ function initStepName(step: InitStep): string {
       return 'Created Metro config';
     case 'updated-metro-config':
       return 'Updated Metro config';
-    // NAMED BY THE FILE IT CHANGED, like the config and Metro lines; longer than the column, so its
-    // detail starts one space after it.
+    // NAMED BY THE FILE IT CHANGED, like the config and Metro lines, short enough for the column;
+    // the detail names the file (.rnstorybook/index.ts).
     case 'updated-storybook-start-file':
-      return 'Updated Storybook start file';
+      return 'Updated start file';
     case 'added-github-workflow':
       return 'Added GitHub workflow';
     case 'added-agent-skill':
@@ -252,18 +256,16 @@ export function renderScenesCantStartLine({
   reason,
   startFile,
 }: {
-  reason: 'no-start-file' | 'not-one-registration' | 'no-app-entry';
+  reason: 'not-one-registration' | 'no-app-entry';
   /** The start file, from the app's folder, as setup looked for it: `.rnstorybook/index.ts`. */
   startFile: string;
 }): string {
   // The rerun is the command as typed, as every refusal names it (./initFixes).
   const rerun = renderCode(typedInitCommand());
   const fix =
-    reason === 'no-start-file'
-      ? `Storybook has no start file: add ${startFile}`
-      : reason === 'not-one-registration'
-        ? `${startFile} must register its root once, in a line of its own: fix it`
-        : `"main" in package.json names no file and the app has no index file: set "main" to your app's entry file`;
+    reason === 'not-one-registration'
+      ? `${startFile} must register its root once, in a line of its own: fix it`
+      : `"main" in package.json names no file and the app has no index file: set "main" to your app's entry file`;
   return `${chalk.yellow('◦')} ${"Scenes can't start yet".padEnd(STEP_NAME_WIDTH)} ${fix}, then run ${rerun}`;
 }
 
@@ -394,6 +396,7 @@ export function renderNextSteps({
   leftOutStory,
   storybookFolder,
   storybookIndexFile,
+  hasStartFile,
   storybookMainFile,
   storiesFolder,
   rootRegistration,
@@ -429,6 +432,11 @@ export function renderNextSteps({
   storybookFolder: string | null;
   /** The folder's index and main files as the app has them (`.storybook/main.js`), from the app's folder. */
   storybookIndexFile: string | null;
+  /**
+   * Whether the index file is there. Storybook's start file is that file, so with none the steps
+   * print it whole, to create.
+   */
+  hasStartFile: boolean;
   storybookMainFile: string | null;
   /**
    * The folder the steps load and write stories in (../commands/init/steps/folderForStories), one
@@ -440,7 +448,7 @@ export function renderNextSteps({
   rootComponent: RootComponentFile;
   /**
    * With scenes on, the app's entry as Storybook's start file requires it (`../index`), when the
-   * start file registers nothing yet (../commands/init/storybookAccess/writeStartFile): the
+   * start file registers nothing yet or is not there (../commands/init/storybookAccess/writeStartFile): the
    * registration the steps print then opens the app outside Storybook mode. Null otherwise.
    */
   scenesAppEntry: string | null;
@@ -584,8 +592,19 @@ export function renderNextSteps({
   const defaultSetupChoice = (removesOldRender: boolean) => [
     // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up.
     chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
-    `   In ${storybookIndexFile ?? "your Storybook folder's index file"}, below StorybookUIRoot, add:`,
-    ...registerRoot.map((line) => `     ${line}`),
+    // A FOLDER WITH NO START FILE gets the whole file, as setup would write it (registered under
+    // Storybook mode with scenes on), never an addition to a file that isn't there.
+    ...(storybookIndexFile && !hasStartFile
+      ? [
+          `   Create ${storybookIndexFile}:`,
+          ...wholeStartFile(registration.imports, registration.call, scenesAppEntry).map((line) =>
+            line ? `     ${renderCode(line)}` : ''
+          ),
+        ]
+      : [
+          `   In ${storybookIndexFile ?? "your Storybook folder's index file"}, below StorybookUIRoot, add:`,
+          ...registerRoot.map((line) => `     ${line}`),
+        ]),
     // A ONE-LINE PICK OF STORYBOOK OR THE APP is named line for line: the export becomes the app's
     // alone, and Storybook's import goes with it.
     ...(removesOldRender && defaultExport?.form === 'ternary'

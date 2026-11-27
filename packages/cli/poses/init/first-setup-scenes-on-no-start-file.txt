@@ -19,7 +19,6 @@ Setting up Sherlo...
 [32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
 [32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook <SHERLO_VERSION>[22m
 [32m✔[39m Updated Metro config   [2mmetro.config.js[22m
-[33m◦[39m Scenes can't start yet Storybook has no start file: add .rnstorybook/index.ts, then run npx sherlo init
 [32m✔[39m Added GitHub workflow  [2m.github/workflows/sherlo.yml[22m
 
 
@@ -30,9 +29,19 @@ Setting up Sherlo...
    Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it. Pick one:
 
    [1ma) Entry-point swapping (Storybook's default, recommended)[22m
-      In .rnstorybook/index.ts, below StorybookUIRoot, add:
+      Create .rnstorybook/index.ts:
         [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
-        [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
+        [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
+        [35mimport[39m [2m{[22m view [2m}[22m [35mfrom[39m [32m'./storybook.requires'[39m[2m;[22m
+
+        [35mconst[39m [33mStorybookUIRoot[39m [2m=[22m view[2m.[22m[32mgetStorybookUI[39m[2m({[22m [34mshouldPersistSelection[39m[2m:[22m [34mfalse[39m [2m});[22m
+
+        [2m// Storybook in Storybook mode; the app otherwise, as a scene launch needs it.[22m
+        [35mif[39m [2m([22misStorybookMode[2m)[22m [2m{[22m
+          [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
+        [2m}[22m [35melse[39m [2m{[22m
+          [32mrequire[39m[2m([22m[32m'../index'[39m[2m);[22m
+        [2m}[22m
 
    [1mb) In-app integration[22m
       At the top of App.tsx, add:
