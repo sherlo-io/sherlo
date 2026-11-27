@@ -31,11 +31,6 @@ export function isFixedProperty(object: object, key: PropertyKey): boolean {
   return !!description && description.configurable === false;
 }
 
-/** Every property `object` holds fixed, named by a string or a symbol. */
-export function fixedKeysOf(object: object): Array<string | symbol> {
-  return Reflect.ownKeys(object).filter((key) => isFixedProperty(object, key));
-}
-
 /**
  * A fixed property that is also not writable: a Proxy of its holder must hand back that very value
  * on a read.
@@ -78,4 +73,122 @@ export function withNameAndLengthOf<T extends object>(wrapper: T, wrapped: unkno
 export function callableTarget(wrapped?: unknown): (...args: unknown[]) => unknown {
   // eslint-disable-next-line no-extra-bind
   return withNameAndLengthOf(function standInTarget() {}.bind(null), wrapped);
+}
+
+/**
+ * Whether `fn` can be called with `new`. It is asked of a Proxy of `fn` that answers `new` itself,
+ * so nothing of `fn` runs and none of its members is read.
+ */
+export function isConstructor(fn: object): boolean {
+  try {
+    const probe = new Proxy(fn, { construct: () => ({}) }) as new () => object;
+    return typeof new probe() === 'object';
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * A target for a stand-in of a function that cannot be called with `new`: a method, which, unlike
+ * a callable target, is no constructor, and like it owns no fixed key. It carries the name and the
+ * length of `wrapped`, the function it stands for, when given.
+ */
+export function callOnlyTarget(wrapped?: unknown): (...args: unknown[]) => unknown {
+  const { standInTarget } = {
+    standInTarget(..._args: unknown[]): unknown {
+      return undefined;
+    },
+  };
+  return withNameAndLengthOf(standInTarget, wrapped);
+}
+
+// WHAT A TARGET ALLOWS. The engine checks each answer a Proxy gives against its target, and an
+// answer the target does not allow throws where it was asked. Each rule below makes, of the answer
+// wanted, the one the target allows. A member the wanted answer lost that the target holds
+// changeable, the target loses too, so it allows the next answer as well.
+
+/**
+ * The description of `key` a Proxy of `target` reports: `wanted` (none when undefined), claimed
+ * configurable, unless the target holds the member fixed: then the target's own, carrying the
+ * wanted value only where the target's stays writable. None for a member a closed target lacks.
+ */
+export function descriptionTargetAllows(
+  target: object,
+  key: PropertyKey,
+  wanted: PropertyDescriptor | undefined
+): PropertyDescriptor | undefined {
+  const onTarget = Reflect.getOwnPropertyDescriptor(target, key);
+  if (onTarget && !onTarget.configurable) {
+    if (!onTarget.writable || !wanted || !('value' in wanted)) return onTarget;
+    return { ...onTarget, value: wanted.value };
+  }
+  if (!wanted) {
+    if (onTarget) Reflect.deleteProperty(target, key);
+    return undefined;
+  }
+  if (!onTarget && !Reflect.isExtensible(target)) return undefined;
+  return { ...wanted, configurable: true };
+}
+
+/**
+ * The member names a Proxy of `target` reports: the `wanted` ones, each once and in their order,
+ * with every one the target holds fixed. A closed target's names are all the engine takes: a name
+ * it lacks is left out.
+ */
+export function keysTargetAllows(
+  target: object,
+  wanted: Array<string | symbol>
+): Array<string | symbol> {
+  const isOpen = Reflect.isExtensible(target);
+  const allowed = new Set(wanted.filter((key) => isOpen || hasOwn(target, key)));
+  Reflect.ownKeys(target).forEach((key) => {
+    if (allowed.has(key)) return;
+    if (isFixedProperty(target, key)) allowed.add(key);
+    else Reflect.deleteProperty(target, key);
+  });
+  return Array.from(allowed);
+}
+
+/** Whether a Proxy of `target` reports it has `key`: `isIn`, unless the target holds it fixed. */
+export function hasTargetAllows(target: object, key: PropertyKey, isIn: boolean): boolean {
+  if (isIn || isFixedProperty(target, key)) return true;
+  Reflect.deleteProperty(target, key);
+  return false;
+}
+
+/**
+ * Whether a Proxy of `target` must hand back on a read of `key` what the target gives: a value
+ * held to it, or a fixed accessor with no getter, which reads as undefined.
+ */
+export function isReadHeldByTarget(target: object, key: PropertyKey): boolean {
+  if (isHeldToItsValue(target, key)) return true;
+  const description = Object.getOwnPropertyDescriptor(target, key);
+  return (
+    !!description && !description.configurable && !('value' in description) && !description.get
+  );
+}
+
+/** The prototype a Proxy of `target` reports: `wanted`, but a closed target's own. */
+export function prototypeTargetAllows(target: object, wanted: object | null): object | null {
+  return Reflect.isExtensible(target) ? wanted : Reflect.getPrototypeOf(target);
+}
+
+/** Whether a Proxy of `target` reports `key` deleted: `isDeleted`, once the target lets it go too. */
+export function deleteTargetAllows(target: object, key: PropertyKey, isDeleted: boolean): boolean {
+  return isDeleted && Reflect.deleteProperty(target, key);
+}
+
+/**
+ * Whether a Proxy of `target` reports a definition of `key` taken: `isDefined`, once the member as
+ * the value then holds it, `held`, is laid on the target too where either holds it fixed.
+ */
+export function defineTargetAllows(
+  target: object,
+  key: PropertyKey,
+  held: PropertyDescriptor | undefined,
+  isDefined: boolean
+): boolean {
+  if (!isDefined) return false;
+  const isFixed = isFixedProperty(target, key) || (!!held && held.configurable === false);
+  return !isFixed || (!!held && Reflect.defineProperty(target, key, held));
 }
