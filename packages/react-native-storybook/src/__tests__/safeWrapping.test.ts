@@ -7,17 +7,30 @@ import * as path from 'path';
 
 import {
   callableTarget,
-  fixedKeysOf,
+  callOnlyTarget,
+  defineTargetAllows,
+  deleteTargetAllows,
+  descriptionTargetAllows,
   hasOwn,
+  hasTargetAllows,
+  isConstructor,
   isFixedProperty,
   isHeldToItsValue,
   isObjectOrFunction,
+  isReadHeldByTarget,
+  keysTargetAllows,
+  prototypeTargetAllows,
   withNameAndLengthOf,
 } from '../safeWrapping';
 import { builtPolyfillSource } from './builtPolyfill';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { sharedRulesCopiedIn } = require('../../scripts/bundlePolyfill.js');
+
+// Whether `target` owns a property the engine holds fixed, named by a string or a symbol.
+function ownsAFixedKey(target: object): boolean {
+  return Reflect.ownKeys(target).some((key) => isFixedProperty(target, key));
+}
 
 // An object holding one property of each kind the engine tells apart.
 function holderOfEveryKind(): object {
@@ -60,13 +73,6 @@ describe('the rules for wrapping a value safely', () => {
     expect(isFixedProperty(Object.create(holder), 'held')).toBe(false);
   });
 
-  it('the fixed keys of an object are every fixed one it owns, named by a string or a symbol', () => {
-    const holder = holderOfEveryKind();
-    const symbol = Symbol('fixed');
-    Object.defineProperty(holder, symbol, { value: 1, configurable: false });
-    expect(fixedKeysOf(holder)).toEqual(['held', 'fixedButWritable', 'fixedGetter', symbol]);
-  });
-
   it('a property held to its value is a fixed one that is not writable, never a getter', () => {
     const holder = holderOfEveryKind();
     expect(isHeldToItsValue(holder, 'held')).toBe(true);
@@ -80,7 +86,7 @@ describe('the rules for wrapping a value safely', () => {
     const target = callableTarget();
     expect(typeof target).toBe('function');
     expect(callableTarget()).not.toBe(target);
-    expect(fixedKeysOf(target)).toEqual([]);
+    expect(ownsAFixedKey(target)).toBe(false);
     const standIn = new Proxy(target, {
       ownKeys: () => [],
       getOwnPropertyDescriptor: () => undefined,
@@ -106,7 +112,7 @@ describe('the rules for wrapping a value safely', () => {
     });
     const target = callableTarget(share);
     expect([target.name, target.length]).toEqual(['share', 2]);
-    expect(fixedKeysOf(target)).toEqual([]);
+    expect(ownsAFixedKey(target)).toBe(false);
   });
 
   it('a wrap reads the name and the length it carries without running a getter, and takes none that is not a value', () => {
@@ -125,6 +131,131 @@ describe('the rules for wrapping a value safely', () => {
     expect(reads).toBe(0);
     expect([wrap.name, wrap.length]).toEqual(['kept', 0]);
     expect(withNameAndLengthOf(function alone() {}, { name: 'object' }).name).toBe('alone');
+  });
+
+  it('a call-only target can be called but never constructed, as the function it stands for', () => {
+    const arrow = () => 'called';
+    function built() {}
+    expect([isConstructor(built), isConstructor(arrow), isConstructor(Math.max)]).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    const target = callOnlyTarget(arrow);
+    expect([isConstructor(target), target.name]).toEqual([false, 'arrow']);
+    expect(ownsAFixedKey(target)).toBe(false);
+    const standIn = new Proxy(target, { apply: () => 'called' }) as unknown as () => unknown;
+    expect(standIn()).toBe('called');
+  });
+});
+
+// An object holding, beside the kinds every holder has, a fixed setter with no getter and a
+// changeable member, closed when `isClosed`.
+function targetOfEveryKind(isClosed = false): Record<PropertyKey, unknown> {
+  const target = holderOfEveryKind() as Record<PropertyKey, unknown>;
+  Object.defineProperty(target, 'fixedSetter', { set: () => undefined, configurable: false });
+  target.changeable = 1;
+  return isClosed ? Object.preventExtensions(target) : target;
+}
+
+const WANTED = { value: 2, writable: true, enumerable: true, configurable: false };
+
+describe('the answers a Proxy target allows', () => {
+  it('a description the target holds fixed is reported as the target has it, carrying a new value only where it stays writable', () => {
+    const target = targetOfEveryKind();
+    expect(descriptionTargetAllows(target, 'held', WANTED)).toEqual(
+      Object.getOwnPropertyDescriptor(target, 'held')
+    );
+    expect(descriptionTargetAllows(target, 'fixedButWritable', WANTED)).toEqual({
+      value: 2,
+      writable: true,
+      enumerable: false,
+      configurable: false,
+    });
+    expect(descriptionTargetAllows(target, 'fixedButWritable', undefined)?.value).toBe(1);
+  });
+
+  it('a description of a member the target holds changeable is claimed configurable, and is none where the value lost it or a closed target lacks it', () => {
+    const target = targetOfEveryKind(true);
+    expect(descriptionTargetAllows(target, 'changeable', WANTED)).toEqual({
+      ...WANTED,
+      configurable: true,
+    });
+    expect(descriptionTargetAllows(target, 'missing', WANTED)).toBeUndefined();
+    expect(descriptionTargetAllows({}, 'missing', WANTED)).toEqual({
+      ...WANTED,
+      configurable: true,
+    });
+    expect(descriptionTargetAllows(target, 'changeable', undefined)).toBeUndefined();
+    expect(hasOwn(target, 'changeable')).toBe(false);
+  });
+
+  it('the keys a target allows are the wanted ones once each, with every fixed one, and on a closed target only those it holds', () => {
+    const symbol = Symbol('wanted');
+    expect(keysTargetAllows(targetOfEveryKind(), ['own', symbol, 'own'])).toEqual([
+      'own',
+      symbol,
+      'held',
+      'fixedButWritable',
+      'fixedGetter',
+      'fixedSetter',
+    ]);
+    const closed = targetOfEveryKind(true);
+    expect(keysTargetAllows(closed, ['held', 'own'])).toEqual([
+      'held',
+      'fixedButWritable',
+      'fixedGetter',
+      'fixedSetter',
+    ]);
+    expect(hasOwn(closed, 'changeable')).toBe(false);
+  });
+
+  it('a target that holds a member fixed never lets a Proxy deny it has it, and loses a changeable one the value lost', () => {
+    const target = targetOfEveryKind();
+    expect(hasTargetAllows(target, 'missing', true)).toBe(true);
+    expect(hasTargetAllows(target, 'fixedButWritable', false)).toBe(true);
+    expect(hasTargetAllows(target, 'changeable', false)).toBe(false);
+    expect(hasOwn(target, 'changeable')).toBe(false);
+  });
+
+  it('a read is held to what the target gives for a fixed value that is not writable and for a fixed accessor with no getter', () => {
+    const target = targetOfEveryKind();
+    expect(
+      ['held', 'fixedSetter', 'fixedButWritable', 'fixedGetter', 'changeable', 'missing'].map(
+        (key) => isReadHeldByTarget(target, key)
+      )
+    ).toEqual([true, true, false, false, false, false]);
+  });
+
+  it('a closed target gives its own prototype, and an open one lets the wanted one stand', () => {
+    const wanted = { wanted: true };
+    expect(prototypeTargetAllows({}, wanted)).toBe(wanted);
+    expect(prototypeTargetAllows(Object.preventExtensions({}), wanted)).toBe(Object.prototype);
+  });
+
+  it('a delete the value took stands only where the target lets the member go too', () => {
+    const target = targetOfEveryKind(true);
+    expect(deleteTargetAllows(target, 'held', true)).toBe(false);
+    expect(deleteTargetAllows(target, 'changeable', true)).toBe(true);
+    expect(hasOwn(target, 'changeable')).toBe(false);
+    expect(deleteTargetAllows(target, 'missing', false)).toBe(false);
+  });
+
+  it('a definition the value took stands only where the target takes it too, when the value holds the member fixed or the target does', () => {
+    const target = targetOfEveryKind();
+    // The member as the value holds it after the definition.
+    const heldFixed = { ...WANTED, enumerable: false, writable: false };
+    expect(defineTargetAllows(target, 'held', heldFixed, true)).toBe(false);
+    expect(defineTargetAllows(target, 'fixedButWritable', heldFixed, true)).toBe(true);
+    expect(Object.getOwnPropertyDescriptor(target, 'fixedButWritable')).toMatchObject({
+      value: 2,
+      writable: false,
+    });
+    expect(defineTargetAllows(Object.preventExtensions({}), 'new', heldFixed, true)).toBe(false);
+    const heldChangeable = { ...WANTED, configurable: true };
+    expect(defineTargetAllows(target, 'changeable', heldChangeable, true)).toBe(true);
+    expect(Object.getOwnPropertyDescriptor(target, 'changeable')?.value).toBe(1);
+    expect(defineTargetAllows(target, 'missing', heldFixed, false)).toBe(false);
   });
 });
 
