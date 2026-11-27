@@ -104,21 +104,28 @@ export function renderMonorepoRoot({ appFolders }: { appFolders: string[] }): In
  * The monorepo root's `workspaces` is not a list of folders (npm, Yarn, Bun) nor Yarn's
  * `{ "packages": [...] }`, e.g. the string `"apps/*"`. The fix prints the value it holds, then one
  * example of the right shape: a fix built from the value would need a form per wrong shape (a
- * string, a "packages" string, a number), each a branch no common mistake earns.
+ * string, a "packages" string, a number), each a branch no common mistake earns. The package
+ * manager links the listed folders only when it installs, so `installCommand` (the app's own, e.g.
+ * `npm install`) comes before the rerun.
  */
 export function renderWorkspacesWrongShape({
   file,
   value,
+  installCommand,
 }: {
   file: string;
   value: unknown;
+  installCommand: string;
 }): InitRefusal {
   return refusal(`"workspaces" in ${file} isn't a list of folders`, [
     words('It holds:'),
     code(`"workspaces": ${JSON.stringify(value)}`),
     words("Change it to a list of your apps' folders, like:"),
     code('"workspaces": ["apps/*"]'),
-    ...rerun(),
+    '',
+    words('Install your dependencies, then run setup again:'),
+    code(installCommand),
+    code(typedInitCommand()),
   ]);
 }
 

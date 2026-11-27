@@ -144,10 +144,7 @@ describe("setup's team flags at a posed workstation", () => {
     const listTeams = vi.fn(async () => ({
       teams: [{ id: 'k3j9x2ab', name: 'T', projectCount: 1, role: null, featureFlags }],
     }));
-    restores.push(
-      installServerCalls({ ...liveServerCalls, listTeams }),
-      installSavedLogins({ ...liveSavedLogins, read: () => ({ token: 't', email: 'a@b.c' }) })
-    );
+    restores.push(installServerCalls({ ...liveServerCalls, listTeams }));
     return listTeams;
   };
 
@@ -155,20 +152,20 @@ describe("setup's team flags at a posed workstation", () => {
     const listTeams = serverListing({});
     const posed = posedWorkstation({ install });
 
-    await posed.settleTeamFlags('k3j9x2ab/1', { agentSkills: true });
+    await posed.settleTeamFlags('k3j9x2ab/1', { agentSkills: true }, 't');
 
     expect(listTeams).not.toHaveBeenCalled();
     expect(posed.scenesFlag()).toBe('off');
     expect(posed.agentSkillsFlag()).toBe('on');
   });
 
-  it("asks the team list for the config project's team when setup listed none", async () => {
+  it("asks the team list for the config project's team with the login setup found it with", async () => {
     const listTeams = serverListing({ scenes: true, agentSkills: true });
     const posed = posedWorkstation({ install });
 
-    await posed.settleTeamFlags('k3j9x2ab/1', undefined);
+    await posed.settleTeamFlags('k3j9x2ab/1', undefined, 'fresh');
 
-    expect(listTeams).toHaveBeenCalledWith({ personalToken: 't' });
+    expect(listTeams).toHaveBeenCalledWith({ personalToken: 'fresh' });
     expect(posed.scenesFlag()).toBe('on');
     expect(posed.agentSkillsFlag()).toBe('on');
     expect(posed.refusals()).toEqual([]);
@@ -178,17 +175,32 @@ describe("setup's team flags at a posed workstation", () => {
     serverListing({ scenes: true, agentSkills: true });
     const posed = posedWorkstation({ install });
 
-    await posed.settleTeamFlags('zz9999zz/1', undefined);
+    await posed.settleTeamFlags('zz9999zz/1', undefined, 't');
 
     expect(posed.scenesFlag()).toBe('off');
     expect(posed.agentSkillsFlag()).toBe('off');
+  });
+
+  it('a team list that fails is no answer: the read rejects rather than read the flags off', async () => {
+    const failure = new Error('request to https://api.sherlo.io failed');
+    restores.push(
+      installServerCalls({
+        ...liveServerCalls,
+        listTeams: async () => {
+          throw failure;
+        },
+      })
+    );
+    const posed = posedWorkstation({ install });
+
+    await expect(posed.settleTeamFlags('k3j9x2ab/1', undefined, 't')).rejects.toBe(failure);
   });
 
   it('refuses a pose that states scenes in its workstation', async () => {
     serverListing({});
     const posed = posedWorkstation({ install, scenes: 'on' });
 
-    await posed.settleTeamFlags('k3j9x2ab/1', {});
+    await posed.settleTeamFlags('k3j9x2ab/1', {}, 't');
 
     expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'settleTeamFlags' })]);
   });

@@ -14,6 +14,7 @@ import {
   renderNotInAnApp,
   renderWorkspacesWrongShape,
 } from '../../../render/initFixes';
+import { packageManagerCommand } from '../helpers';
 import findPackageJsonPaths, { pnpmWorkspaceFile } from './findPackageJsonPaths';
 import hasDependency from './hasDependency';
 
@@ -73,6 +74,9 @@ async function workspacePatterns(rootFolder: string): Promise<string[]> {
               renderWorkspacesWrongShape({
                 file: relative(getCwd(), join(rootFolder, 'package.json')) || 'package.json',
                 value: workspaces,
+                // The workspaces' packages are linked at install, so the fixed list takes an
+                // install before setup can find the app in it.
+                installCommand: await packageManagerCommand('install'),
               })
             );
 

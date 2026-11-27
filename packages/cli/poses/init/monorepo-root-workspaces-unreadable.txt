@@ -21,7 +21,8 @@ Setting up Sherlo...
 [0mChange it to a list of your apps' folders, like:[0m
 [36m  "workspaces": ["apps/*"][39m
 
-[0mThen run setup again. It picks up where it stopped:[0m
+[0mInstall your dependencies, then run setup again:[0m
+[36m  npm i[39m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

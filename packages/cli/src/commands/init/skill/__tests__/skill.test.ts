@@ -46,13 +46,13 @@ describe('the skill setup writes', () => {
     scenesFlag = 'on';
     const write = vi.spyOn(process.stdout, 'write');
 
-    await skill();
+    await skill(root);
 
     for (const folder of ['.agents/skills/sherlo-tests', '.claude/skills/sherlo-tests']) {
       expect(read(`${folder}/SKILL.md`)).toBe(shippedSkillText(true));
     }
     expect(read('AGENTS.md')).toBe(
-      `${SECTION_START}\n${pointerFor(true)}\n<!-- sherlo-tests:end -->\n`
+      `${SECTION_START}\n${pointerFor(true, '')}\n<!-- sherlo-tests:end -->\n`
     );
     expect(fs.existsSync(path.join(root, 'CLAUDE.md'))).toBe(false);
     expect(write).not.toHaveBeenCalled();
@@ -62,29 +62,46 @@ describe('the skill setup writes', () => {
   it('a second setup replaces its marked section and adds no second one', async () => {
     fs.writeFileSync(path.join(root, 'AGENTS.md'), '# Our agents\n\nKeep tests green.\n');
 
-    await skill();
+    await skill(root);
     scenesFlag = 'on';
-    await skill();
+    await skill(root);
 
     expect(sectionsIn('AGENTS.md')).toBe(1);
     expect(read('AGENTS.md')).toBe(
-      `# Our agents\n\nKeep tests green.\n\n${SECTION_START}\n${pointerFor(true)}\n<!-- sherlo-tests:end -->\n`
+      `# Our agents\n\nKeep tests green.\n\n${SECTION_START}\n${pointerFor(true, '')}\n<!-- sherlo-tests:end -->\n`
     );
     expect(read('.claude/skills/sherlo-tests/SKILL.md')).toBe(shippedSkillText(true));
   });
 
-  it('CLAUDE.md gets the section only when it exists and does not import AGENTS.md', async () => {
-    await skill();
+  it('CLAUDE.md gets the section only when it exists and has no line importing AGENTS.md', async () => {
+    await skill(root);
     expect(fs.existsSync(path.join(root, 'CLAUDE.md'))).toBe(false);
 
-    fs.writeFileSync(path.join(root, 'CLAUDE.md'), '@AGENTS.md\n');
-    await skill();
-    expect(read('CLAUDE.md')).toBe('@AGENTS.md\n');
+    fs.writeFileSync(path.join(root, 'CLAUDE.md'), '# Rules\n\n@AGENTS.md\n');
+    await skill(root);
+    expect(read('CLAUDE.md')).toBe('# Rules\n\n@AGENTS.md\n');
 
-    fs.writeFileSync(path.join(root, 'CLAUDE.md'), '# Rules\n');
-    await skill();
-    await skill();
+    // A sentence naming the file imports nothing.
+    fs.writeFileSync(path.join(root, 'CLAUDE.md'), '# Rules\n\nSee @AGENTS.md for more.\n');
+    await skill(root);
+    await skill(root);
     expect(sectionsIn('CLAUDE.md')).toBe(1);
-    expect(read('CLAUDE.md')).toContain(pointerFor(false));
+    expect(read('CLAUDE.md')).toContain(pointerFor(false, ''));
+  });
+
+  it("in a monorepo the guide goes at the repository's root, and the pointer names the app's folder", async () => {
+    const appFolder = path.join(root, 'apps', 'mobile');
+    fs.mkdirSync(appFolder, { recursive: true });
+    putBackProjectFiles();
+    putBackProjectFiles = installProjectFiles({ root: () => appFolder });
+
+    await skill(root);
+
+    expect(read('.agents/skills/sherlo-tests/SKILL.md')).toBe(shippedSkillText(false));
+    expect(read('AGENTS.md')).toContain(
+      'use the sherlo-tests skill first, and run its commands in apps/mobile.'
+    );
+    expect(fs.existsSync(path.join(appFolder, 'AGENTS.md'))).toBe(false);
+    expect(fs.existsSync(path.join(appFolder, '.agents'))).toBe(false);
   });
 });

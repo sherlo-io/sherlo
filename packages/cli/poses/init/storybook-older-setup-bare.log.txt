@@ -34,19 +34,24 @@ Setting up Sherlo...
         import { AppRegistry } from 'react-native';
         import { name as appName } from '../app.json';
         AppRegistry.registerComponent(appName, () => StorybookUIRoot);
-      Then remove your app's code that renders Storybook, and its import.
+      Then in App.tsx, remove:
+        import StorybookUIRoot from './.rnstorybook';
+      And change:
+        export default process.env.STORYBOOK_ENABLED === 'true' ? StorybookUIRoot : App;
+      to:
+        export default App;
 
    b) In-app integration
-      First remove your app's code that renders Storybook, and its import.
+      First remove this line from App.tsx:
+        import StorybookUIRoot from './.rnstorybook';
       At the top of App.tsx, add:
         import { isStorybookMode } from '@sherlo/react-native-storybook';
         import Storybook from './.rnstorybook';
-      Couldn't tell how App.tsx exports your root component. Make this its default export, with your root component in place of YourApp:
+      Replace export default process.env.STORYBOOK_ENABLED === 'true' ? StorybookUIRoot : App; with:
         export default function AppOrStorybook(props: any) {
           if (isStorybookMode) return <Storybook />;
-          return <YourApp {...props} />;
+          return <App {...props} />;
         }
-      If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.
 
 2. Run your first visual test
    npx sherlo test

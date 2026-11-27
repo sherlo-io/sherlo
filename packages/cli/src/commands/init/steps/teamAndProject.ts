@@ -41,6 +41,8 @@ export type SettledProject = {
   projectId: string;
   projectPageUrl: string;
   listedFlags?: TeamFeatureFlags;
+  /** The login the service took for these calls: a saved one, or the one setup logged in again for. */
+  personalToken: string;
 };
 
 async function teamAndProject(
@@ -53,8 +55,8 @@ async function teamAndProject(
   const flagProject = projectFlag ? parseProject(projectFlag) : undefined;
   const existingProject = flagProject ?? (teamFlag ? undefined : await readProjectFromConfig());
   if (existingProject) {
-    await showProjectInConfig(existingProject, person);
-    return settled(existingProject);
+    const login = await showProjectInConfig(existingProject, person);
+    return { ...settled(existingProject), personalToken: login.token };
   }
 
   // The first call of either path goes through `spendTheLogin`: a saved login the service refuses
@@ -62,15 +64,22 @@ async function teamAndProject(
   const { team, login } = await chooseTeam(person, teamFlag);
   const project = await createProject(team, login);
 
-  return { ...settled(project), listedFlags: team.featureFlags ?? {} };
+  return {
+    ...settled(project),
+    listedFlags: team.featureFlags ?? {},
+    personalToken: login.token,
+  };
 }
 
 export default teamAndProject;
 
 /* ========================================================================== */
 
-/** The team and project a config already names, by name - refused when this person cannot reach them. */
-async function showProjectInConfig(project: ProjectAddress, person: Person): Promise<void> {
+/**
+ * The team and project a config already names, by name - refused when this person cannot reach them.
+ * Answers the login the service took, so a later call spends that one, not the saved one it replaced.
+ */
+async function showProjectInConfig(project: ProjectAddress, person: Person): Promise<SavedLogin> {
   // A team the person is not in and a project its team does not hold are one answer: no access.
   // The service refuses a team out of reach the way it refuses a dead login, so the team list,
   // which names no team, tells the two apart.
@@ -109,6 +118,7 @@ async function showProjectInConfig(project: ProjectAddress, person: Person): Pro
     renderInitStepLine({ step: 'using-team', outcome: 'done', detail: team.name }),
     renderInitStepLine({ step: 'using-project', outcome: 'done', detail: projectInTeam.name }),
   ]);
+  return login;
 }
 
 /** `--team`, the one team the person is in, or a new one named after them. */
@@ -250,7 +260,7 @@ function parseProject(project: string): ProjectAddress | undefined {
   return teamId && projectIndex ? { teamId, projectIndex: Number(projectIndex) } : undefined;
 }
 
-function settled(project: ProjectAddress): SettledProject {
+function settled(project: ProjectAddress): Omit<SettledProject, 'personalToken'> {
   return {
     projectId: asConfigProject(project),
     projectPageUrl: `${getAppDomain()}/project?t=${project.teamId}&p=${project.projectIndex}`,

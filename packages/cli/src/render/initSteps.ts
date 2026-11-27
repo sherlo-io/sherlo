@@ -10,6 +10,8 @@
  */
 import chalk from 'chalk';
 import path from 'path';
+import { modeImportLine, startFileBranch } from '../commands/init/storybookAccess/startFileBranch';
+import typedInitCommand from '../commands/init/typedInitCommand';
 import { WRITING_STORIES_GUIDE } from '../constants';
 import {
   importPath,
@@ -33,7 +35,9 @@ export interface RootComponentFile {
    * for an unnamed one), `named` for a separate `export default App;`, `wrapped` for
    * `export default Sentry.wrap(App);` with `call` the wrapping call (`Sentry.wrap`), kept around
    * the switch, `switched` for Storybook's old switch (`let AppEntryPoint = App;` set to Storybook
-   * in an `if`) with `name` the app it holds and `switchCode` its lines, to be removed. Null when
+   * in an `if`) with `name` the app it holds and `switchCode` its lines, to be removed, `ternary`
+   * for one line picking Storybook or the app (`export default ... ? StorybookUIRoot : App;`) with
+   * `name` the app and `storybookImport` the line importing Storybook, to be removed. Null when
    * the file is missing or exports it another way (nested wrappers, a lowercase name): the generic
    * form is shown.
    */
@@ -41,6 +45,7 @@ export interface RootComponentFile {
     | { form: 'declared'; line: string; rewritten: string; name: string }
     | { form: 'named'; line: string; name: string }
     | { form: 'switched'; line: string; name: string; switchCode: string[] }
+    | { form: 'ternary'; line: string; name: string; storybookImport: string }
     | { form: 'wrapped'; line: string; name: string; call: string }
     | null;
 }
@@ -150,7 +155,7 @@ export type InitStep =
   | 'updated-sherlo'
   | 'created-metro-config'
   | 'updated-metro-config'
-  | 'set-up-for-scenes'
+  | 'updated-storybook-start-file'
   | 'added-github-workflow'
   | 'added-agent-skill';
 
@@ -194,8 +199,10 @@ function initStepName(step: InitStep): string {
       return 'Created Metro config';
     case 'updated-metro-config':
       return 'Updated Metro config';
-    case 'set-up-for-scenes':
-      return 'Set up for scenes';
+    // NAMED BY THE FILE IT CHANGED, like the config and Metro lines; longer than the column, so its
+    // detail starts one space after it.
+    case 'updated-storybook-start-file':
+      return 'Updated Storybook start file';
     case 'added-github-workflow':
       return 'Added GitHub workflow';
     case 'added-agent-skill':
@@ -204,21 +211,60 @@ function initStepName(step: InitStep): string {
 }
 
 /**
- * The agent skill step's line: the skill's name, and the files that point the coding agent at it
- * (AGENTS.md always, CLAUDE.md when the app has one that does not import AGENTS.md).
+ * The agent skill step's line: the skill, the folders it was written in, and the files that point
+ * the coding agent at it (AGENTS.md always, CLAUDE.md when the app has one that does not import
+ * AGENTS.md), each told as created or updated in this run, like the config and Metro lines, and as
+ * named in when this run left it as it was. Paths are from the app's folder.
  */
 export function renderAgentSkillLine({
   outcome,
+  skillsFolders,
   pointerFiles,
 }: {
   outcome: StepOutcome;
-  pointerFiles: string[];
+  /** The folders the guide is in: `.agents/skills`, `.claude/skills`. */
+  skillsFolders: string[];
+  pointerFiles: Array<{ file: string; change: 'created' | 'updated' | 'none' }>;
 }): string {
+  const filesThat = (change: 'created' | 'updated' | 'none') =>
+    pointerFiles.filter((pointer) => pointer.change === change).map(({ file }) => file);
+  const told = [
+    { words: 'created', files: filesThat('created') },
+    { words: 'updated', files: filesThat('updated') },
+    { words: 'named in', files: filesThat('none') },
+  ].filter(({ files }) => files.length > 0);
   return renderInitStepLine({
     step: 'added-agent-skill',
     outcome,
-    detail: `sherlo-tests, named in ${pointerFiles.join(' and ')}`,
+    detail: [
+      `sherlo-tests in ${skillsFolders.join(' and ')}`,
+      ...told.map(({ words, files }) => `${words} ${files.join(' and ')}`),
+    ].join(', '),
   });
+}
+
+/**
+ * The line of a scenes start file setup could not write, with what to do, for a team with scenes
+ * on: a scene launch opens the app from Storybook's start file, so scenes can't start until it is
+ * fixed. `rerun`: the setup command to run again.
+ */
+export function renderScenesCantStartLine({
+  reason,
+  startFile,
+}: {
+  reason: 'no-start-file' | 'not-one-registration' | 'no-app-entry';
+  /** The start file, from the app's folder, as setup looked for it: `.rnstorybook/index.ts`. */
+  startFile: string;
+}): string {
+  // The rerun is the command as typed, as every refusal names it (./initFixes).
+  const rerun = renderCode(typedInitCommand());
+  const fix =
+    reason === 'no-start-file'
+      ? `Storybook has no start file: add ${startFile}`
+      : reason === 'not-one-registration'
+        ? `${startFile} must register its root once, in a line of its own: fix it`
+        : `"main" in package.json names no file and the app has no index file: set "main" to your app's entry file`;
+  return `${chalk.yellow('◦')} ${"Scenes can't start yet".padEnd(STEP_NAME_WIDTH)} ${fix}, then run ${rerun}`;
 }
 
 /** The workflow step's line when the code is not on GitHub, so setup writes no workflow. */
@@ -243,6 +289,7 @@ export type FailedInitStep =
   | 'installing-sherlo'
   | 'creating-config'
   | 'updating-config'
+  | 'reading-team-features'
   | 'creating-metro-config'
   | 'updating-metro-config'
   | 'adding-github-workflow';
@@ -283,6 +330,8 @@ function initStepActivity(step: FailedInitStep): string {
       return 'Creating config';
     case 'updating-config':
       return 'Updating config';
+    case 'reading-team-features':
+      return "Reading the team's features";
     case 'creating-metro-config':
       return 'Creating Metro config';
     case 'updating-metro-config':
@@ -349,6 +398,7 @@ export function renderNextSteps({
   storiesFolder,
   rootRegistration,
   rootComponent,
+  scenesAppEntry,
   reader,
 }: {
   storybook:
@@ -388,6 +438,12 @@ export function renderNextSteps({
   rootRegistration: RootRegistration;
   /** The file the app's root component is in (../commands/init/steps/rootComponentFile). */
   rootComponent: RootComponentFile;
+  /**
+   * With scenes on, the app's entry as Storybook's start file requires it (`../index`), when the
+   * start file registers nothing yet (../commands/init/storybookAccess/writeStartFile): the
+   * registration the steps print then opens the app outside Storybook mode. Null otherwise.
+   */
+  scenesAppEntry: string | null;
   reader: FeedbackReader;
 }): string[] {
   // NOTHING LEFT BUT THE TEST, FOR A PERSON: setup starts it, so nobody leaves it for later. The
@@ -403,28 +459,38 @@ export function renderNextSteps({
   // goes in, and what to remove - no docs link, which an agent rarely opens.
   // THE NAME THE NATIVE CODE OPENS decides the code: a bare app with Expo modules that calls
   // registerRootComponent registers "main" and crashes at launch (proven on device).
-  const registerRoot =
+  const registration =
     rootRegistration.registers === 'main'
-      ? [
-          renderCode("import { registerRootComponent } from 'expo';"),
-          renderCode('registerRootComponent(StorybookUIRoot);'),
-        ]
+      ? {
+          imports: ["import { registerRootComponent } from 'expo';"],
+          call: 'registerRootComponent(StorybookUIRoot);',
+        }
       : // With no index file found, the path to app.json is unknown: the name is written out.
         rootRegistration.inAppJson && storybookIndexFile
-        ? [
-            renderCode("import { AppRegistry } from 'react-native';"),
-            // From the index's folder to app.json in the app's folder, however deep the folder is.
-            renderCode(
-              `import { name as appName } from '${importPath(path.posix.dirname(storybookIndexFile), 'app.json')}';`
-            ),
-            renderCode('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
-          ]
-        : [
-            renderCode("import { AppRegistry } from 'react-native';"),
-            renderCode(
-              `AppRegistry.registerComponent('${rootRegistration.name}', () => StorybookUIRoot);`
-            ),
-          ];
+        ? {
+            imports: [
+              "import { AppRegistry } from 'react-native';",
+              // From the index's folder to app.json in the app's folder, however deep the folder is.
+              `import { name as appName } from '${importPath(path.posix.dirname(storybookIndexFile), 'app.json')}';`,
+            ],
+            call: 'AppRegistry.registerComponent(appName, () => StorybookUIRoot);',
+          }
+        : {
+            imports: ["import { AppRegistry } from 'react-native';"],
+            call: `AppRegistry.registerComponent('${rootRegistration.name}', () => StorybookUIRoot);`,
+          };
+  // WITH SCENES ON, THE REGISTRATION IS BRANCHED, as setup writes it into a start file that has one
+  // (../commands/init/storybookAccess/startFileBranch): a scene launches in testing mode and needs
+  // the app, so a start file registering Storybook alone cannot launch it.
+  const registerRoot = (
+    scenesAppEntry
+      ? [
+          ...registration.imports,
+          modeImportLine(true),
+          ...startFileBranch(registration.call, scenesAppEntry),
+        ]
+      : [...registration.imports, registration.call]
+  ).map(renderCode);
   // THE IMPORT PATH GOES FROM THE ROOT COMPONENT'S FILE, so the line names the file setup found,
   // never a guess. With none found it names no file, and a comment says which file the path is
   // from: the most common place, so the path is right for most apps and checkable for the rest.
@@ -457,7 +523,9 @@ export function renderNextSteps({
           `   At the end of ${rootComponent.file}, add:`,
           ...wrapperLines,
         ]
-      : defaultExport?.form === 'named'
+      : // A ONE-LINE PICK OF STORYBOOK OR THE APP is replaced whole, like a named export: the
+        // wrapper now picks, and renders the app the line held.
+        defaultExport?.form === 'named' || defaultExport?.form === 'ternary'
         ? [`   Replace ${renderCode(defaultExport.line)} with:`, ...wrapperLines]
         : // STORYBOOK'S OLD SWITCH GOES, and the wrapper renders the app it held: kept, the
           // switch would hand the wrapper Storybook as the app.
@@ -490,10 +558,16 @@ export function renderNextSteps({
   const keepSetupChoice = (removesOldRender: boolean) => [
     chalk.bold('b) In-app integration'),
     // THE OLD WAY GOES FIRST: left in, it renders Storybook where the wrapper expects the app. Its
-    // lines are named when setup read them (the `switched` export), else said in words.
-    ...(removesOldRender && defaultExport?.form !== 'switched'
-      ? ["   First remove your app's code that renders Storybook, and its import."]
-      : []),
+    // lines are named when setup read them (the `switched` and `ternary` exports), else said in
+    // words.
+    ...(removesOldRender && defaultExport?.form === 'ternary'
+      ? [
+          `   First remove this line from ${rootComponent.file}:`,
+          `     ${renderCode(defaultExport.storybookImport)}`,
+        ]
+      : removesOldRender && defaultExport?.form !== 'switched'
+        ? ["   First remove your app's code that renders Storybook, and its import."]
+        : []),
     // THE IMPORTS AT THE FILE'S TOP, THE WRAPPER AS ITS DEFAULT EXPORT: each place named, so the
     // code works when followed word for word.
     rootComponent.found
@@ -512,9 +586,20 @@ export function renderNextSteps({
     chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
     `   In ${storybookIndexFile ?? "your Storybook folder's index file"}, below StorybookUIRoot, add:`,
     ...registerRoot.map((line) => `     ${line}`),
-    ...(removesOldRender
-      ? ["   Then remove your app's code that renders Storybook, and its import."]
-      : []),
+    // A ONE-LINE PICK OF STORYBOOK OR THE APP is named line for line: the export becomes the app's
+    // alone, and Storybook's import goes with it.
+    ...(removesOldRender && defaultExport?.form === 'ternary'
+      ? [
+          `   Then in ${rootComponent.file}, remove:`,
+          `     ${renderCode(defaultExport.storybookImport)}`,
+          '   And change:',
+          `     ${renderCode(defaultExport.line)}`,
+          '   to:',
+          `     ${renderCode(`export default ${defaultExport.name};`)}`,
+        ]
+      : removesOldRender
+        ? ["   Then remove your app's code that renders Storybook, and its import."]
+        : []),
   ];
   // THE SAME TWO CHOICES whether or not the app starts Storybook; only the reason Sherlo can't open
   // it alone differs, and code to remove exists only where an app file was seen importing the

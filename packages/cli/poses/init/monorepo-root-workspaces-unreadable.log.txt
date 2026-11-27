@@ -21,7 +21,8 @@ It holds:
 Change it to a list of your apps' folders, like:
   "workspaces": ["apps/*"]
 
-Then run setup again. It picks up where it stopped:
+Install your dependencies, then run setup again:
+  npm i
   npx sherlo init
 
 AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.

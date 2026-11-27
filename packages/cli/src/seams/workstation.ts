@@ -54,12 +54,10 @@ import { packageNameOfSpecifier } from '../commands/test/lockfilePackages';
 import { version as cliVersion } from '../../package.json';
 import { installedPodsAreCurrent } from '../helpers/installedPods';
 import runShellCommand from '../helpers/runShellCommand';
-import { getEndpointUrl } from '../helpers/buildStatusRequest';
 import { parseConfigProject } from '../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
 import { decideScenesForProject, rememberedScenesFlag } from '../helpers/scenesFlag';
 import type { TeamFeatureFlags } from '../render/teamList';
 import type { PosedFiles } from './projectFiles';
-import { savedLogins } from './savedLogins';
 import { serverCalls } from './serverCalls';
 
 /** Every act `sherlo init` performs on the machine it runs on, and nothing else. */
@@ -125,9 +123,15 @@ export type Workstation = {
   /**
    * Settle setup's team flags, kept for `scenesFlag()` and `agentSkillsFlag()`: `listedFlags` when
    * setup listed the teams, so nothing is asked twice; with none, the service is asked about the
-   * team of `configProject`. A pose answers from its `api`, as a real run is answered.
+   * team of `configProject` with `personalToken`, the login setup found the project with. A failed
+   * call rejects, so setup refuses it rather than read the flags as off. A pose answers from its
+   * `api`, as a real run is answered.
    */
-  settleTeamFlags(configProject: string, listedFlags: TeamFeatureFlags | undefined): Promise<void>;
+  settleTeamFlags(
+    configProject: string,
+    listedFlags: TeamFeatureFlags | undefined,
+    personalToken: string
+  ): Promise<void>;
 
   /** Run one git command line in the project folder; rejects when git fails (not a git folder). */
   readGit(params: { command: string; projectRoot: string }): Promise<string>;
@@ -282,7 +286,8 @@ export const liveWorkstation: Workstation = {
   agentSkillsFlag: () => undefined,
   askScenesFlag: decideScenesForProject,
   // BUILD DEBT (init-for-agents): helpers/scenesFlag keeps `listedFlags` when setup has them and
-  // asks only when it has none, answering both flags; until then it asks every time, for scenes.
+  // asks only when it has none, with the `personalToken` passed in (not the saved login), answering
+  // both flags and rejecting a failed call; until then it asks every time, for scenes.
   settleTeamFlags: (configProject) => decideScenesForProject(configProject),
 
   readGit: ({ command, projectRoot }) => runShellCommand({ command, projectRoot }),
@@ -655,7 +660,7 @@ export function posedWorkstation(
     scenesFlag: () => (settledFlags ? flagWord(settledFlags.scenes) : posed?.scenes),
     agentSkillsFlag: () => settledFlags && flagWord(settledFlags.agentSkills),
     askScenesFlag: async () => {},
-    settleTeamFlags: async (configProject, listedFlags) => {
+    settleTeamFlags: async (configProject, listedFlags, personalToken) => {
       if (posed?.scenes) {
         // Recorded, not thrown, exactly like an unanswered `addPackage` - see this file's header.
         refuse(
@@ -664,7 +669,7 @@ export function posedWorkstation(
             "workstation - say them as the team's `featureFlags` in the pose's `listTeams` answer"
         );
       }
-      settledFlags = listedFlags ?? (await askTeamFlags(configProject));
+      settledFlags = listedFlags ?? (await askTeamFlags(configProject, personalToken));
     },
 
     // A pose states no git history: a read of it fails as in a folder that is not a git folder.
@@ -729,23 +734,20 @@ function flagWord(flag: boolean | undefined): 'on' | 'off' {
 }
 
 /**
- * The flags of `configProject`'s team, asked through the login and server seams the way
- * helpers/scenesFlag asks for scenes: no login, no such team or a failed call is none on. A posed
- * run's seams answer from the pose, so its team list holds the flags.
+ * The flags of `configProject`'s team, asked through the server seam with the login setup found
+ * the project with: a team the list does not hold has none on. A FAILED CALL REJECTS: read as off,
+ * it would leave a team with scenes on set up without them, and say nothing. A posed run's seams
+ * answer from the pose, so its team list holds the flags.
  *
  * BUILD DEBT (init-for-agents): helpers/scenesFlag answers both flags, and this goes - the live
  * and the posed `settleTeamFlags` then share its one reader.
  */
-async function askTeamFlags(configProject: string): Promise<TeamFeatureFlags> {
-  try {
-    const login = savedLogins().read(getEndpointUrl());
-    if (!login) return {};
+async function askTeamFlags(
+  configProject: string,
+  personalToken: string
+): Promise<TeamFeatureFlags> {
+  const { teamId } = parseConfigProject(configProject);
+  const { teams } = await serverCalls().listTeams({ personalToken });
 
-    const { teamId } = parseConfigProject(configProject);
-    const { teams } = await serverCalls().listTeams({ personalToken: login.token });
-
-    return teams.find((team) => team.id === teamId)?.featureFlags ?? {};
-  } catch {
-    return {};
-  }
+  return teams.find((team) => team.id === teamId)?.featureFlags ?? {};
 }

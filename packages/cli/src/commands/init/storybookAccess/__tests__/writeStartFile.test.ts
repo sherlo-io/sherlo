@@ -48,7 +48,7 @@ describe('setup writes the app start file', () => {
   it('the start file registers Storybook only in Storybook mode and loads the app otherwise, through registerRootComponent', () => {
     write('.rnstorybook/index.tsx', DEFAULT_SETUP_START_FILE);
 
-    expect(writeStartFile(root)).toBe(path.join(root, '.rnstorybook/index.tsx'));
+    expect(writeStartFile(root)).toEqual({ written: path.join(root, '.rnstorybook/index.tsx') });
 
     const written = read('.rnstorybook/index.tsx');
     expect(written).toBe(
@@ -93,19 +93,33 @@ describe('setup writes the app start file', () => {
     ].join('\n');
     write('.rnstorybook/index.tsx', branching);
 
-    expect(writeStartFile(root)).toBeNull();
+    expect(writeStartFile(root)).toEqual({ already: path.join(root, '.rnstorybook/index.tsx') });
     expect(read('.rnstorybook/index.tsx')).toBe(branching);
+  });
 
-    // The old setup only exports Storybook for the app's own root to render: left too.
+  it('a start file that registers nothing yet is left, answering the app entry its registration requires', () => {
+    // The old setup only exports Storybook for the app's own root to render.
     const oldSetup =
       "import { view } from './storybook.requires';\n\nexport default view.getStorybookUI({});\n";
     write('.rnstorybook/index.tsx', oldSetup);
-    expect(writeStartFile(root)).toBeNull();
+
+    expect(writeStartFile(root)).toEqual({
+      unregistered: path.join(root, '.rnstorybook/index.tsx'),
+      appRequest: '../index',
+    });
     expect(read('.rnstorybook/index.tsx')).toBe(oldSetup);
   });
 
+  it('a start file registering a root twice is left, with the reason', () => {
+    const twice = `${DEFAULT_SETUP_START_FILE}registerRootComponent(StorybookUIRoot);\n`;
+    write('.rnstorybook/index.tsx', twice);
+
+    expect(writeStartFile(root)).toEqual({ left: 'not-one-registration' });
+    expect(read('.rnstorybook/index.tsx')).toBe(twice);
+  });
+
   it('an app with no Storybook start file gets none', () => {
-    expect(writeStartFile(root)).toBeNull();
+    expect(writeStartFile(root)).toEqual({ left: 'no-start-file' });
     expect(fs.existsSync(path.join(root, '.rnstorybook'))).toBe(false);
   });
 });

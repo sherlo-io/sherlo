@@ -19,9 +19,9 @@ Setting up Sherlo...
 ✔ Created config         sherlo.config.json (already done)
 ✔ Installed Sherlo       @sherlo/react-native-storybook <SHERLO_VERSION> (already done)
 ✔ Updated Metro config   metro.config.js (already done)
-✔ Set up for scenes      .rnstorybook/index.ts (already done)
+✔ Updated Storybook start file .rnstorybook/index.ts (already done)
 ✔ Added GitHub workflow  .github/workflows/sherlo.yml (already done)
-✔ Added agent skill      sherlo-tests, named in AGENTS.md and CLAUDE.md (already done)
+✔ Added agent skill      sherlo-tests in .agents/skills and .claude/skills, named in AGENTS.md and CLAUDE.md (already done)
 
 
 👉 Next step

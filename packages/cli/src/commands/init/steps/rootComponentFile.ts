@@ -113,6 +113,8 @@ function readDefaultExport(file: string): RootComponentFile['defaultExport'] {
   if (wrapped) {
     return { form: 'wrapped', line: wrapped[0].trim(), name: wrapped[2], call: wrapped[1] };
   }
+  const ternary = readStorybookTernary(code);
+  if (ternary) return ternary;
 
   const arrow = /^export default ((?:async )?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/m.exec(code);
   const anonymousFunction = /^export default ((?:async )?function)\s*(\()/m.exec(code);
@@ -135,6 +137,40 @@ function readDefaultExport(file: string): RootComponentFile['defaultExport'] {
     };
   }
   return null;
+}
+
+/**
+ * A DEFAULT EXPORT THAT PICKS STORYBOOK OR THE APP IN ONE LINE, as Storybook's older guides gave it:
+ * `export default process.env.STORYBOOK_ENABLED === 'true' ? StorybookUIRoot : App;`. The branch
+ * the file imports from its Storybook folder is Storybook; the other is the app, which the change
+ * exports alone. Both branches must be names and one of them imported from a path naming storybook,
+ * or which is the app is a guess, and the next step gives the generic change.
+ *
+ * PROTOTYPE (init-for-agents): read off the file's lines with patterns, enough for the forms the
+ * poses draw. BUILD DEBT (B59): the file is read with Babel's parser, so a ternary split over
+ * lines, a negated test or a `require` of the folder is read too.
+ */
+function readStorybookTernary(code: string): RootComponentFile['defaultExport'] {
+  const ternary = /^export default .+ \? ([A-Z][\w$]*) : ([A-Z][\w$]*);?[ \t]*$/m.exec(code);
+  if (!ternary) return null;
+  const [, whenTrue, whenFalse] = ternary;
+  const storybookImport = [whenTrue, whenFalse]
+    .map((name) =>
+      new RegExp(
+        `^import ${name.replace(/\$/g, '\\$')} from ['"][^'"]*[Ss]torybook[^'"]*['"];?[ \\t]*$`,
+        'm'
+      ).exec(code)
+    )
+    .find((found) => found !== null);
+  if (!storybookImport) return null;
+  const storybookName = storybookImport[0].split(' ')[1];
+
+  return {
+    form: 'ternary',
+    line: ternary[0].trim(),
+    name: storybookName === whenTrue ? whenFalse : whenTrue,
+    storybookImport: storybookImport[0].trim(),
+  };
 }
 
 export default rootComponentFile;

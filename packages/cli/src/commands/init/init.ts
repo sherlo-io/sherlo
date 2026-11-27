@@ -18,7 +18,8 @@ import { workstation } from '../../seams/workstation';
 import agentSkill from './steps/agentSkill';
 import checkProject from './steps/checkProject';
 import folderForStories from './steps/folderForStories';
-import githubWorkflow from './steps/githubWorkflow';
+import refuseFailedServiceCall from './project/refuseFailedServiceCall';
+import githubWorkflow, { findGitRoot } from './steps/githubWorkflow';
 import logIn from './steps/logIn';
 import rootComponentFile from './steps/rootComponentFile';
 import rootRegistration from './steps/rootRegistration';
@@ -47,7 +48,7 @@ async function init(options: Options<THIS_COMMAND>) {
     const person = await logIn();
     // BUILD DEBT (init-for-agents): `--team` joins init's options type in ../../types.
     const teamFlag = (options as { [TEAM_OPTION]?: string })[TEAM_OPTION];
-    const { projectId, listedFlags } = await teamAndProject(person, {
+    const { projectId, listedFlags, personalToken } = await teamAndProject(person, {
       teamFlag,
       projectFlag: options[PROJECT_OPTION],
     });
@@ -55,17 +56,26 @@ async function init(options: Options<THIS_COMMAND>) {
     // project in the config, and a rerun uses it rather than making a second one.
     await config({ sessionId, project: projectId });
     // The team's flags decide two steps below: scenes' start file and the agent skill. A rerun
-    // looked its project up by name and listed no team, so the service is asked for them here.
-    await workstation().settleTeamFlags(projectId, listedFlags);
+    // looked its project up by name and listed no team, so the service is asked for them here,
+    // with the login that found the project. A failed call stops setup: read as off, it would set
+    // a team with scenes on up without them, and say nothing.
+    await workstation()
+      .settleTeamFlags(projectId, listedFlags, personalToken)
+      .catch((error: Error) =>
+        refuseFailedServiceCall(error, 'reading-team-features', personalToken)
+      );
 
     const { installedNow } = await storybook({ hasStorybook: project.hasStorybook });
     await sherloSdk();
     await trackProgress({ event: '2_dependencies', params: { status: 'success' }, sessionId });
 
     await metroConfig(sessionId);
-    startFileForScenes();
+    const scenesAppEntry = startFileForScenes();
     await githubWorkflow(project.githubWorkflowPlace);
-    await agentSkill();
+    // The guide goes where the workflow goes: the repository's root, also for code not on GitHub.
+    await agentSkill(
+      project.githubWorkflowPlace?.repositoryRoot ?? findGitRoot(getCwd()) ?? getCwd()
+    );
 
     const reader = setupReader();
     // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike, on every
@@ -106,6 +116,7 @@ async function init(options: Options<THIS_COMMAND>) {
         rootComponent: rootComponentFile(
           !!(await getDeclaredPackageVersion(EXPO_ROUTER_PACKAGE_NAME))
         ),
+        scenesAppEntry,
         reader,
       })
     );

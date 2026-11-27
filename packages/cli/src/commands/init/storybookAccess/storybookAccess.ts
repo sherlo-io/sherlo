@@ -9,9 +9,9 @@ import writeStartFile from './writeStartFile';
 async function storybookAccess(sessionId: string | null): Promise<void> {
   const projectRoot = getCwd();
   const startFile = writeStartFile(projectRoot);
-  if (startFile) {
+  if ('written' in startFile) {
     console.log(
-      `${chalk.green('✔')} ${path.relative(projectRoot, startFile)} opens Storybook in Storybook mode and your app otherwise`
+      `${chalk.green('✔')} ${path.relative(projectRoot, startFile.written)} opens Storybook in Storybook mode and your app otherwise`
     );
   }
 

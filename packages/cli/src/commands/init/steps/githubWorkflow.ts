@@ -30,7 +30,7 @@ import detectPackageManager from '../helpers/detectPackageManager';
  * BUILD DEBT (init-for-agents): the same walk as seams/appBuilder.ts `easUploadRoot`; move it to
  * src/helpers/findGitRoot.ts and have both call it.
  */
-function findGitRoot(folder: string): string | null {
+export function findGitRoot(folder: string): string | null {
   let current = path.resolve(folder);
   while (true) {
     if (fs.existsSync(path.join(current, '.git'))) return current;
