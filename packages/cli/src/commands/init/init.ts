@@ -85,6 +85,7 @@ async function init(options: Options<THIS_COMMAND>) {
         storybook: storybookState,
         storyListUnreadable:
           ownStories && 'unreadable' in ownStories ? ownStories.unreadable : null,
+        leftOutStory: ownStories && 'leftOut' in ownStories ? ownStories.leftOut : null,
         storybookFolder: folder,
         storybookIndexFile: folder && storybookFile(folder, 'index'),
         storybookMainFile: folder && storybookFile(folder, 'main'),

@@ -28,17 +28,8 @@ Setting up Sherlo...
 
 1. Replace the example stories
    Right now Sherlo would test Storybook's examples, not your app.
-   Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ['../src'].
-
-   You can start with a few components or screens, one story per state:
-     // Button.stories.tsx
-     import { Button } from './Button';
-     export default { component: Button };
-     export const Default = { args: { title: 'Default' } };
-     export const Disabled = { args: { title: 'Disabled', disabled: true } };
-
-   Before you write stories, read:
-     node_modules/@sherlo/react-native-storybook/guides/writing-stories.md
+   Your story src/Button.stories.tsx isn't in "stories" in .rnstorybook/main.ts, so Storybook never loads it.
+   Set "stories" to ['../src/**/*.stories.?(ts|tsx|js|jsx)'].
 
 2. Run your first visual test
    npx sherlo test

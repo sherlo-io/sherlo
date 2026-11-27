@@ -35,8 +35,6 @@ b) With import
    import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';
    export default withStorybook(config);
 
-If Storybook's own withStorybook is there, swap it for Sherlo's.
-
 Then run setup again. It picks up where it stopped:
   npx sherlo init
 

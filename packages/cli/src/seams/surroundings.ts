@@ -38,12 +38,11 @@ export type Surroundings = {
    */
   readGitRemotes(projectRoot: string): Promise<string[]>;
   /**
-   * The short hash of the commit that deleted a folder (relative to the project folder) git's
-   * history held, or null when git never held it. Setup reads it to tell a missing Storybook folder
-   * that can be restored - and print the exact command that restores it - from one that never
-   * existed, whose configPath points at the wrong place.
+   * What git knows of a folder (relative to the project folder) that is gone from it. Setup reads
+   * it to tell a missing Storybook folder that can be restored - and print the exact command that
+   * restores it - from one git never held, and says nothing of git when git could not answer.
    */
-  commitThatDeleted(projectRoot: string, folder: string): Promise<string | null>;
+  folderHistory(projectRoot: string, folder: string): Promise<FolderHistory>;
   /**
    * What the clock answers while a command waits, in milliseconds since the epoch - the wait
    * loop's deadline and every "has the deadline passed" read come through here.
@@ -52,6 +51,20 @@ export type Surroundings = {
   /** Let time pass between two polls of the wait loop. A posed run never sleeps: its clock is the pose's. */
   sleep(ms: number): Promise<void>;
 };
+
+/**
+ * What git knows of a folder gone from the project:
+ *
+ *     in-last-commit  - the last commit still holds it: it was deleted and the deletion not committed
+ *     deleted         - a commit deleted it, with that commit's short hash
+ *     never           - git's history never held it
+ *     unknown         - no repository, or the git read failed: nothing is known either way
+ */
+export type FolderHistory =
+  | { held: 'in-last-commit' }
+  | { held: 'deleted'; commit: string }
+  | { held: 'never' }
+  | { held: 'unknown' };
 
 /**
  * More sleeps than any pose scripts polls for: one sleep follows each poll, and a pose scripts its
@@ -70,11 +83,11 @@ export const liveSurroundings: Surroundings = {
   readGitRemotes: async () => {
     throw new Error('readGitRemotes is not available yet.');
   },
-  // BUILD DEBT (init-for-agents, gap B47): the last commit that touched the folder, which for a
-  // folder gone now is the one that deleted it (`git log -1 --format=%h -- <folder>`); no commit,
-  // a folder outside a repository or a failed read is null.
-  commitThatDeleted: async () => {
-    throw new Error('commitThatDeleted is not available yet.');
+  // BUILD DEBT (init-for-agents, gap B47): in-last-commit when `git ls-tree HEAD -- <folder>`
+  // lists it; else deleted with the hash `git log -1 --diff-filter=D --format=%h -- <folder>`
+  // prints; else never; a folder outside a repository, or any git read that failed, is unknown.
+  folderHistory: async () => {
+    throw new Error('folderHistory is not available yet.');
   },
   now: () => Date.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -124,9 +137,10 @@ export type PosedGit =
       remotes?: string[];
       /**
        * Folders git's history held that are gone from the project now, each with the short hash of
-       * the commit that deleted it; left out when there are none.
+       * the commit that deleted it, or null when the deletion is not committed and the last commit
+       * still holds the folder; left out when there are none.
        */
-      gone?: Array<{ folder: string; deletedIn: string }>;
+      gone?: Array<{ folder: string; deletedIn: string | null }>;
     }
   | 'none'
   | 'unavailable';
@@ -202,9 +216,14 @@ export function posedSurroundings({
 
     readGitRemotes: async () => (typeof git === 'object' ? (git.remotes ?? []) : []),
 
-    commitThatDeleted: async (_projectRoot: string, folder: string) =>
-      (typeof git === 'object' && git.gone?.find((gone) => gone.folder === folder)?.deletedIn) ||
-      null,
+    // A pose with no repository, or one whose git read fails, knows nothing of any folder.
+    folderHistory: async (_projectRoot: string, folder: string): Promise<FolderHistory> => {
+      if (typeof git !== 'object') return { held: 'unknown' };
+      const gone = git.gone?.find((entry) => entry.folder === folder);
+      if (!gone) return { held: 'never' };
+      if (gone.deletedIn === null) return { held: 'in-last-commit' };
+      return { held: 'deleted', commit: gone.deletedIn };
+    },
 
     readGitInfo: async (_projectRoot: string, options?: { branchOverride?: string }) => {
       // THE WORDING IS GIT'S OWN. `readGitInfoFromDisk` degrades on the stderr of a failed

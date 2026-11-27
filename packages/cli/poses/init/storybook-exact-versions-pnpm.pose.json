@@ -2,6 +2,8 @@
   "pose": 1,
   "argv": ["init"],
   "files": {
+    "index.ts": "import { registerRootComponent } from 'expo';\n\nimport App from './App';\n\nregisterRootComponent(App);\n",
+    "src/Button.tsx": "import { Text } from 'react-native';\n\nexport function Button({ title }: { title: string }) {\n  return <Text>{title}</Text>;\n}\n",
     "package.json": {
       "name": "acme-shop",
       "version": "1.0.0",

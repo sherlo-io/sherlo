@@ -25,7 +25,7 @@ import {
   renderStorybookTooOld,
 } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
-import { surroundings } from '../../../seams/surroundings';
+import { type FolderHistory, surroundings } from '../../../seams/surroundings';
 import hasConfigFile from '../config/hasConfigFile';
 import readConfig from '../config/readConfig';
 import getMetroConfigPath from '../metroConfig/getMetroConfigPath';
@@ -40,7 +40,7 @@ import storybookUpgrade from '../requirements/storybookUpgrade';
 import validateHasReactNative from '../requirements/validateHasReactNative';
 import refuseUnreadableMetroConfig from '../requirements/refuseUnreadableMetroConfig';
 import validateProjectContext from '../requirements/validateProjectContext';
-import storybookFolder from './storybookFolder';
+import storybookFolder, { DEFAULT_STORYBOOK_FOLDERS } from './storybookFolder';
 
 export type CheckedProject = {
   /** Whether the project already has Storybook for React Native among its dependencies. */
@@ -137,18 +137,15 @@ async function checkTheApp(): Promise<CheckedProject> {
     // own and every next step read it, so a missing one stops here, before anything changes.
     const folder = storybookFolder();
     if (!folder || !fs.existsSync(path.join(getCwd(), folder))) {
-      // A folder git once held is restored; one it never held was never there, so the Metro
-      // config's configPath points at the wrong place.
+      // A folder git still holds or once held is restored; one it never held, or one git could
+      // not answer for, is created or pointed at - never searched for, as a folder found by name
+      // could be another Storybook's.
       throwError(
-        renderStorybookFolderMissing(
-          folder && metroConfigPath
-            ? {
-                folder,
-                deletedIn: await surroundings().commitThatDeleted(getCwd(), folder),
-                metroConfig: path.relative(getCwd(), metroConfigPath),
-              }
-            : null
-        )
+        renderStorybookFolderMissing({
+          named: folder,
+          ...(await storybookFolderHistory(folder ? [folder] : DEFAULT_STORYBOOK_FOLDERS)),
+          metroConfig: metroConfigPath ? path.relative(getCwd(), metroConfigPath) : null,
+        })
       );
     }
   }
@@ -195,6 +192,21 @@ async function installedVersion(packageName: string): Promise<string> {
       installCommand: await packageManagerCommand('install'),
     })
   );
+}
+
+/**
+ * What git knows of the missing folder: the first of the folders git still holds in the last
+ * commit or a commit deleted, with that folder. One the git read could not answer for makes the
+ * whole answer unknown, as the same repository answers for every folder.
+ */
+async function storybookFolderHistory(
+  folders: string[]
+): Promise<{ folder: string; history: FolderHistory }> {
+  for (const folder of folders) {
+    const history = await surroundings().folderHistory(getCwd(), folder);
+    if (history.held !== 'never') return { folder, history };
+  }
+  return { folder: folders[0], history: { held: 'never' } };
 }
 
 /** `54.0.0` -> `54`. */

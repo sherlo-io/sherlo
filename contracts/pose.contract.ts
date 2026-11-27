@@ -212,11 +212,12 @@ export type PosedGit =
       remotes?: string[];
       /**
        * Folders git's history held that are gone from the project now, each with the short hash of the
-       * commit that deleted it; left out when there are none.
+       * commit that deleted it, or null when the deletion is not committed and the last commit still
+       * holds the folder; left out when there are none.
        */
       gone?: Array<{
         folder: string;
-        deletedIn: string;
+        deletedIn: string | null;
       }>;
     };
 

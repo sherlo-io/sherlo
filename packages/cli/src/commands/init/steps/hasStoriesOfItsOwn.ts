@@ -20,15 +20,29 @@ import someAppFile from './someAppFile';
 
 const STORY_FILE = /\.stories\.(?:[cm]?[jt]sx?)$/;
 
-/** The app's stories, or why its main config could not be read. */
-export type OwnStories = { found: boolean } | { unreadable: StoryListUnreadable };
+/**
+ * The app's stories, or why its main config could not be read. With none Storybook loads,
+ * `leftOut` is the first story file of the app the list leaves out (from the app's folder,
+ * `src/Button.stories.tsx`), so the next step names it and the line that loads it.
+ */
+export type OwnStories =
+  | { found: true }
+  | { found: false; leftOut: string | null }
+  | { unreadable: StoryListUnreadable };
 
 async function hasStoriesOfItsOwn(folder: string): Promise<OwnStories> {
   const storybookLoads = await storyFilesStorybookLoads(folder);
   if (typeof storybookLoads !== 'function') return { unreadable: storybookLoads };
-  return {
-    found: someAppFile((filePath) => STORY_FILE.test(filePath) && storybookLoads(filePath)),
-  };
+  // The walk stops at the first story Storybook loads; with none it has seen every story file,
+  // so the first one left out is known whenever it is needed.
+  let leftOut: string | null = null;
+  const found = someAppFile((filePath) => {
+    if (!STORY_FILE.test(filePath)) return false;
+    if (storybookLoads(filePath)) return true;
+    leftOut ??= path.relative(getCwd(), filePath).split(path.sep).join('/');
+    return false;
+  });
+  return found ? { found: true } : { found: false, leftOut };
 }
 
 /**

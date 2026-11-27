@@ -14,10 +14,10 @@ Setting up Sherlo...
 
 [32m✔[39m Checked the app        [2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>[22m
 [32m✔[39m Logged in              [2manna@example.com[22m
-[32m✔[39m Using team             [2mAnna's team[22m
+[32m✔[39m Using team             [2mStorefront[22m
 [31m✖[39m Creating the project failed
 
-[31mERROR: anna@example.com can't create projects in Anna's team[39m
+[31mERROR: anna@example.com can't create projects in Storefront[39m
 
 [1ma) Ask your team to create the project[22m
 [0m   Someone who can creates it in the web app.[0m

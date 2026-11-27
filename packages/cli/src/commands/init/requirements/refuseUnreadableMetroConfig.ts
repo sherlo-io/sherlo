@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { getCwd, throwError } from '../../../helpers';
 import { renderMetroConfigUnreadable } from '../../../render/initFixes';
+import { STORYBOOKS_WITH_STORYBOOK_RE } from '../metroConfig/constants';
 import getMetroConfigPath from '../metroConfig/getMetroConfigPath';
 import { rewriteMetroConfig } from '../metroConfig/writeMetroConfigUpdate';
 
@@ -17,7 +18,12 @@ async function refuseUnreadableMetroConfig(): Promise<void> {
   const content = await fs.promises.readFile(configPath, 'utf-8');
 
   if (rewriteMetroConfig(content) === null) {
-    throwError(renderMetroConfigUnreadable({ path: path.relative(getCwd(), configPath) }));
+    throwError(
+      renderMetroConfigUnreadable({
+        path: path.relative(getCwd(), configPath),
+        hasStorybooksWithStorybook: STORYBOOKS_WITH_STORYBOOK_RE.test(content),
+      })
+    );
   }
 }
 

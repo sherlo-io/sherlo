@@ -6,7 +6,7 @@ import { renderMetroConfigUnreadable } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { printLines, trackProgress } from '../helpers';
 import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
-import { EVENT } from './constants';
+import { EVENT, STORYBOOKS_WITH_STORYBOOK_RE } from './constants';
 import readMetroConfigState from './readMetroConfigState';
 import writeMetroConfigUpdate from './writeMetroConfigUpdate';
 
@@ -76,7 +76,12 @@ async function metroConfig(sessionId: string | null): Promise<void> {
       params: { status: 'failed:manual_edit', path: state.path },
       sessionId,
     });
-    throwError(renderMetroConfigUnreadable({ path: shownPath }));
+    throwError(
+      renderMetroConfigUnreadable({
+        path: shownPath,
+        hasStorybooksWithStorybook: STORYBOOKS_WITH_STORYBOOK_RE.test(state.content!),
+      })
+    );
   }
 
   printLines([renderStepLine({ outcome: 'done', name: STEP_NAME, detail: shownPath })]);

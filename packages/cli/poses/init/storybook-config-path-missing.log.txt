@@ -17,7 +17,8 @@ Setting up Sherlo...
 ERROR: Storybook is installed, but its folder .ondevice is missing
 
 Git never held .ondevice, so there is nothing to restore.
-Point configPath in metro.config.js at your Storybook folder:
+Create .ondevice with Storybook's main.ts and index.ts.
+Or point configPath in metro.config.js at your Storybook folder:
   configPath: './<your Storybook folder>'
 
 Then run setup again. It picks up where it stopped:

@@ -176,7 +176,13 @@ function readPosedGit(value: unknown, path: string, problems: string[]): void {
             const object8 = asObject(entry5, where7, problems);
             if (object8) {
               expectString(object8.folder, at(where7, 'folder'), problems);
-              expectString(object8.deletedIn, at(where7, 'deletedIn'), problems);
+              const oneOf9 = object8.deletedIn;
+              const where10 = at(where7, 'deletedIn');
+              if (typeof oneOf9 === 'string' || oneOf9 === null) {
+                // the value is one of these
+              } else {
+                reportWrongShape(oneOf9, 'a string or `null`', where10, problems);
+              }
               reportUnknownFields(object8, ['folder', 'deletedIn'], where7, problems);
             }
           });
@@ -192,7 +198,7 @@ function readPosedGit(value: unknown, path: string, problems: string[]): void {
   } else {
     reportWrongShape(
       oneOf1,
-      '`"none"`, `"unavailable"` or `{ branch: string; commit: string; dirty: boolean; historyFetchRefused?: string; remotes?: string[]; gone?: Array<{ folder: string; deletedIn: string }> }`',
+      '`"none"`, `"unavailable"` or `{ branch: string; commit: string; dirty: boolean; historyFetchRefused?: string; remotes?: string[]; gone?: Array<{ folder: string; deletedIn: string | null }> }`',
       path,
       problems
     );

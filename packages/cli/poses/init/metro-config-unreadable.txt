@@ -26,8 +26,6 @@ Setting up Sherlo...
    [35mimport[39m withStorybook [35mfrom[39m [32m'@sherlo/react-native-storybook/metro/withStorybook'[39m[2m;[22m
    [35mexport[39m [35mdefault[39m [32mwithStorybook[39m[2m([22mconfig[2m);[22m
 
-[0mIf Storybook's own withStorybook is there, swap it for Sherlo's.[0m
-
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m
 

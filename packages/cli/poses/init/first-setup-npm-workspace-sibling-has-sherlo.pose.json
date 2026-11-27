@@ -50,14 +50,14 @@
       "version": "0.0.1",
       "private": true,
       "dependencies": {
-        "@sherlo/react-native-storybook": "^2.4.0",
+        "@sherlo/react-native-storybook": "2.0.2",
         "react": "19.3.0",
         "react-native": "0.88.1"
       }
     },
     "node_modules/@sherlo/react-native-storybook/package.json": {
       "name": "@sherlo/react-native-storybook",
-      "version": "2.4.0",
+      "version": "2.0.2",
       "main": "index.js"
     },
     "node_modules/@sherlo/react-native-storybook/index.js": ""

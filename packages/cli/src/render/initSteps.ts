@@ -114,6 +114,7 @@ export type StoryListUnreadable = 'main-file-missing' | { loadError: string };
 export function renderNextSteps({
   storybook,
   storyListUnreadable,
+  leftOutStory,
   storybookFolder,
   storybookIndexFile,
   storybookMainFile,
@@ -135,6 +136,12 @@ export function renderNextSteps({
    * shown and the first test is not started for the person.
    */
   storyListUnreadable: StoryListUnreadable | null;
+  /**
+   * A story file of the app that the main config's `stories` leave out (`src/Button.stories.tsx`,
+   * from the app's folder), when Storybook loads none of the app's own: the step then names it
+   * and the exact list that loads it, as the app already has stories to show.
+   */
+  leftOutStory: string | null;
   /**
    * The app's Storybook folder as the Metro wrapper finds it (../commands/init/steps/storybookFolder):
    * `.rnstorybook`, or `.storybook` kept by an app upgraded from Storybook 8. Null when setup found
@@ -244,32 +251,41 @@ export function renderNextSteps({
     title: 'Replace the example stories',
     // WHERE STORYBOOK LOOKS: an agent told to write "your components' stories" writes them where
     // Storybook never loads them.
-    content: [
-      // WHY FIRST, THEN A SMALL START: the examples must go because Sherlo would test them, and
-      // a few components are enough to begin, so the step never reads as a big job.
-      "Right now Sherlo would test Storybook's examples, not your app.",
-      // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
-      // outside it drop out, so they need no deleting.
-      storybookMainFile && storybookFolder
-        ? `Set "stories" in ${storybookMainFile} to your code's folder, e.g. ${renderCode(`['${importPath(storybookFolder, 'src')}']`)}.`
-        : `Set "stories" in your Storybook folder's main file to your code's folder.`,
-      // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
-      // found without reading the others.
-      '',
-      'You can start with a few components or screens, one story per state:',
-      // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
-      // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
-      `  ${renderCode('// Button.stories.tsx')}`,
-      `  ${renderCode("import { Button } from './Button';")}`,
-      `  ${renderCode('export default { component: Button };')}`,
-      // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
-      `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
-      `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
-      '',
-      // AN INSTRUCTION, NOT A TOPIC: "How to write stories" read as basics the snippet covers.
-      'Before you write stories, read:',
-      `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
-    ],
+    // A STORY THE LIST LEAVES OUT IS NAMED, with the exact list that loads its folder in the form
+    // Storybook's own template writes: the app has stories already, so nothing about writing one.
+    content:
+      leftOutStory && storybookMainFile && storybookFolder
+        ? [
+            "Right now Sherlo would test Storybook's examples, not your app.",
+            `Your story ${leftOutStory} isn't in "stories" in ${storybookMainFile}, so Storybook never loads it.`,
+            `Set "stories" to ${renderCode(`['${importPath(storybookFolder, path.posix.dirname(leftOutStory))}/**/*.stories.?(ts|tsx|js|jsx)']`)}.`,
+          ]
+        : [
+            // WHY FIRST, THEN A SMALL START: the examples must go because Sherlo would test them, and
+            // a few components are enough to begin, so the step never reads as a big job.
+            "Right now Sherlo would test Storybook's examples, not your app.",
+            // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
+            // outside it drop out, so they need no deleting.
+            storybookMainFile && storybookFolder
+              ? `Set "stories" in ${storybookMainFile} to your code's folder, e.g. ${renderCode(`['${importPath(storybookFolder, 'src')}']`)}.`
+              : `Set "stories" in your Storybook folder's main file to your code's folder.`,
+            // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
+            // found without reading the others.
+            '',
+            'You can start with a few components or screens, one story per state:',
+            // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
+            // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
+            `  ${renderCode('// Button.stories.tsx')}`,
+            `  ${renderCode("import { Button } from './Button';")}`,
+            `  ${renderCode('export default { component: Button };')}`,
+            // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
+            `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
+            `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
+            '',
+            // AN INSTRUCTION, NOT A TOPIC: "How to write stories" read as basics the snippet covers.
+            'Before you write stories, read:',
+            `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
+          ],
   };
 
   // THE FIRST TEST COMES LAST, after the app's own stories, so it never photographs Storybook's

@@ -235,7 +235,10 @@ export const liveWorkstation: Workstation = {
   // BUILD DEBT (init-for-agents decision 2): adds the packages only; build writes `.rnstorybook`
   // from the templates kept in the CLI once they are installed, and on pnpm writes `allowBuilds:
   // esbuild: false` into `pnpmSettingsFile` before the install. It also adds the
-  // react-native-reanimated and react-native-worklets versions that fit the app when it has none.
+  // react-native-reanimated and react-native-worklets versions that fit the app when it has none
+  // (Q26 A): an app with the `expo` package, bare with Expo modules included, through `expo
+  // install`, which picks its SDK's versions (Expo 55: 4.2.1 / 0.7.4); an app without it, the
+  // newest that fits its React Native (below 0.87: 4.3.4 / 0.8.3).
   installStorybook: async ({ command, projectRoot }) => {
     await runInstall({ command, projectRoot });
     return { updatedPnpmSettings: false };

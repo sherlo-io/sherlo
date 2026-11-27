@@ -16,7 +16,10 @@ Setting up Sherlo...
 
 ERROR: Storybook is installed, but its folder is missing (.rnstorybook or .storybook)
 
-Restore the folder, for example from version control.
+Git never held .rnstorybook or .storybook, so there is nothing to restore.
+Create .rnstorybook with Storybook's main.ts and index.ts.
+Or point configPath in metro.config.js at your Storybook folder:
+  configPath: './<your Storybook folder>'
 
 Then run setup again. It picks up where it stopped:
   npx sherlo init

@@ -16,7 +16,7 @@ import getMetroConfigPath from '../metroConfig/getMetroConfigPath';
 import readMetroConfigCode from '../metroConfig/readMetroConfigCode';
 
 /** Storybook's own default folders, newest first - the order the Metro wrapper tries them in. */
-const DEFAULT_FOLDERS = ['.rnstorybook', '.storybook'];
+export const DEFAULT_STORYBOOK_FOLDERS = ['.rnstorybook', '.storybook'];
 
 /**
  * The folder relative to the app's folder (`.storybook`), or null when the app has none.
@@ -37,7 +37,7 @@ function storybookFolder(): string | null {
     return path.relative(getCwd(), path.resolve(base, configPath.path)) || '.';
   }
 
-  return DEFAULT_FOLDERS.find((name) => fs.existsSync(path.join(getCwd(), name))) ?? null;
+  return DEFAULT_STORYBOOK_FOLDERS.find((name) => fs.existsSync(path.join(getCwd(), name))) ?? null;
 }
 
 export default storybookFolder;

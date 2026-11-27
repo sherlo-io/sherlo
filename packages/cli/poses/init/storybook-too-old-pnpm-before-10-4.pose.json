@@ -2,6 +2,7 @@
   "pose": 1,
   "argv": ["init"],
   "files": {
+    "index.ts": "import { registerRootComponent } from 'expo';\n\nimport App from './App';\n\nregisterRootComponent(App);\n",
     "package.json": {
       "name": "acme-shop",
       "version": "1.0.0",

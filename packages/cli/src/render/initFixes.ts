@@ -19,6 +19,7 @@ import type { Agent } from 'package-manager-detector';
 import typedInitCommand from '../commands/init/typedInitCommand';
 import { LOGIN_COMMAND } from '../commands/login/constants';
 import { MAX_PROJECT_NAME_LENGTH } from '../constants';
+import type { FolderHistory } from '../seams/surroundings';
 import { renderCode } from './initLines';
 import type { FeedbackReader } from './initSteps';
 import { pickInstallOutput } from './installOutput';
@@ -264,9 +265,17 @@ export function renderStorybookPinsExactVersions({
 
 /**
  * The Metro config's export is not a call setup can wrap, so the one edit is the person's: the
- * lines are shown whole, for a CommonJS and an ES module config.
+ * lines are shown whole, for a CommonJS and an ES module config. The swap of Storybook's own
+ * withStorybook is asked for only when setup read it in the file.
  */
-export function renderMetroConfigUnreadable({ path }: { path: string }): InitRefusal {
+export function renderMetroConfigUnreadable({
+  path,
+  hasStorybooksWithStorybook,
+}: {
+  path: string;
+  /** Whether the config loads Storybook's own withStorybook, which Sherlo's replaces. */
+  hasStorybooksWithStorybook: boolean;
+}): InitRefusal {
   return refusal(`Setup can't edit ${path}`, [
     words("Wrap its export in Sherlo's withStorybook, the way your file loads modules:"),
     '',
@@ -277,8 +286,9 @@ export function renderMetroConfigUnreadable({ path }: { path: string }): InitRef
     choiceName('b) With import'),
     `   ${renderCode("import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';")}`,
     `   ${renderCode('export default withStorybook(config);')}`,
-    '',
-    words("If Storybook's own withStorybook is there, swap it for Sherlo's."),
+    ...(hasStorybooksWithStorybook
+      ? ['', words("It loads Storybook's own withStorybook: swap it for Sherlo's.")]
+      : []),
     ...rerun(),
   ]);
 }
@@ -311,43 +321,66 @@ export function renderStorybookConfigPathUnread({
  * Metro config names, or with none named, either of Storybook's defaults. Setup stops before any
  * change, as every later step and next step reads that folder.
  *
- * A folder git once held was deleted, so it is restored from the commit before the one that deleted
- * it, with the exact command. A named folder git never held was never
- * there: the Metro config's configPath points at the wrong place, and restoring is no fix.
+ * Each fix follows what git answered, never a guess:
+ *
+ *     in-last-commit  - deleted and not committed: the command that restores it from the last commit
+ *     deleted         - a commit deleted it: the command that restores it from the commit before
+ *     never           - git never held it: the folder to create, or where to point configPath
+ *     unknown         - git could not answer: the same fix, with no word about git
+ *
+ * No folder is searched for in its place: one found by name could be another Storybook's.
  */
-export function renderStorybookFolderMissing(
+export function renderStorybookFolderMissing({
+  named,
+  folder,
+  history,
+  metroConfig,
+}: {
   /**
-   * The folder the Metro config names, or null when it names none and neither default exists: a
-   * default folder is only ever chosen when it is there, so a missing one is always a Metro config's.
+   * The folder the Metro config's configPath names, or null when it names none and neither default
+   * exists: a default folder is only ever chosen when it is there.
    */
-  named: {
-    folder: string;
-    /** The short hash of the commit that deleted the folder, or null when git never held it. */
-    deletedIn: string | null;
-    /** The Metro config that names it, from the app's folder. */
-    metroConfig: string;
-  } | null
-): InitRefusal {
-  if (!named) {
-    return refusal(
-      'Storybook is installed, but its folder is missing (.rnstorybook or .storybook)',
-      [words('Restore the folder, for example from version control.'), ...rerun()]
-    );
-  }
-
-  const { folder, deletedIn, metroConfig } = named;
-  const message = `Storybook is installed, but its folder ${folder} is missing`;
-  if (deletedIn) {
+  named: string | null;
+  /** The folder git's answer is about: the named one, or the default git held. */
+  folder: string;
+  /** What git knows of that folder. */
+  history: FolderHistory;
+  /** The Metro config, from the app's folder, or null when the app has none yet. */
+  metroConfig: string | null;
+}): InitRefusal {
+  const message = named
+    ? `Storybook is installed, but its folder ${named} is missing`
+    : 'Storybook is installed, but its folder is missing (.rnstorybook or .storybook)';
+  if (history.held === 'in-last-commit') {
     return refusal(message, [
-      words(`Commit ${deletedIn} deleted ${folder}. Restore it from the commit before:`),
-      code(`git checkout ${deletedIn}^ -- ${folder}`),
+      words(`Your last commit still has ${folder}. Restore it from there:`),
+      code(`git checkout HEAD -- ${folder}`),
       ...rerun(),
     ]);
   }
+  if (history.held === 'deleted') {
+    return refusal(message, [
+      words(`Commit ${history.commit} deleted ${folder}. Restore it from the commit before:`),
+      code(`git checkout ${history.commit}^ -- ${folder}`),
+      ...rerun(),
+    ]);
+  }
+
   return refusal(message, [
-    words(`Git never held ${folder}, so there is nothing to restore.`),
-    words(`Point configPath in ${metroConfig} at your Storybook folder:`),
-    `  ${renderCode("configPath: './<your Storybook folder>'")}`,
+    ...(history.held === 'never'
+      ? [
+          words(
+            `Git never held ${named ?? '.rnstorybook or .storybook'}, so there is nothing to restore.`
+          ),
+        ]
+      : []),
+    words(`Create ${named ?? '.rnstorybook'} with Storybook's main.ts and index.ts.`),
+    ...(metroConfig
+      ? [
+          words(`Or point configPath in ${metroConfig} at your Storybook folder:`),
+          `  ${renderCode("configPath: './<your Storybook folder>'")}`,
+        ]
+      : []),
     ...rerun(),
   ]);
 }
