@@ -66,18 +66,7 @@ const NO_FOLDER_YET =
   'the Storybook folder is unknown only while the install writes no .rnstorybook ' +
   '(BUILD DEBT, init-for-agents decision 2); once it does, this branch is dead and is deleted';
 
-/** The Metro refusal's ES module and cannot-tell forms, owed a pose each. */
-const METRO_FORM_UNDRAWN =
-  'every unreadable-Metro pose is a CommonJS config; poses for an ES module config and for one ' +
-  'setup cannot tell are owed (init-for-agents, reported to the coordinator)';
-
 const NOT_YET_DRAWN: Record<string, string> = {
-  'initFixes.ts renderMetroConfigUnreadable: a) With require': METRO_FORM_UNDRAWN,
-  'initFixes.ts renderMetroConfigUnreadable: b) With import': METRO_FORM_UNDRAWN,
-  "initFixes.ts renderMetroConfigUnreadable: import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';":
-    METRO_FORM_UNDRAWN,
-  'initFixes.ts renderMetroConfigUnreadable: export default withStorybook(config);':
-    METRO_FORM_UNDRAWN,
   'initSteps.ts renderNextSteps: <your Storybook folder>': NO_FOLDER_YET,
   'initSteps.ts renderNextSteps: Set "stories" in your Storybook folder\'s main file to your code\'s folder.':
     NO_FOLDER_YET,

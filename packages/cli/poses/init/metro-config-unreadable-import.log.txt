@@ -1,0 +1,35 @@
+
+             888                       888          
+             888                       888          
+             888                       888          
+    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
+    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
+    "Y8888b. 888  888 88888888 888     888 888  888 
+         X88 888  888 Y8b.     888     888 Y88..88P 
+    '88888P' 888  888  "Y8888  888     888  "Y88P"
+
+Make sure your mobile app looks perfect on every device
+
+Setting up Sherlo...
+
+✖ Checking the app failed
+
+ERROR: Setup can't edit metro.config.mjs
+
+Wrap its export in Sherlo's withStorybook, the way your file loads modules:
+
+   import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';
+   export default withStorybook(config);
+
+Then run setup again. It picks up where it stopped:
+  npx sherlo init
+
+AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.
+
+──────────
+
+Need help?
+➜ Discord: https://discord.gg/G7eqTBkWZt
+➜ Email: contact@sherlo.io
+
+[exit 1]
