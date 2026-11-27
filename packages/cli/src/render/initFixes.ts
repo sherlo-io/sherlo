@@ -265,27 +265,39 @@ export function renderStorybookPinsExactVersions({
 
 /**
  * The Metro config's export is not a call setup can wrap, so the one edit is the person's: the
- * lines are shown whole, for a CommonJS and an ES module config. The swap of Storybook's own
- * withStorybook is asked for only when setup read it in the file.
+ * lines are shown whole, in the module style the file uses, and in both, lettered, only when setup
+ * cannot tell which it uses. The swap of Storybook's own withStorybook is asked for only when setup
+ * read it in the file.
  */
 export function renderMetroConfigUnreadable({
   path,
+  moduleStyle,
   hasStorybooksWithStorybook,
 }: {
   path: string;
+  /** How the config loads modules, read from its text; 'unknown' when it uses both or neither. */
+  moduleStyle: 'require' | 'import' | 'unknown';
   /** Whether the config loads Storybook's own withStorybook, which Sherlo's replaces. */
   hasStorybooksWithStorybook: boolean;
 }): InitRefusal {
+  const showsBoth = moduleStyle === 'unknown';
   return refusal(`Setup can't edit ${path}`, [
     words("Wrap its export in Sherlo's withStorybook, the way your file loads modules:"),
     '',
-    choiceName('a) With require'),
-    `   ${renderCode("const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');")}`,
-    `   ${renderCode('module.exports = withStorybook(config);')}`,
-    '',
-    choiceName('b) With import'),
-    `   ${renderCode("import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';")}`,
-    `   ${renderCode('export default withStorybook(config);')}`,
+    ...(showsBoth ? [choiceName('a) With require')] : []),
+    ...(moduleStyle !== 'import'
+      ? [
+          `   ${renderCode("const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');")}`,
+          `   ${renderCode('module.exports = withStorybook(config);')}`,
+        ]
+      : []),
+    ...(showsBoth ? ['', choiceName('b) With import')] : []),
+    ...(moduleStyle !== 'require'
+      ? [
+          `   ${renderCode("import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';")}`,
+          `   ${renderCode('export default withStorybook(config);')}`,
+        ]
+      : []),
     ...(hasStorybooksWithStorybook
       ? ['', words("It loads Storybook's own withStorybook: swap it for Sherlo's.")]
       : []),

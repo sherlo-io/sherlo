@@ -2,6 +2,7 @@
   "pose": 1,
   "argv": ["init"],
   "files": {
+    "App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
     "index.ts": "import { registerRootComponent } from 'expo';\n\nimport App from './App';\n\nregisterRootComponent(App);\n",
     "package.json": {
       "name": "acme-shop",

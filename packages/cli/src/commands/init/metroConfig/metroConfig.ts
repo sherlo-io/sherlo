@@ -7,6 +7,7 @@ import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps'
 import { printLines, trackProgress } from '../helpers';
 import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
 import { EVENT, STORYBOOKS_WITH_STORYBOOK_RE } from './constants';
+import readMetroConfigModuleStyle from './readMetroConfigModuleStyle';
 import readMetroConfigState from './readMetroConfigState';
 import writeMetroConfigUpdate from './writeMetroConfigUpdate';
 
@@ -79,6 +80,7 @@ async function metroConfig(sessionId: string | null): Promise<void> {
     throwError(
       renderMetroConfigUnreadable({
         path: shownPath,
+        moduleStyle: readMetroConfigModuleStyle(state.content!),
         hasStorybooksWithStorybook: STORYBOOKS_WITH_STORYBOOK_RE.test(state.content!),
       })
     );
