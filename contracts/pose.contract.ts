@@ -689,6 +689,8 @@ export type PosedWorkstation = {
   pods?: 'installed' | 'current';
   /** Whether the service has scenes on for the project's team. Left out: nothing answers, so off. */
   scenes?: 'on' | 'off';
+  /** Whether the service has agent skills on for the project's team. Left out: off, as scenes. */
+  agentSkills?: 'on' | 'off';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
    * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without

@@ -33,6 +33,7 @@ const LIST_TEAMS_QUERY = `
       projectsCount
       featureFlags {
         scenes
+        agentSkills
       }
     }
   }
@@ -68,7 +69,7 @@ type ApiTeamSummary = {
   name: string;
   role: string;
   projectsCount: number;
-  featureFlags?: { scenes?: boolean } | null;
+  featureFlags?: { scenes?: boolean; agentSkills?: boolean } | null;
 };
 
 /**
@@ -120,7 +121,12 @@ async function listTeamsRequest(
       name: team.name,
       projectCount: team.projectsCount,
       role: team.role,
-      ...(team.featureFlags && { featureFlags: { scenes: team.featureFlags.scenes === true } }),
+      ...(team.featureFlags && {
+        featureFlags: {
+          scenes: team.featureFlags.scenes === true,
+          agentSkills: team.featureFlags.agentSkills === true,
+        },
+      }),
     })),
   };
 }

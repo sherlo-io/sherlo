@@ -5,7 +5,7 @@ import { pointerFor, shippedSkillText } from '../../../seams/shippedSkill';
 import { workstation } from '../../../seams/workstation';
 
 /** Where the guide is written: `.agents/skills` reaches most coding agents, `.claude/skills` Claude Code. */
-const SKILL_FOLDERS = ['.agents/skills/sherlo-tests', '.claude/skills/sherlo-tests'];
+export const SKILL_FOLDERS = ['.agents/skills/sherlo-tests', '.claude/skills/sherlo-tests'];
 const SECTION_START = '<!-- sherlo-tests:start -->';
 const SECTION_END = '<!-- sherlo-tests:end -->';
 

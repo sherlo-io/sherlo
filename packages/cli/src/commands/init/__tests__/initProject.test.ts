@@ -387,6 +387,7 @@ async function runProjectStep(world: {
     podsAreCurrent: () => false,
     scenesFlag: () => undefined,
     askScenesFlag: async () => {},
+    agentSkillsFlag: () => undefined,
     somebodyIsAtTheKeyboard: () => true,
     readEnterPress: async () => undefined,
     chooseOne: async ({ question, choices }) => {

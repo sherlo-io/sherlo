@@ -1586,6 +1586,9 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
     if ('scenes' in object1) {
       expectOneOf(object1.scenes, ['on', 'off'], at(path, 'scenes'), problems);
     }
+    if ('agentSkills' in object1) {
+      expectOneOf(object1.agentSkills, ['on', 'off'], at(path, 'agentSkills'), problems);
+    }
     if ('podInstall' in object1) {
       const where10 = at(path, 'podInstall');
       const object11 = asObject(object1.podInstall, where10, problems);
@@ -1627,6 +1630,7 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
         'storybook',
         'pods',
         'scenes',
+        'agentSkills',
         'podInstall',
         'enter',
         'sshHostNames',

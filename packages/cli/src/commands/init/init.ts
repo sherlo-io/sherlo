@@ -14,6 +14,8 @@ import config from './config';
 import { THIS_COMMAND } from './constants';
 import { packageManagerCommand, printLines, trackProgress } from './helpers';
 import metroConfig from './metroConfig';
+import { workstation } from '../../seams/workstation';
+import agentSkill from './steps/agentSkill';
 import checkProject from './steps/checkProject';
 import folderForStories from './steps/folderForStories';
 import githubWorkflow from './steps/githubWorkflow';
@@ -21,6 +23,7 @@ import logIn from './steps/logIn';
 import rootComponentFile from './steps/rootComponentFile';
 import rootRegistration from './steps/rootRegistration';
 import sherloSdk from './steps/sherloSdk';
+import startFileForScenes from './steps/startFileForScenes';
 import storybook from './steps/storybook';
 import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
 import storybookFolder, { storybookFile } from './steps/storybookFolder';
@@ -51,13 +54,17 @@ async function init(options: Options<THIS_COMMAND>) {
     // Written as soon as the project exists, so a run that fails at any later step leaves the
     // project in the config, and a rerun uses it rather than making a second one.
     await config({ sessionId, project: projectId });
+    // The team's flags decide two steps below: scenes' start file and the agent skill.
+    await workstation().askScenesFlag(projectId);
 
     const { installedNow } = await storybook({ hasStorybook: project.hasStorybook });
     await sherloSdk();
     await trackProgress({ event: '2_dependencies', params: { status: 'success' }, sessionId });
 
     await metroConfig(sessionId);
+    startFileForScenes();
     await githubWorkflow(project.githubWorkflowPlace);
+    await agentSkill();
 
     const reader = setupReader();
     // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike, on every

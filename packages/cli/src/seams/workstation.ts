@@ -113,6 +113,8 @@ export type Workstation = {
 
   /** What the service said about the team of the chosen project; undefined, which is off, if unasked. */
   scenesFlag(): 'on' | 'off' | undefined;
+  /** What the service said about agent skills for that team; undefined, which is off, if unasked. */
+  agentSkillsFlag(): 'on' | 'off' | undefined;
   /** Ask the service about that team and keep the answer for `scenesFlag()`; a pose asks nothing. */
   askScenesFlag(configProject: unknown): Promise<void>;
 
@@ -264,6 +266,9 @@ export const liveWorkstation: Workstation = {
   podsAreCurrent: (iosFolder) => installedPodsAreCurrent(iosFolder),
 
   scenesFlag: rememberedScenesFlag,
+  // BUILD DEBT (init-for-agents): remembered from the same listTeams answer as scenes
+  // (helpers/scenesFlag reads `featureFlags.agentSkills` beside `scenes`); off until then.
+  agentSkillsFlag: () => undefined,
   askScenesFlag: decideScenesForProject,
 
   readGit: ({ command, projectRoot }) => runShellCommand({ command, projectRoot }),
@@ -423,6 +428,8 @@ export type PosedWorkstation = {
   pods?: 'installed' | 'current';
   /** Whether the service has scenes on for the project's team. Left out: nothing answers, so off. */
   scenes?: 'on' | 'off';
+  /** Whether the service has agent skills on for the project's team. Left out: off, as scenes. */
+  agentSkills?: 'on' | 'off';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
    * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without
@@ -629,6 +636,7 @@ export function posedWorkstation(
     podsAreCurrent: () => posed?.pods === 'current',
 
     scenesFlag: () => posed?.scenes,
+    agentSkillsFlag: () => posed?.agentSkills,
     askScenesFlag: async () => {},
 
     // A pose states no git history: a read of it fails as in a folder that is not a git folder.

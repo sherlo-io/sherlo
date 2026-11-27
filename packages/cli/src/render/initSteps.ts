@@ -150,7 +150,9 @@ export type InitStep =
   | 'updated-sherlo'
   | 'created-metro-config'
   | 'updated-metro-config'
-  | 'added-github-workflow';
+  | 'set-up-for-scenes'
+  | 'added-github-workflow'
+  | 'added-agent-skill';
 
 /** The one line a finished step of setup prints. */
 export function renderInitStepLine({
@@ -192,9 +194,31 @@ function initStepName(step: InitStep): string {
       return 'Created Metro config';
     case 'updated-metro-config':
       return 'Updated Metro config';
+    case 'set-up-for-scenes':
+      return 'Set up for scenes';
     case 'added-github-workflow':
       return 'Added GitHub workflow';
+    case 'added-agent-skill':
+      return 'Added agent skill';
   }
+}
+
+/**
+ * The agent skill step's line: the skill's name, and the files that point the coding agent at it
+ * (AGENTS.md always, CLAUDE.md when the app has one that does not import AGENTS.md).
+ */
+export function renderAgentSkillLine({
+  outcome,
+  pointerFiles,
+}: {
+  outcome: StepOutcome;
+  pointerFiles: string[];
+}): string {
+  return renderInitStepLine({
+    step: 'added-agent-skill',
+    outcome,
+    detail: `sherlo-tests, named in ${pointerFiles.join(' and ')}`,
+  });
 }
 
 /** The workflow step's line when the code is not on GitHub, so setup writes no workflow. */
