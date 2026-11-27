@@ -147,8 +147,8 @@
     "install": {
       "package": "@sherlo/react-native-storybook",
       "failed": {
-        "stdout": "yarn add v1.22.22\n[1/4] Resolving packages...\ninfo Visit https://yarnpkg.com/en/docs/cli/add for documentation about this command.\n",
-        "stderr": "error Couldn't find any versions for \"@sherlo/react-native-storybook\" that matches \"^3\"\n"
+        "stdout": "yarn add v1.22.22\n[1/4] Resolving packages...\ninfo There appears to be trouble with your network connection. Retrying...\ninfo If you think this is a bug, please open a bug report with the information provided in \"/Users/anna/acme-shop/yarn-error.log\".\ninfo Visit https://yarnpkg.com/en/docs/cli/add for documentation about this command.\n",
+        "stderr": "error An unexpected error occurred: \"https://registry.yarnpkg.com/@sherlo%2freact-native-storybook: getaddrinfo ENOTFOUND registry.yarnpkg.com\".\n"
       }
     },
     "storybook": {

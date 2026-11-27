@@ -21,7 +21,9 @@ Setting up Sherlo...
 [36m  package-lock.json[39m
 
 [0mDelete the lockfile of the one you don't use, or name yours in package.json:[0m
-  "packageManager"[2m:[22m "[2m<[22mname[2m>[22m@[2m<[22mversion[2m>[22m"
+  "packageManager"[2m:[22m "yarn@[2m<[22mversion[2m>[22m"
+  "packageManager"[2m:[22m "npm@[2m<[22mversion[2m>[22m"
+[0m<version> is what `yarn --version` or `npm --version` prints.[0m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

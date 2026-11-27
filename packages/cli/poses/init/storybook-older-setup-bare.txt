@@ -39,8 +39,11 @@ Setting up Sherlo...
       At the top of App.tsx, add:
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
-      As the first line inside your root component, add:
-        [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
+      Replace [35mexport[39m [35mdefault[39m [33mAppEntryPoint[39m[2m;[22m with:
+        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m()[22m [2m{[22m
+          [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
+          [35mreturn[39m [2m<[22m[33mAppEntryPoint[39m [2m/>;[22m
+        [2m}[22m
 
 [1m2. Run your first visual test[22m
    [36mnpx sherlo test[39m

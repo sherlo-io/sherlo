@@ -26,6 +26,13 @@ import {
 export interface RootComponentFile {
   file: string;
   found: boolean;
+  /**
+   * How the file exports the root component, as its line reads, so the in-app way names the exact
+   * change: `declared` for `export default function App() {` (or a class), `named` for a separate
+   * `export default App;`. Null when the file is missing or exports it another way (an arrow
+   * function, a call): the generic form is shown.
+   */
+  defaultExport: { form: 'declared' | 'named'; line: string; name: string } | null;
 }
 
 /**
@@ -305,6 +312,7 @@ export function renderNextSteps({
   storybookFolder,
   storybookIndexFile,
   storybookMainFile,
+  storiesFolder,
   rootRegistration,
   rootComponent,
   reader,
@@ -338,6 +346,11 @@ export function renderNextSteps({
   /** The folder's index and main files as the app has them (`.storybook/main.js`), from the app's folder. */
   storybookIndexFile: string | null;
   storybookMainFile: string | null;
+  /**
+   * The folder the steps load and write stories in (../commands/init/steps/folderForStories), one
+   * the app has, from the app's folder: `src/components`, `src`, or `.` for the app's folder itself.
+   */
+  storiesFolder: string;
   rootRegistration: RootRegistration;
   /** The file the app's root component is in (../commands/init/steps/rootComponentFile). */
   rootComponent: RootComponentFile;
@@ -382,19 +395,46 @@ export function renderNextSteps({
   // never a guess. With none found it names no file, and a comment says which file the path is
   // from: the most common place, so the path is right for most apps and checkable for the rest.
   const storybookImport = `import Storybook from '${storybookFolder ? importPath(path.posix.dirname(rootComponent.file), storybookFolder) : '<your Storybook folder>'}';`;
+  // A WRAPPER WITH NO HOOKS BECOMES THE DEFAULT EXPORT, never an early return inside the root
+  // component: a return before the root's own hooks (useColorScheme, useFonts) breaks React's rules
+  // of hooks. The change named follows the export the file has, line for line; one setup could not
+  // read gets the generic form, as Sherlo's docs give it (sherlo-www docs/docs/2_setup.mdx).
+  const { defaultExport } = rootComponent;
+  const wrappedName = defaultExport?.name ?? 'YourApp';
+  const wrapperLines = [
+    'export default function AppOrStorybook() {',
+    '  if (isStorybookMode) return <Storybook />;',
+    `  return <${wrappedName} />;`,
+    '}',
+  ].map((line) => `     ${renderCode(line)}`);
+  const rootSwapLines =
+    defaultExport?.form === 'declared'
+      ? [
+          `   Change ${renderCode(defaultExport.line)} to:`,
+          `     ${renderCode(defaultExport.line.replace(/^export default /, ''))}`,
+          `   At the end of ${rootComponent.file}, add:`,
+          ...wrapperLines,
+        ]
+      : defaultExport?.form === 'named'
+        ? [`   Replace ${renderCode(defaultExport.line)} with:`, ...wrapperLines]
+        : [
+            rootComponent.found
+              ? `   Couldn't tell how ${rootComponent.file} exports your root component. Make this its default export, with your root component in place of YourApp:`
+              : "   Make this your root component's file's default export, with your root component in place of YourApp:",
+            ...wrapperLines,
+          ];
   // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that
   // exports its routes for the server builds it too.
   const keepSetupChoice = [
     chalk.bold('b) In-app integration'),
-    // THE IMPORTS AT THE FILE'S TOP, THE `if` INSIDE THE COMPONENT: the two places it must go, so
-    // the code works when followed word for word.
+    // THE IMPORTS AT THE FILE'S TOP, THE WRAPPER AS ITS DEFAULT EXPORT: each place named, so the
+    // code works when followed word for word.
     rootComponent.found
       ? `   At the top of ${rootComponent.file}, add:`
       : "   At the top of your root component's file, add:",
     `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
     `     ${renderCode(rootComponent.found || !storybookFolder ? storybookImport : `${storybookImport} // path from ${rootComponent.file}`)}`,
-    '   As the first line inside your root component, add:',
-    `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
+    ...rootSwapLines,
   ];
   // EACH CHOICE IS A BLOCK: its name bold and alone on its line, a blank line between the two, so
   // the eye finds a) and b) before reading either. NO UPGRADE ON ANY SUPPORTED VERSION: Sherlo's
@@ -472,9 +512,10 @@ export function renderNextSteps({
             // a few components are enough to begin, so the step never reads as a big job.
             "Right now Sherlo would test Storybook's examples, not your app.",
             // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
-            // outside it drop out, so they need no deleting.
+            // outside it drop out, so they need no deleting. The folder is one the app has; the
+            // app's folder itself is a pattern without subfolders, which never reaches node_modules.
             storybookMainFile && storybookFolder
-              ? `Set "stories" in ${storybookMainFile} to your code's folder, e.g. ${renderCode(`['${importPath(storybookFolder, 'src')}']`)}.`
+              ? `Set "stories" in ${storybookMainFile} to ${renderCode(`[${storiesFolder === '.' ? storiesGlob({ storybookFolder, storiesFolder }) : `'${importPath(storybookFolder, storiesFolder)}'`}]`)}.`
               : `Set "stories" in your Storybook folder's main file to your code's folder.`,
             // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
             // found without reading the others.
@@ -514,8 +555,8 @@ export function renderNextSteps({
   // A STORY LIST SETUP COULD NOT READ IS A STEP OF ITS OWN, right before the first test, which would
   // fail on it too. A story list is only unreadable in a folder setup found, so the folder is named.
   // A main file that is there is named with its error; a missing one is written whole, in the form
-  // Storybook's own template writes, its `stories` loading the folder of the app's story, or src
-  // when the app has none yet - and then writing a story is a step of its own.
+  // Storybook's own template writes, its `stories` loading the folder of the app's story, or a
+  // folder the app has when it has none yet - and then writing a story is a step of its own.
   const fixStoryListStep = !storyListUnreadable
     ? []
     : storyListUnreadable === 'main-file-missing'
@@ -525,10 +566,9 @@ export function renderNextSteps({
               title: `Add ${storybookFolder}/main.ts`,
               content: [
                 `${storybookFolder} has no main file, which lists your stories. Add ${storybookFolder}/main.ts:`,
-                ...renderStorybookMainFile({
-                  storybookFolder,
-                  storiesFolder: leftOutStory ? path.posix.dirname(leftOutStory) : 'src',
-                }).map((line) => (line === '' ? '' : `  ${line}`)),
+                ...renderStorybookMainFile({ storybookFolder, storiesFolder }).map((line) =>
+                  line === '' ? '' : `  ${line}`
+                ),
               ],
             },
             ...(leftOutStory
@@ -537,7 +577,7 @@ export function renderNextSteps({
                   {
                     title: 'Write your first stories',
                     content: [
-                      'Your app has no stories yet. Write them in src, where main.ts looks.',
+                      `Your app has no stories yet. Write them in ${storiesFolder === '.' ? "your app's folder itself" : storiesFolder}, where main.ts looks.`,
                       '',
                       ...writeStoriesLines,
                     ],

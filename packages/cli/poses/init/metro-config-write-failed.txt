@@ -12,19 +12,13 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the app        [2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>[22m
-[32m✔[39m Logged in              [2manna@example.com[22m
-[32m✔[39m Using team             [2mAnna's team[22m
-[32m✔[39m Created project        [2mAcme Shop[22m
-[32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
-[32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook <SHERLO_VERSION>[22m
-[31m✖[39m Creating Metro config failed
+[31m✖[39m Checking the app failed
 
 [31mERROR: Setup can't write metro.config.js[39m
 
-[0mEISDIR: illegal operation on a directory[0m
+[0mmetro.config.js is a folder: remove it[0m
 
-[0mFix the error, then run setup again. It picks up where it stopped:[0m
+[0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

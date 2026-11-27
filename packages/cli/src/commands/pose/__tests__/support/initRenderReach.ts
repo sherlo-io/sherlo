@@ -76,7 +76,17 @@ const CONFIG_WRITE_FAILED =
   'a pose sets no file modes, and any other config setup cannot write fails the app check first, ' +
   'which reads sherlo.config.json before anything is written (config-unreadable draws that)';
 
+/** The Metro config's and the workflow's write failing at their own step. */
+const LATER_WRITE_FAILED =
+  'a pose sets no file modes, and a folder or file standing where metro.config.js or the workflow ' +
+  'goes is refused by the app check before the login (metro-config-write-failed and ' +
+  'workflow-write-failed draw that)';
+
 const NOT_YET_DRAWN: Record<string, string> = {
+  'initSteps.ts initStepActivity: creating-metro-config': LATER_WRITE_FAILED,
+  'initSteps.ts initStepActivity: Creating Metro config': LATER_WRITE_FAILED,
+  'initSteps.ts initStepActivity: adding-github-workflow': LATER_WRITE_FAILED,
+  'initSteps.ts initStepActivity: Adding GitHub workflow': LATER_WRITE_FAILED,
   'initSteps.ts initStepActivity: creating-config': CONFIG_WRITE_FAILED,
   'initSteps.ts initStepActivity: Creating config': CONFIG_WRITE_FAILED,
   'initSteps.ts initStepActivity: updating-config': CONFIG_WRITE_FAILED,

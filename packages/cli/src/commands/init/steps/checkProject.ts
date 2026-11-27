@@ -32,7 +32,13 @@ import readConfig from '../config/readConfig';
 import getMetroConfigPath from '../metroConfig/getMetroConfigPath';
 import readMetroConfigCode from '../metroConfig/readMetroConfigCode';
 import { packageManagerCommand, printLines } from '../helpers';
-import detectPackageManager from '../helpers/detectPackageManager';
+import { refuseBlockedPath } from '../helpers/refuseFileAccess';
+import folderForStories from './folderForStories';
+import { findGithubWorkflowPlace, type GithubWorkflowPlace } from './githubWorkflow';
+import detectPackageManager, {
+  folderHoldingYarnLock,
+  readText,
+} from '../helpers/detectPackageManager';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
 import getPackageVersion from '../requirements/getPackageVersion';
@@ -46,6 +52,8 @@ import storybookFolder, { DEFAULT_STORYBOOK_FOLDERS } from './storybookFolder';
 export type CheckedProject = {
   /** Whether the project already has Storybook for React Native among its dependencies. */
   hasStorybook: boolean;
+  /** Where the GitHub workflow step writes Sherlo's workflow, decided and checked here. */
+  githubWorkflowPlace: GithubWorkflowPlace;
 };
 
 /** A refusal here names its step with a red cross first, like every other stop of setup. */
@@ -67,7 +75,10 @@ async function checkTheApp(): Promise<CheckedProject> {
   await validateHasReactNative();
   // Every later command runs in the app's own package manager: one setup cannot tell stops here,
   // before anything is installed or made.
-  await detectPackageManager(getCwd());
+  const packageManager = await detectPackageManager(getCwd());
+  // Before any installed package is read: with Plug'n'Play an install leaves no node_modules, so
+  // "install your dependencies" would change nothing.
+  if (packageManager === 'yarn@berry') refusePlugNPlay();
 
   const expoVersion = await getDeclaredPackageVersion(EXPO_PACKAGE_NAME);
 
@@ -151,6 +162,7 @@ async function checkTheApp(): Promise<CheckedProject> {
                 withStorybookCall: metroConfigCode?.withStorybookCall ?? null,
               }
             : null,
+          storiesFolder: await folderForStories(),
         })
       );
     }
@@ -159,6 +171,12 @@ async function checkTheApp(): Promise<CheckedProject> {
   // A CONFIG THAT IS NOT VALID JSON is refused HERE, like a package.json that is not, so nothing is
   // logged in, made or installed for an app whose config setup could not read.
   if (hasConfigFile()) await readConfig();
+
+  // FILES SETUP WRITES LATER are checked HERE too: a folder named metro.config.js, or a .github
+  // that is a file, stops the run before the login rather than after a project was made.
+  if (!getMetroConfigPath()) refuseBlockedPath(path.join(getCwd(), 'metro.config.js'));
+  const githubWorkflowPlace = await findGithubWorkflowPlace();
+  if (githubWorkflowPlace) refuseBlockedPath(githubWorkflowPlace.workflowFile);
 
   // Storybook the project already has shows here, with the versions it was checked at - never as an
   // install line, which would read as if setup had installed or changed it.
@@ -180,26 +198,16 @@ async function checkTheApp(): Promise<CheckedProject> {
     }),
   ]);
 
-  return { hasStorybook };
+  return { hasStorybook, githubWorkflowPlace };
 }
 
 /**
  * The version node_modules holds. A package package.json lists but node_modules lacks means the
- * dependencies were never installed, and the refusal gives the install command - unless Yarn
- * Plug'n'Play installed them, where an install changes nothing and the refusal names its setting.
+ * dependencies were never installed, and the refusal gives the install command.
  */
 async function installedVersion(packageName: string): Promise<string> {
   const version = getPackageVersion(packageName);
   if (version) return version;
-
-  const plugNPlayFolder = folderHoldingPlugNPlay(getCwd());
-  if (plugNPlayFolder) {
-    throwError(
-      renderPlugNPlay({
-        yarnrc: path.relative(getCwd(), path.join(plugNPlayFolder, '.yarnrc.yml')),
-      })
-    );
-  }
 
   return throwError(
     renderPackagesNotInstalled({
@@ -209,15 +217,39 @@ async function installedVersion(packageName: string): Promise<string> {
   );
 }
 
-/** The nearest folder at or above this one holding Yarn Plug'n'Play's loader, .pnp.cjs. */
-function folderHoldingPlugNPlay(folder: string): string | undefined {
-  let directory = path.resolve(folder);
+/**
+ * YARN 2+ INSTALLS WITH PLUG'N'PLAY UNLESS A .yarnrc.yml SAYS OTHERWISE. Yarn reads every
+ * .yarnrc.yml from the app's folder up, the nearest `nodeLinker:` winning, and with none it uses
+ * pnp. So the answer comes from that setting, never from what an install left behind (.pnp.cjs):
+ * an app with nothing installed yet gets it first, not an install that would change nothing. A
+ * `nodeLinker: pnp` line is named to be changed; with none, the line is added to the .yarnrc.yml
+ * beside yarn.lock, in Yarn's project folder.
+ */
+function refusePlugNPlay(): void {
+  let directory = path.resolve(getCwd());
   const { root } = path.parse(directory);
-  while (directory !== root) {
-    if (fs.existsSync(path.join(directory, '.pnp.cjs'))) return directory;
+  while (true) {
+    const yarnrc = path.join(directory, '.yarnrc.yml');
+    const line = readText(yarnrc).match(/^nodeLinker:.*$/m)?.[0];
+    if (line) {
+      if (!/^nodeLinker:\s*["']?pnp["']?\s*(#.*)?$/.test(line)) return;
+      return throwError(
+        renderPlugNPlay({ yarnrc: path.relative(getCwd(), yarnrc), pnpLine: line.trim() })
+      );
+    }
+    if (directory === root) break;
     directory = path.dirname(directory);
   }
-  return undefined;
+
+  throwError(
+    renderPlugNPlay({
+      yarnrc: path.relative(
+        getCwd(),
+        path.join(folderHoldingYarnLock(getCwd()) ?? getCwd(), '.yarnrc.yml')
+      ),
+      pnpLine: null,
+    })
+  );
 }
 
 /**

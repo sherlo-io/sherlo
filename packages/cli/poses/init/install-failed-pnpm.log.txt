@@ -33,9 +33,8 @@ If it doesn't open, use this link on any device:
 
 ERROR: Sherlo couldn't be installed
 
-ERR_PNPM_NO_MATCHING_VERSION  No matching version found for @sherlo/react-native-storybook@<SHERLO_VERSION> while fetching it from https://registry.npmjs.org/
-The latest release of @sherlo/react-native-storybook is "2.0.2".
-If you need the full list of all 98 published versions run "pnpm view @sherlo/react-native-storybook versions".
+ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook: request to https://registry.npmjs.org/@sherlo%2Freact-native-storybook failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org
+WARN  GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook error (ENOTFOUND). Will retry in 10 seconds. 2 retries left.
 
 Full output: <LOG_FILE>
 

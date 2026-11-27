@@ -54,6 +54,7 @@ function refuseTwoLockfiles(folder: string): void {
             lockfiles: lockfiles.map((lockfile) =>
               path.relative(getCwd(), path.join(directory, lockfile))
             ),
+            managers: [...managers],
           })
         );
       }
@@ -75,8 +76,11 @@ function hasPackageManagerField(packageJson: string): boolean {
   }
 }
 
-/** The nearest folder at or above this one with a yarn.lock, walked as the detector walks. */
-function folderHoldingYarnLock(folder: string): string | undefined {
+/**
+ * The nearest folder at or above this one with a yarn.lock, walked as the detector walks: Yarn's
+ * project folder.
+ */
+export function folderHoldingYarnLock(folder: string): string | undefined {
   let directory = path.resolve(folder);
   const { root } = path.parse(directory);
   while (directory !== root) {
@@ -94,7 +98,8 @@ function isModernYarnFolder(lockFolder: string): boolean {
   return /^yarnPath:/m.test(yarnrcText);
 }
 
-function readText(file: string): string {
+/** A file's text, or '' when there is none to read. */
+export function readText(file: string): string {
   try {
     return fs.readFileSync(file, 'utf-8');
   } catch {

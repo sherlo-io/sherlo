@@ -30,16 +30,13 @@ If it doesn't open, use this link on any device:
 - Installing Sherlo...
 ✖ Installing Sherlo failed
 
-ERROR: Sherlo couldn't be installed
+ERROR: Sherlo 3.0.0 isn't published yet
 
-YN0082: @sherlo/react-native-storybook@npm:<SHERLO_VERSION>: No candidates found
+YN0082: @sherlo/react-native-storybook@npm:^3: No candidates found
 
 Full output: <LOG_FILE>
 
-Fix the error, or install Sherlo yourself:
-  yarn add @sherlo/react-native-storybook@<SHERLO_VERSION>
-
-Then run setup again. It picks up where it stopped:
+Run setup again later:
   npx sherlo init
 
 AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.

@@ -44,12 +44,17 @@ Opening your browser to log in to Sherlo...
       At the top of src/app/_layout.tsx, add:
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'../../.rnstorybook'[39m[2m;[22m
-      As the first line inside your root component, add:
-        [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
+      Change [35mexport[39m [35mdefault[39m [35mfunction[39m [32mRootLayout[39m[2m()[22m [2m{[22m to:
+        [35mfunction[39m [32mRootLayout[39m[2m()[22m [2m{[22m
+      At the end of src/app/_layout.tsx, add:
+        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m()[22m [2m{[22m
+          [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
+          [35mreturn[39m [2m<[22m[33mRootLayout[39m [2m/>;[22m
+        [2m}[22m
 
 [1m2. Replace the example stories[22m
    Right now Sherlo would test Storybook's examples, not your app.
-   Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. [2m[[22m[32m'../src'[39m[2m][22m.
+   Set "stories" in .rnstorybook/main.ts to [2m[[22m[32m'../src'[39m[2m][22m.
 
    You can start with a few components or screens, one story per state:
      [2m// Button.stories.tsx[22m

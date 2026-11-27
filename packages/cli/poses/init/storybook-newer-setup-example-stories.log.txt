@@ -28,7 +28,7 @@ Setting up Sherlo...
 
 1. Replace the example stories
    Right now Sherlo would test Storybook's examples, not your app.
-   Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ['../src'].
+   Set "stories" in .rnstorybook/main.ts to ['../src'].
 
    You can start with a few components or screens, one story per state:
      // Button.stories.tsx

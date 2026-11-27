@@ -15,6 +15,7 @@ import { THIS_COMMAND } from './constants';
 import { packageManagerCommand, printLines, trackProgress } from './helpers';
 import metroConfig from './metroConfig';
 import checkProject from './steps/checkProject';
+import folderForStories from './steps/folderForStories';
 import githubWorkflow from './steps/githubWorkflow';
 import logIn from './steps/logIn';
 import rootComponentFile from './steps/rootComponentFile';
@@ -56,7 +57,7 @@ async function init(options: Options<THIS_COMMAND>) {
     await trackProgress({ event: '2_dependencies', params: { status: 'success' }, sessionId });
 
     await metroConfig(sessionId);
-    await githubWorkflow();
+    await githubWorkflow(project.githubWorkflowPlace);
 
     const reader = setupReader();
     // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike, on every
@@ -92,6 +93,7 @@ async function init(options: Options<THIS_COMMAND>) {
         storybookFolder: folder,
         storybookIndexFile: folder && storybookFile(folder, 'index'),
         storybookMainFile: folder && storybookFile(folder, 'main'),
+        storiesFolder: await folderForStories(),
         rootRegistration: rootRegistration(),
         rootComponent: rootComponentFile(
           !!(await getDeclaredPackageVersion(EXPO_ROUTER_PACKAGE_NAME))

@@ -21,7 +21,9 @@ Lockfiles of more than one package manager:
   package-lock.json
 
 Delete the lockfile of the one you don't use, or name yours in package.json:
-  "packageManager": "<name>@<version>"
+  "packageManager": "yarn@<version>"
+  "packageManager": "npm@<version>"
+<version> is what `yarn --version` or `npm --version` prints.
 
 Then run setup again. It picks up where it stopped:
   npx sherlo init

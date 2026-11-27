@@ -72,7 +72,9 @@ async function workspacePatterns(rootFolder: string): Promise<string[]> {
               renderFileAccessFailed({
                 access: 'read',
                 file: relative(getCwd(), join(rootFolder, 'package.json')) || 'package.json',
-                reason: '"workspaces" is neither a list of folders nor { "packages": [...] }',
+                cause: {
+                  reason: '"workspaces" is neither a list of folders nor { "packages": [...] }',
+                },
               })
             );
 
@@ -94,9 +96,11 @@ async function pnpmWorkspacePatterns(rootFolder: string): Promise<string[]> {
       renderFileAccessFailed({
         access: 'read',
         file: relative(getCwd(), file) || file,
-        reason: mark
-          ? `${reason} at line ${mark.line + 1}, column ${mark.column + 1}`
-          : (error as Error).message,
+        cause: {
+          reason: mark
+            ? `${reason} at line ${mark.line + 1}, column ${mark.column + 1}`
+            : (error as Error).message,
+        },
       })
     );
   }

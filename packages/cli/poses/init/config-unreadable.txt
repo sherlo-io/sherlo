@@ -16,9 +16,9 @@ Setting up Sherlo...
 
 [31mERROR: Setup can't read sherlo.config.json[39m
 
-[0mEISDIR: illegal operation on a directory[0m
+[0msherlo.config.json is a folder: remove it[0m
 
-[0mFix the error, then run setup again. It picks up where it stopped:[0m
+[0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

@@ -28,11 +28,14 @@ Opening your browser to log in to Sherlo...
 
 [31mERROR: Sherlo couldn't be installed[39m
 
-[2merror Couldn't find any versions for "@sherlo/react-native-storybook" that matches "<SHERLO_VERSION>"[22m
+[2merror An unexpected error occurred: "https://registry.yarnpkg.com/@sherlo%2freact-native-storybook: getaddrinfo ENOTFOUND registry.yarnpkg.com".[22m
 [2myarn add v1.22.22[22m
 [2m[1/4] Resolving packages...[22m
+[2minfo There appears to be trouble with your network connection. Retrying...[22m
+[2minfo If you think this is a bug, please open a bug report with the information provided in "/Users/anna/acme-shop/yarn-error.log".[22m
 
 [0mFull output: <LOG_FILE>[0m
+[0myarn's own log: /Users/anna/acme-shop/yarn-error.log[0m
 
 [0mFix the error, or install Sherlo yourself:[0m
 [36m  yarn add @sherlo/react-native-storybook@<SHERLO_VERSION>[39m

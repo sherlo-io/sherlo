@@ -138,3 +138,28 @@ export function pickInstallOutput({
 
   return { lines: [...errorLines, ...otherLines], toolLogFiles };
 }
+
+/**
+ * How each tool says the registry has no version the range allows, in its own words (read from the
+ * same sources as the rule above). Yarn 4's day hold is not one of them: that version is published,
+ * and Yarn says "are quarantined" for it.
+ */
+const VERSION_NOT_PUBLISHED: Partial<Record<Agent, RegExp>> = {
+  npm: /^npm (?:error|ERR!) code ETARGET$/m,
+  yarn: /^error Couldn't find any versions for /m,
+  'yarn@berry': /"displayName":"YN0082"/,
+  pnpm: /ERR_PNPM_NO_MATCHING_VERSION/,
+  'pnpm@6': /ERR_PNPM_NO_MATCHING_VERSION/,
+  bun: /^error: No version matching /m,
+};
+
+/** Whether the failed install says the registry has no version of the package the range allows. */
+export function saysVersionNotPublished({
+  tool,
+  output,
+}: {
+  tool: Agent;
+  output: string;
+}): boolean {
+  return VERSION_NOT_PUBLISHED[tool]?.test(output) ?? false;
+}

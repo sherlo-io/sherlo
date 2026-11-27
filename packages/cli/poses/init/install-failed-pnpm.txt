@@ -29,9 +29,8 @@ Opening your browser to log in to Sherlo...
 
 [31mERROR: Sherlo couldn't be installed[39m
 
-[2mERR_PNPM_NO_MATCHING_VERSION  No matching version found for @sherlo/react-native-storybook@<SHERLO_VERSION> while fetching it from https://registry.npmjs.org/[22m
-[2mThe latest release of @sherlo/react-native-storybook is "2.0.2".[22m
-[2mIf you need the full list of all 98 published versions run "pnpm view @sherlo/react-native-storybook versions".[22m
+[2mERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook: request to https://registry.npmjs.org/@sherlo%2Freact-native-storybook failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org[22m
+[2mWARN  GET https://registry.npmjs.org/@sherlo%2Freact-native-storybook error (ENOTFOUND). Will retry in 10 seconds. 2 retries left.[22m
 
 [0mFull output: <LOG_FILE>[0m
 

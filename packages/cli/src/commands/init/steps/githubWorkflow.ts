@@ -80,23 +80,46 @@ async function whereRemoteLives(remote: string): Promise<'github' | 'elsewhere' 
   return GITHUB_HOSTS.includes(realHost) ? 'github' : 'elsewhere';
 }
 
-/** Answers whether the project has Sherlo's workflow now, which the next steps name. */
-async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
+/** Where Sherlo's workflow goes; null when every remote lives elsewhere and none is written. */
+export type GithubWorkflowPlace = {
+  workflowFile: string;
+  repositoryRoot: string;
+  workspaceRoot: string;
+} | null;
+
+/**
+ * WHERE THE WORKFLOW GOES IS DECIDED WHILE SETUP CHECKS THE APP, so a path something stands in the
+ * way of (a `.github` file) stops the run there, before the login, not at this step after a project
+ * was made. The step itself then writes to the place decided.
+ */
+export async function findGithubWorkflowPlace(): Promise<GithubWorkflowPlace> {
   const projectRoot = getCwd();
 
   // EVERY REMOTE IS ASKED, whatever it is called: the workflow is skipped only when every one is
   // known to live elsewhere. One on GitHub, or one whose host cannot be told, writes it.
   const remotes = await surroundings().readGitRemotes(projectRoot);
   const places = await Promise.all(remotes.map(whereRemoteLives));
-  if (places.length > 0 && places.every((place) => place === 'elsewhere')) {
-    printWhyNoWorkflow();
-    return { hasWorkflow: false };
-  }
+  if (places.length > 0 && places.every((place) => place === 'elsewhere')) return null;
 
   const { monorepoRoot } = await findPackageJsonPaths();
   const workspaceRoot = monorepoRoot ? path.dirname(monorepoRoot) : projectRoot;
   const repositoryRoot = findGitRoot(projectRoot) ?? workspaceRoot;
-  const workflowFile = path.join(repositoryRoot, GITHUB_WORKFLOW_PATH);
+  return {
+    workflowFile: path.join(repositoryRoot, GITHUB_WORKFLOW_PATH),
+    repositoryRoot,
+    workspaceRoot,
+  };
+}
+
+/** Answers whether the project has Sherlo's workflow now, which the next steps name. */
+async function githubWorkflow(place: GithubWorkflowPlace): Promise<{ hasWorkflow: boolean }> {
+  if (place === null) {
+    printWhyNoWorkflow();
+    return { hasWorkflow: false };
+  }
+
+  const projectRoot = getCwd();
+  const { workflowFile, repositoryRoot, workspaceRoot } = place;
   // Named from the app's folder, where the person ran setup: "../../.github/workflows/sherlo.yml".
   const workflowDetail = path.relative(projectRoot, workflowFile);
 

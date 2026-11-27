@@ -111,7 +111,11 @@ export function renderStorybookIndexFile(): string[] {
   ];
 }
 
-/** A main file's entry for every story file under `storiesFolder`, quoted, as it is written. */
+/**
+ * A main file's entry for every story file under `storiesFolder`, quoted, as it is written. The
+ * app's folder itself (`.`) is loaded without its subfolders, so the entry never reaches
+ * node_modules.
+ */
 export function storiesGlob({
   storybookFolder,
   storiesFolder,
@@ -119,7 +123,8 @@ export function storiesGlob({
   storybookFolder: string;
   storiesFolder: string;
 }): string {
-  return `'${importPath(storybookFolder, storiesFolder)}/**/*.stories.?(ts|tsx|js|jsx)'`;
+  const subfolders = storiesFolder === '.' ? '' : '**/';
+  return `'${importPath(storybookFolder, storiesFolder)}/${subfolders}*.stories.?(ts|tsx|js|jsx)'`;
 }
 
 /** The path an import in `fromFolder` writes to reach `target`: `./src`, `../app.json`. */

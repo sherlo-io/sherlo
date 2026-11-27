@@ -16,9 +16,9 @@ Setting up Sherlo...
 
 ERROR: Setup can't read sherlo.config.json
 
-EISDIR: illegal operation on a directory
+sherlo.config.json is a folder: remove it
 
-Fix the error, then run setup again. It picks up where it stopped:
+Then run setup again. It picks up where it stopped:
   npx sherlo init
 
 AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.

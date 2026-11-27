@@ -28,9 +28,14 @@ Opening your browser to log in to Sherlo...
 
 [31mERROR: Sherlo couldn't be installed[39m
 
-[2mnpm error code ETARGET[22m
-[2mnpm error notarget No matching version found for @sherlo/react-native-storybook@<SHERLO_VERSION>.[22m
-[2mnpm error notarget In most cases you or one of your dependencies are requesting a package version that doesn't exist.[22m
+[2mnpm error code ENOTFOUND[22m
+[2mnpm error syscall getaddrinfo[22m
+[2mnpm error errno ENOTFOUND[22m
+[2mnpm error network request to https://registry.npmjs.org/@sherlo%2freact-native-storybook failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org[22m
+[2mnpm error network This is a problem related to network connectivity.[22m
+[2mnpm error network In most cases you are behind a proxy or have bad network settings.[22m
+[2mnpm error network[22m
+[2mnpm error network If you are behind a proxy, please make sure that the 'proxy' config is set properly.  See: 'npm help config'[22m
 
 [0mFull output: <LOG_FILE>[0m
 [0mnpm's own log: /Users/anna/.npm/_logs/2026-10-01T12_00_00_000Z-debug-0.log[0m

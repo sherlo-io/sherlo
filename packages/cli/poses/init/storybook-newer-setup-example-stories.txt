@@ -27,7 +27,7 @@ Setting up Sherlo...
 
 [1m1. Replace the example stories[22m
    Right now Sherlo would test Storybook's examples, not your app.
-   Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. [2m[[22m[32m'../src'[39m[2m][22m.
+   Set "stories" in .rnstorybook/main.ts to [2m[[22m[32m'../src'[39m[2m][22m.
 
    You can start with a few components or screens, one story per state:
      [2m// Button.stories.tsx[22m

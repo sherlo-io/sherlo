@@ -14,8 +14,10 @@ import {
 import {
   renderInstallFailed,
   renderSherloHeldBackByYarn,
+  renderSherloNotPublished,
   renderStorybookPinsExactVersions,
 } from '../../../render/initFixes';
+import { saysVersionNotPublished } from '../../../render/installOutput';
 import {
   renderFailedInitStepLine,
   renderInitStepLine,
@@ -133,8 +135,9 @@ async function installSherlo(): Promise<void> {
     // npmMinimalAgeGate (default a day), and the major has no older version yet, so every version
     // the range allows is held and the install fails the same way until then. No fix helps before
     // then, so the screen says when Yarn installs it instead, with the project's own setting. Yarn says so in its own words (YN0016 'All versions satisfying "^3" are quarantined',
-    // spike yarn-age-hold-error); YN0016 alone is any resolution error, and YN0082 "No candidates
-    // found" is a range nothing was ever published for - both get the install-failed fix.
+    // spike yarn-age-hold-error); YN0016 alone is any resolution error (the install-failed fix), and
+    // YN0082 "No candidates found" is a range nothing was ever published for (the not-published
+    // screen below).
     if (
       tool === 'yarn@berry' &&
       packageSpec.endsWith(`@${sherloSdkVersionRange(sherloVersion)}`) &&
@@ -144,6 +147,21 @@ async function installSherlo(): Promise<void> {
         ...renderSherloHeldBackByYarn({
           version: sherloVersion,
           ageGateMinutes: await workstation().readYarnAgeGateMinutes(getCwd()),
+        }),
+        errorToReport: error,
+      });
+    }
+
+    // SETUP IS OUT BEFORE ITS PACKAGE: the registry has no Sherlo the range allows, so the same
+    // command fails the same way and no fix of the person's helps - only time does.
+    if (
+      packageSpec.endsWith(`@${sherloSdkVersionRange(sherloVersion)}`) &&
+      saysVersionNotPublished({ tool, output })
+    ) {
+      throwError({
+        ...renderSherloNotPublished({
+          version: sherloVersion,
+          failed: { command: commandToRun, tool, output, logFile },
         }),
         errorToReport: error,
       });

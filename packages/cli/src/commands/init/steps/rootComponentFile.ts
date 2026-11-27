@@ -44,7 +44,35 @@ function rootComponentFile(hasExpoRouter: boolean): RootComponentFile {
   );
   const foundFile = candidates.find((file) => fs.existsSync(path.join(projectRoot, file)));
 
-  return foundFile ? { file: foundFile, found: true } : { file: candidates[0], found: false };
+  return foundFile
+    ? {
+        file: foundFile,
+        found: true,
+        defaultExport: readDefaultExport(path.join(projectRoot, foundFile)),
+      }
+    : { file: candidates[0], found: false, defaultExport: null };
+}
+
+/**
+ * How the root file exports its component, read off its lines: `export default function App(` or
+ * `export default class App` declares it; `export default App;` names one declared above. Any other
+ * form (an arrow function, a call such as `export default withProviders(App)`) is null: the next
+ * step then gives the generic change, never a guessed one.
+ */
+function readDefaultExport(file: string): RootComponentFile['defaultExport'] {
+  let code: string;
+  try {
+    code = fs.readFileSync(file, 'utf8');
+  } catch {
+    return null;
+  }
+  const declared = /^export default (?:async )?(?:function|class) ([A-Za-z_$][\w$]*)\b.*$/m.exec(
+    code
+  );
+  if (declared) return { form: 'declared', line: declared[0].trim(), name: declared[1] };
+  const named = /^export default ([A-Za-z_$][\w$]*);?[ \t]*$/m.exec(code);
+  if (named) return { form: 'named', line: named[0].trim(), name: named[1] };
+  return null;
 }
 
 export default rootComponentFile;

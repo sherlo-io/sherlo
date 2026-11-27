@@ -12,20 +12,13 @@ Make sure your mobile app looks perfect on every device
 
 Setting up Sherlo...
 
-✔ Checked the app        Expo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>
-✔ Logged in              anna@example.com
-✔ Using team             Anna's team
-✔ Created project        Acme Shop
-✔ Created config         sherlo.config.json, one device: Pixel 7 Pro
-- Installing Sherlo...
-✔ Installed Sherlo       @sherlo/react-native-storybook <SHERLO_VERSION>
-✖ Creating Metro config failed
+✖ Checking the app failed
 
 ERROR: Setup can't write metro.config.js
 
-EISDIR: illegal operation on a directory
+metro.config.js is a folder: remove it
 
-Fix the error, then run setup again. It picks up where it stopped:
+Then run setup again. It picks up where it stopped:
   npx sherlo init
 
 AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.

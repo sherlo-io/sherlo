@@ -122,15 +122,27 @@ export function renderNoPackageManager(): InitRefusal {
 /**
  * Lockfiles of two package managers lie side by side and no `packageManager` field picks one:
  * setup would run whichever its detector finds first, which may not be the person's. `lockfiles`
- * are named from the app's folder, e.g. `yarn.lock`, `../../package-lock.json`.
+ * are named from the app's folder, e.g. `yarn.lock`, `../../package-lock.json`; `managers` are the
+ * managers those lockfiles belong to, e.g. `yarn`, `npm`, each offered as the field's value. The
+ * version is the one placeholder left: no file of the app says which version of a manager the person
+ * runs, only the manager itself does.
  */
-export function renderTwoLockfiles({ lockfiles }: { lockfiles: string[] }): InitRefusal {
+export function renderTwoLockfiles({
+  lockfiles,
+  managers,
+}: {
+  lockfiles: string[];
+  managers: string[];
+}): InitRefusal {
   return refusal("Can't tell which package manager this app uses", [
     words('Lockfiles of more than one package manager:'),
     ...lockfiles.map((lockfile) => code(lockfile)),
     '',
     words("Delete the lockfile of the one you don't use, or name yours in package.json:"),
-    `  ${renderCode('"packageManager": "<name>@<version>"')}`,
+    ...managers.map((manager) => `  ${renderCode(`"packageManager": "${manager}@<version>"`)}`),
+    words(
+      `<version> is what ${managers.map((manager) => `\`${manager} --version\``).join(' or ')} prints.`
+    ),
     ...rerun(),
   ]);
 }
@@ -156,11 +168,20 @@ export function renderPackagesNotInstalled({
 /**
  * The app's packages are installed by Yarn Plug'n'Play, with no node_modules folder for setup or
  * Storybook's Metro to read. Yarn's own setting puts node_modules back. `yarnrc` is named from the
- * app's folder, e.g. `.yarnrc.yml`, `../../.yarnrc.yml`.
+ * app's folder, e.g. `.yarnrc.yml`, `../../.yarnrc.yml`. `pnpLine` is the line that file already
+ * holds, e.g. `nodeLinker: pnp`, to be changed rather than added beside; null when it has none.
  */
-export function renderPlugNPlay({ yarnrc }: { yarnrc: string }): InitRefusal {
+export function renderPlugNPlay({
+  yarnrc,
+  pnpLine,
+}: {
+  yarnrc: string;
+  pnpLine: string | null;
+}): InitRefusal {
   return refusal("Setup can't read packages installed with Yarn Plug'n'Play", [
-    words(`Add this line to ${yarnrc}:`),
+    ...(pnpLine
+      ? [words(`Change this line in ${yarnrc}:`), code(pnpLine), words('to:')]
+      : [words(`Add this line to ${yarnrc}:`)]),
     code('nodeLinker: node-modules'),
     '',
     words('Install your dependencies, then run setup again:'),
@@ -394,6 +415,7 @@ export function renderStorybookFolderMissing({
   folder,
   history,
   metroConfig,
+  storiesFolder,
 }: {
   /**
    * The folder the Metro config's configPath names, or null when it names none and neither default
@@ -406,6 +428,11 @@ export function renderStorybookFolderMissing({
   history: FolderHistory;
   /** The Metro config, or null when the app has none yet. */
   metroConfig: FolderMissingMetroConfig | null;
+  /**
+   * The folder the main file to create loads stories from (../commands/init/steps/folderForStories),
+   * one the app has, from the app's folder: `src`, or `.` for the app's folder itself.
+   */
+  storiesFolder: string;
 }): InitRefusal {
   const message = named
     ? `Storybook is installed, but its folder ${named} is missing`
@@ -434,20 +461,26 @@ export function renderStorybookFolderMissing({
         ]
       : []),
     // BOTH FILES WHOLE, so creating the folder needs nothing looked up: the main file loads the
-    // stories under src, the index file starts Storybook.
-    ...storybookFolderFiles(named ?? '.rnstorybook'),
+    // stories in a folder the app has, the index file starts Storybook.
+    ...storybookFolderFiles({ storybookFolder: named ?? '.rnstorybook', storiesFolder }),
     ...pointConfigPath(metroConfig),
     ...rerun(),
   ]);
 }
 
 /** A Storybook folder to create, its main file and index file written whole. */
-function storybookFolderFiles(storybookFolder: string): string[] {
+function storybookFolderFiles({
+  storybookFolder,
+  storiesFolder,
+}: {
+  storybookFolder: string;
+  storiesFolder: string;
+}): string[] {
   const indented = (line: string): string => (line === '' ? '' : `    ${line}`);
   return [
     words(`Create ${storybookFolder} with two files:`),
     words(`  ${storybookFolder}/main.ts:`),
-    ...renderStorybookMainFile({ storybookFolder, storiesFolder: 'src' }).map(indented),
+    ...renderStorybookMainFile({ storybookFolder, storiesFolder }).map(indented),
     // A BLANK LINE AFTER EACH FILE, so where one ends and the next part starts is seen at once.
     '',
     words(`  ${storybookFolder}/index.ts:`),
@@ -622,6 +655,27 @@ export function renderInstallFailed(failed: FailedInstall): InitRefusal {
 }
 
 /**
+ * The package manager found no Sherlo matching this setup's version (./installOutput
+ * saysVersionNotPublished): setup is out before the package it installs. NO HAND INSTALL: the same
+ * command would find nothing either, and no fix of the person's helps, so the screen keeps the
+ * manager's own lines, says the version is not out yet, and gives the rerun for later.
+ */
+export function renderSherloNotPublished({
+  version,
+  failed,
+}: {
+  version: string;
+  failed: FailedInstall;
+}): InitRefusal {
+  return refusal(`Sherlo ${version} isn't published yet`, [
+    ...installOutput(failed),
+    '',
+    words('Run setup again later:'),
+    code(typedInitCommand()),
+  ]);
+}
+
+/**
  * Modern Yarn found no Sherlo for the CLI's major in the first days of that major: Yarn holds back
  * a version younger than its npmMinimalAgeGate, and the major has no older one. Every retry fails
  * until then, so the screen gives no fix, only when Yarn installs it, why (the setting, read with
@@ -693,25 +747,33 @@ export function renderInvalidJson({ path, reason }: { path: string; reason: stri
 }
 
 /**
- * A file of the app setup could not read or write: `file` is named from the app's folder, and
- * `reason` is the system's own words without the path it names, e.g. "ENOTDIR: not a directory".
- * The fix is the person's: the system said what is in the way.
+ * A file of the app setup could not read or write: `file` is named from the app's folder. The fix
+ * is the person's. The `cause` is a `blocker` when setup found what is in the way by looking at the
+ * path, named with its fix, e.g. ".github is a file, not a folder: rename or remove it": it stands
+ * in for the system's words, which name a call, not the thing to change. When nothing on the path
+ * is in the way (no permission, a full disk), it is the `reason`: the system's own words without the
+ * path they name, e.g. "EACCES: permission denied", or a parser's.
  */
 export function renderFileAccessFailed({
   access,
   file,
-  reason,
+  cause,
 }: {
   access: 'read' | 'write';
   file: string;
-  reason: string;
+  cause: { blocker: string } | { reason: string };
 }): InitRefusal {
-  return refusal(`Setup can't ${access} ${file}`, [
-    words(reason),
-    '',
-    words('Fix the error, then run setup again. It picks up where it stopped:'),
-    code(typedInitCommand()),
-  ]);
+  return refusal(
+    `Setup can't ${access} ${file}`,
+    'blocker' in cause
+      ? [words(cause.blocker), ...rerun()]
+      : [
+          words(cause.reason),
+          '',
+          words('Fix the error, then run setup again. It picks up where it stopped:'),
+          code(typedInitCommand()),
+        ]
+  );
 }
 
 /**

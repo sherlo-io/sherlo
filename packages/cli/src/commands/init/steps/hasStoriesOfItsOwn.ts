@@ -20,6 +20,17 @@ import someAppFile from './someAppFile';
 
 const STORY_FILE = /\.stories\.(?:[cm]?[jt]sx?)$/;
 
+/** The app's first story file, from the app's folder (`src/Button.stories.tsx`); null with none. */
+export function firstStoryFile(): string | null {
+  let firstStory: string | null = null;
+  someAppFile((filePath) => {
+    if (!STORY_FILE.test(filePath)) return false;
+    firstStory = path.relative(getCwd(), filePath).split(path.sep).join('/');
+    return true;
+  });
+  return firstStory;
+}
+
 /**
  * The app's stories, or why its main config could not be read. With none Storybook loads,
  * `leftOut` is the first story file of the app the list leaves out (from the app's folder,
@@ -35,13 +46,7 @@ async function hasStoriesOfItsOwn(folder: string): Promise<OwnStories> {
   // NO MAIN FILE LISTS NOTHING, so every story file of the app is left out: the first one is named,
   // so the main file the next step shows lists a folder the app has stories in, never a guessed one.
   if (storybookLoads === 'main-file-missing') {
-    let firstStory: string | null = null;
-    someAppFile((filePath) => {
-      if (!STORY_FILE.test(filePath)) return false;
-      firstStory = path.relative(getCwd(), filePath).split(path.sep).join('/');
-      return true;
-    });
-    return { unreadable: storybookLoads, leftOut: firstStory };
+    return { unreadable: storybookLoads, leftOut: firstStoryFile() };
   }
   if (typeof storybookLoads !== 'function') return { unreadable: storybookLoads, leftOut: null };
   // The walk stops at the first story Storybook loads; with none it has seen every story file,

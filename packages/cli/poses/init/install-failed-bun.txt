@@ -28,7 +28,7 @@ Opening your browser to log in to Sherlo...
 
 [31mERROR: Sherlo couldn't be installed[39m
 
-[2merror: No version matching "<SHERLO_VERSION>" found for specifier "@sherlo/react-native-storybook" (but package exists)[22m
+[2merror: ConnectionRefused downloading package manifest @sherlo/react-native-storybook[22m
 
 [0mFull output: <LOG_FILE>[0m
 
