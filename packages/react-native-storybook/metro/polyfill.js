@@ -1716,13 +1716,31 @@ var exactUndo = require('../src/mocking/exactUndo');
       return false;
     }
 
-    // A member its stand-in's ground does not hold fixed is reported as one the bundle may change:
-    // the engine refuses a stand-in that reports a fixed member its ground lacks.
-    function asGroundAllows(ground, key, description) {
-      if (description && !safeWrapping.isFixedProperty(ground, key)) {
-        description.configurable = true;
-      }
+    // WHAT THE GROUND ALLOWS. The engine checks a stand-in's answers against its ground, and an
+    // answer it refuses throws in the bundle. So each answer it checks is made, by the rules of
+    // what a target allows (src/safeWrapping.ts), from the value's answer and the ground as it is
+    // at that moment, on every path, a raw answer after a failed recording too.
+
+    // A member's description as the bundle gets it: its value, where it has one, as the bundle
+    // gets it.
+    function asBundleGetsIt(description) {
+      if (description && 'value' in description) description.value = toBundle(description.value);
       return description;
+    }
+
+    // The member as the value holds it once the bundle defined it with `description`: each field
+    // the bundle gave as it gave it, the rest as the value has them, a value as the bundle gets it.
+    // Read only where the member may be fixed, and none where the value has no such member.
+    function heldAfterDefinition(ground, real, key, description) {
+      var mayBeFixed =
+        description.configurable !== true || safeWrapping.isFixedProperty(ground, key);
+      var held = mayBeFixed ? Reflect.getOwnPropertyDescriptor(real, key) : undefined;
+      if (!held) return undefined;
+      if (!('value' in description)) asBundleGetsIt(held);
+      Object.keys(description).forEach(function (field) {
+        held[field] = description[field];
+      });
+      return held;
     }
 
     function descriptorAsRecorded(description) {
@@ -1740,17 +1758,22 @@ var exactUndo = require('../src/mocking/exactUndo');
     // Each use goes to `real`; `ground`, what the stand-in stands on (groundOfStandIn), is read
     // only where the engine checks an answer against it.
     function standInHandler(handle, real) {
+      // A use whose answer the engine checks, made as the ground allows inside the use, so the
+      // recording holds what the bundle gets. `allows` never throws, so the answer is always made
+      // so. A key that is no string goes unrecorded.
+      function checkedUse(trap, key, recordedArguments, use, allows) {
+        if (typeof key !== 'string') return allows(use());
+        return noteUse(handle, trap, recordedArguments, use, allows);
+      }
+
       return {
         get: function (ground, key, receiver) {
           var self = nativeOf(receiver);
+          var isHeld = safeWrapping.isReadHeldByTarget(ground, key);
           var isNativeUse = quietly(function () {
             return typeof key === 'string' && !isEngineOwn(real, key);
           }, false);
-          if (!isNativeUse) return Reflect.get(real, key, self);
-          // Held or not, when the look fails: the bundle then gets the value as it is.
-          var isHeld = quietly(function () {
-            return safeWrapping.isHeldToItsValue(ground, key);
-          }, true);
+          if (!isNativeUse) return Reflect.get(isHeld ? ground : real, key, self);
           return noteUse(
             handle,
             'get',
@@ -1762,28 +1785,32 @@ var exactUndo = require('../src/mocking/exactUndo');
             },
             function (value) {
               if (!isHeld) return toBundle(value);
-              // The bundle gets it unwrapped, so its own uses go unseen.
+              // The bundle gets what the ground holds, laid there as the bundle gets it; a native
+              // value laid unwrapped keeps its own uses unseen.
               if (isNativeValue(value) && !refs.get(value)) {
                 keepBlindRoadOnce('jsiGlobal', 'unrecordable:' + handle + '.' + key, false);
               }
-              return fromNative(value, null);
+              return value;
             }
           );
         },
-        has: function (_ground, key) {
-          if (typeof key !== 'string') return Reflect.has(real, key);
-          return noteUse(
-            handle,
+        // Each answer below the engine checks is made as the ground allows.
+        has: function (ground, key) {
+          return checkedUse(
             'has',
+            key,
             function () {
               return [key];
             },
             function () {
               return Reflect.has(real, key);
+            },
+            function (isIn) {
+              return safeWrapping.hasTargetAllows(ground, key, isIn);
             }
           );
         },
-        ownKeys: function () {
+        ownKeys: function (ground) {
           return noteUse(
             handle,
             'ownKeys',
@@ -1793,38 +1820,38 @@ var exactUndo = require('../src/mocking/exactUndo');
             function () {
               return Reflect.ownKeys(real);
             },
-            null,
-            function (keys) {
-              return keys.filter(function (key) {
+            function (answer) {
+              return safeWrapping.keysTargetAllows(ground, answer);
+            },
+            function (answer) {
+              return answer.filter(function (key) {
                 return typeof key === 'string';
               });
             }
           );
         },
+        // Made as the ground allows once the use is noted: a value that refuses the look as the
+        // bundle would get it, which stops the recording, hands back its member as it holds it.
         getOwnPropertyDescriptor: function (ground, key) {
-          if (typeof key !== 'string') {
-            return asGroundAllows(ground, key, Reflect.getOwnPropertyDescriptor(real, key));
-          }
-          return noteUse(
-            handle,
-            'getOwnPropertyDescriptor',
-            function () {
-              return [key];
-            },
-            function () {
-              return Reflect.getOwnPropertyDescriptor(real, key);
-            },
-            function (description) {
-              asGroundAllows(ground, key, description);
-              // A member a ground of the recorder's own holds fixed, it holds as the bundle got it.
-              var isWrapped = description && (description.configurable || ground !== real);
-              if (isWrapped && 'value' in description) {
-                description.value = toBundle(description.value);
-              }
-              return description;
-            },
-            descriptorAsRecorded
-          );
+          var description =
+            typeof key !== 'string'
+              ? Reflect.getOwnPropertyDescriptor(real, key)
+              : noteUse(
+                  handle,
+                  'getOwnPropertyDescriptor',
+                  function () {
+                    return [key];
+                  },
+                  function () {
+                    return Reflect.getOwnPropertyDescriptor(real, key);
+                  },
+                  asBundleGetsIt,
+                  descriptorAsRecorded
+                );
+          // A member the value holds fixed is laid on the ground as for a definition, so the
+          // stand-in reports it as the value holds it. A ground that cannot take it keeps its own.
+          safeWrapping.defineTargetAllows(ground, key, description, true);
+          return safeWrapping.descriptionTargetAllows(ground, key, description);
         },
         getPrototypeOf: function (ground) {
           return noteUse(
@@ -1836,12 +1863,32 @@ var exactUndo = require('../src/mocking/exactUndo');
             function () {
               return Reflect.getPrototypeOf(real);
             },
-            function (prototype) {
-              if (!Reflect.isExtensible(ground)) return prototype;
-              return toBundle(prototype);
+            function (answer) {
+              return safeWrapping.prototypeTargetAllows(ground, toBundle(answer));
             }
           );
         },
+        // As the value says, unrecorded; a value that took no new members since its stand-in was
+        // made closes the ground first, as the engine asks. A value that refuses the look is
+        // answered as the ground is.
+        isExtensible: function (ground) {
+          var isOpen = true;
+          try {
+            isOpen = Reflect.isExtensible(real);
+          } catch (_) {
+            // A host object's refusal: the ground's own answer stands.
+          }
+          if (!isOpen && Reflect.isExtensible(ground)) closeGround(ground, real);
+          return Reflect.isExtensible(ground);
+        },
+        // The value's own prototype changes, unrecorded; a closed ground keeps its own, and the
+        // stand-in says so, as the engine asks.
+        setPrototypeOf: function (ground, prototype) {
+          var isSet = Reflect.setPrototypeOf(real, nativeOf(prototype));
+          return isSet && safeWrapping.prototypeTargetAllows(ground, prototype) === prototype;
+        },
+        // As the value answers: the ground holds fixed only what the value holds fixed, as the
+        // bundle gets it, so a write the value takes the ground allows.
         set: function (_ground, key, value, receiver) {
           if (typeof key !== 'string') return Reflect.set(real, key, value, nativeOf(receiver));
           var road = handle + '.set';
@@ -1857,55 +1904,55 @@ var exactUndo = require('../src/mocking/exactUndo');
             }
           );
         },
+        // A member the value then holds fixed is laid on the ground too, as the bundle gave it.
         defineProperty: function (ground, key, description) {
-          // A member the bundle fixes is fixed on the ground too, as the engine asks.
-          var fixOnGround = function (isDefined) {
-            if (isDefined && ground !== real && description.configurable === false) {
-              Reflect.defineProperty(ground, key, description);
-            }
-            return isDefined;
-          };
-          if (typeof key !== 'string') {
-            return fixOnGround(Reflect.defineProperty(real, key, description));
+          var given = description;
+          if (typeof key === 'string') {
+            given = {};
+            Object.keys(description).forEach(function (field) {
+              given[field] = toNative(description[field], handle + '.defineProperty', true);
+            });
           }
-          var given = {};
-          Object.keys(description).forEach(function (field) {
-            given[field] = toNative(description[field], handle + '.defineProperty', true);
-          });
-          return noteUse(
-            handle,
+          return checkedUse(
             'defineProperty',
+            key,
             function () {
               return [key, descriptorAsRecorded(description)];
             },
             function () {
-              return fixOnGround(Reflect.defineProperty(real, key, given));
+              return Reflect.defineProperty(real, key, given);
+            },
+            // A value that refuses the look is taken to hold the member as the bundle gave it.
+            function (isDefined) {
+              var held = !isDefined
+                ? undefined
+                : quietly(function () {
+                    return heldAfterDefinition(ground, real, key, description);
+                  }, description);
+              return safeWrapping.defineTargetAllows(ground, key, held, isDefined);
             }
           );
         },
+        // A member the value lost, the ground loses too.
         deleteProperty: function (ground, key) {
-          // A member the value lost, a ground of the recorder's own loses too, as the engine asks.
-          var deleteOnGround = function (isDeleted) {
-            if (isDeleted && ground !== real) Reflect.deleteProperty(ground, key);
-            return isDeleted;
-          };
-          if (typeof key !== 'string') return deleteOnGround(Reflect.deleteProperty(real, key));
-          return noteUse(
-            handle,
+          return checkedUse(
             'deleteProperty',
+            key,
             function () {
               return [key];
             },
             function () {
-              return deleteOnGround(Reflect.deleteProperty(real, key));
+              return Reflect.deleteProperty(real, key);
+            },
+            function (isDeleted) {
+              return safeWrapping.deleteTargetAllows(ground, key, isDeleted);
             }
           );
         },
-        // The value itself stops taking members, as unrecorded; a ground of the recorder's own
-        // closes with it.
+        // The value itself stops taking members, as unrecorded; its ground closes with it.
         preventExtensions: function (ground) {
           var isPrevented = Reflect.preventExtensions(real);
-          if (isPrevented && ground !== real && Reflect.isExtensible(ground)) {
+          if (isPrevented && Reflect.isExtensible(ground)) {
             closeGround(ground, real);
           }
           return isPrevented;
@@ -1955,41 +2002,60 @@ var exactUndo = require('../src/mocking/exactUndo');
       };
     }
 
-    // What a stand-in stands on: the native value itself, unless the engine holds a member of it
-    // fixed or it takes no new members. A Proxy must answer such a member with that very value,
-    // and a held method would then get the stand-in as `this`; so it stands on an empty object or
-    // function of the recorder's own, never handed to native, and answers every member as any
-    // other. A value that refuses the look stands on one too.
+    // What a stand-in stands on: an empty object, array or function of the recorder's own, never
+    // the native value itself nor handed to native. The engine checks a Proxy's answers against
+    // what it stands on, and a host object may answer the engine otherwise than it answers the
+    // recorder, or otherwise each time it is asked; a ground of the recorder's own answers only
+    // as the recorder laid it (what the ground allows, above). A function's ground takes `new` only
+    // where the function does.
     function groundOfStandIn(real) {
-      var isFixed = true;
-      try {
-        isFixed =
-          !Object.isExtensible(real) ||
-          Object.getOwnPropertyNames(real).some(function (key) {
-            return safeWrapping.isHeldToItsValue(real, key);
-          });
-      } catch (_) {
-        // A host object's: it may hold a member fixed.
+      if (typeof real === 'function') {
+        return safeWrapping.isConstructor(real)
+          ? safeWrapping.callableTarget(real)
+          : safeWrapping.callOnlyTarget(real);
       }
-      if (!isFixed) return real;
-      return typeof real === 'function' ? safeWrapping.callableTarget(real) : Object.create(null);
+      try {
+        if (Array.isArray(real)) return [];
+      } catch (_) {
+        // A value that refuses the look stands on an object.
+      }
+      return Object.create(null);
     }
 
-    // A ground of the recorder's own takes no new members once its value takes none: the engine
-    // then checks every answer against the ground, so it first takes the value's prototype and
-    // each member (named by a string) as the bundle gets it, and loses any member the value lacks.
-    // A throw as it is laid is the recorder's own, which stops the recording.
+    // A ground takes no new members once its value takes none: the engine then checks every
+    // answer against the ground, so it first takes the value's prototype and each member as the
+    // bundle gets it, and loses any member the value lacks. A throw as it is laid is the
+    // recorder's own, which stops the recording; each part is laid on its own, so one that
+    // throws leaves the rest laid, and a value the bundle cannot be given is laid as it is.
     function closeGround(ground, real) {
       quietly(function () {
         Reflect.ownKeys(ground).forEach(function (key) {
           if (!safeWrapping.hasOwn(real, key)) Reflect.deleteProperty(ground, key);
         });
-        Object.setPrototypeOf(ground, Object.getPrototypeOf(real));
-        Object.getOwnPropertyNames(real).forEach(function (key) {
-          if (safeWrapping.isFixedProperty(ground, key)) return;
-          var description = Object.getOwnPropertyDescriptor(real, key);
-          if ('value' in description) description.value = toBundle(description.value);
-          Object.defineProperty(ground, key, description);
+      });
+      quietly(function () {
+        var prototype = Object.getPrototypeOf(real);
+        Object.setPrototypeOf(
+          ground,
+          quietly(function () {
+            return toBundle(prototype);
+          }, prototype)
+        );
+      });
+      quietly(function () {
+        Reflect.ownKeys(real).forEach(function (key) {
+          quietly(function () {
+            if (safeWrapping.isFixedProperty(ground, key)) return;
+            var description = Object.getOwnPropertyDescriptor(real, key);
+            var given = Object.assign({}, description);
+            Object.defineProperty(
+              ground,
+              key,
+              quietly(function () {
+                return asBundleGetsIt(given);
+              }, description)
+            );
+          });
         });
       });
       Object.preventExtensions(ground);
@@ -2005,7 +2071,7 @@ var exactUndo = require('../src/mocking/exactUndo');
       nativeOfStandIn.set(standIn, real);
       var isClosed = false;
       try {
-        isClosed = ground !== real && !Object.isExtensible(real);
+        isClosed = !Object.isExtensible(real);
       } catch (_) {
         // A host object that refuses the look takes new members, as host objects do.
       }
