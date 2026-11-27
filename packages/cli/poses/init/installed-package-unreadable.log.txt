@@ -18,7 +18,7 @@ ERROR: Can't read node_modules/react-native/package.json
 
 Expected double-quoted property name in JSON at position 51 (line 4 column 1)
 
-Reinstall your dependencies to write it fresh, then run setup again:
+Delete the node_modules/react-native folder, then reinstall and run setup again:
   yarn install
   npx sherlo init
 

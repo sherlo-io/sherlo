@@ -28,11 +28,22 @@ const STORY_FILE = /\.stories\.(?:[cm]?[jt]sx?)$/;
 export type OwnStories =
   | { found: true }
   | { found: false; leftOut: string | null }
-  | { unreadable: StoryListUnreadable };
+  | { unreadable: StoryListUnreadable; leftOut: string | null };
 
 async function hasStoriesOfItsOwn(folder: string): Promise<OwnStories> {
   const storybookLoads = await storyFilesStorybookLoads(folder);
-  if (typeof storybookLoads !== 'function') return { unreadable: storybookLoads };
+  // NO MAIN FILE LISTS NOTHING, so every story file of the app is left out: the first one is named,
+  // so the main file the next step shows lists a folder the app has stories in, never a guessed one.
+  if (storybookLoads === 'main-file-missing') {
+    let firstStory: string | null = null;
+    someAppFile((filePath) => {
+      if (!STORY_FILE.test(filePath)) return false;
+      firstStory = path.relative(getCwd(), filePath).split(path.sep).join('/');
+      return true;
+    });
+    return { unreadable: storybookLoads, leftOut: firstStory };
+  }
+  if (typeof storybookLoads !== 'function') return { unreadable: storybookLoads, leftOut: null };
   // The walk stops at the first story Storybook loads; with none it has seen every story file,
   // so the first one left out is known whenever it is needed.
   let leftOut: string | null = null;

@@ -5,7 +5,7 @@
  * No `pod install`: the default device is an Android phone, and an iOS build installs its own pods.
  */
 import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
-import { renderStepLine } from '../../../render/initSteps';
+import { renderInitStepLine } from '../../../render/initSteps';
 import { workstation } from '../../../seams/workstation';
 import installSherlo from '../dependencies/installSherlo';
 import { printLines } from '../helpers';
@@ -18,9 +18,9 @@ async function sherloSdk(): Promise<void> {
 
   if (installedVersion === workstation().sherloVersion()) {
     printLines([
-      renderStepLine({
+      renderInitStepLine({
+        step: 'installed-sherlo',
         outcome: 'already',
-        name: 'Installed Sherlo',
         detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${installedVersion}`,
       }),
     ]);

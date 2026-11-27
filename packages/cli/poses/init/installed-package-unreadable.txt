@@ -18,7 +18,7 @@ Setting up Sherlo...
 
 [0mExpected double-quoted property name in JSON at position 51 (line 4 column 1)[0m
 
-[0mReinstall your dependencies to write it fresh, then run setup again:[0m
+[0mDelete the node_modules/react-native folder, then reinstall and run setup again:[0m
 [36m  yarn install[39m
 [36m  npx sherlo init[39m
 

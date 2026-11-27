@@ -16,7 +16,7 @@ import {
   renderSherloHeldBackByYarn,
   renderStorybookPinsExactVersions,
 } from '../../../render/initFixes';
-import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
+import { renderFailedInitStepLine, renderInitStepLine } from '../../../render/initSteps';
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { setupReader } from '../../feedback/runningAgent';
 import { printLines } from '../helpers';
@@ -97,7 +97,7 @@ async function installSherlo(): Promise<void> {
     });
   } catch (error) {
     spinner.stop();
-    printLines(renderFailedStepLine('Installing Sherlo failed'));
+    printLines(renderFailedInitStepLine('installing-sherlo'));
 
     const { output, logFile } = error as InstallFailure;
 
@@ -171,9 +171,9 @@ async function installSherlo(): Promise<void> {
   // rerun on Yarn 4 asks for the range again and keeps the version the first run installed.
   const versionUnchanged = versionBeforeInstall === installedVersion;
   printLines([
-    renderStepLine({
+    renderInitStepLine({
+      step: hadSdk && !versionUnchanged ? 'updated-sherlo' : 'installed-sherlo',
       outcome: versionUnchanged ? 'already' : 'done',
-      name: hadSdk && !versionUnchanged ? 'Updated Sherlo' : 'Installed Sherlo',
       detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${installedVersion}`,
     }),
   ]);

@@ -66,6 +66,16 @@ const NO_FOLDER_YET =
   'the Storybook folder is unknown only while the install writes no .rnstorybook ' +
   '(BUILD DEBT, init-for-agents decision 2); once it does, this branch is dead and is deleted';
 
+/** The interactive project step's failure, owed while that step stays in the code. */
+const OLD_PROJECT_STEP =
+  'old project step no setup run calls: setup asks nothing now (BUILD DEBT, init-for-agents), ' +
+  'and the step is deleted with it';
+
+/** The main-file step for an app with no story of its own, owed a pose. */
+const MAIN_FILE_MISSING_NO_STORY =
+  'no pose yet has a Storybook folder with no main file and no story file of the app outside it; ' +
+  'storybook-main-config-missing has src/Button.stories.tsx, so it draws the main.ts instead';
+
 const NOT_YET_DRAWN: Record<string, string> = {
   'initSteps.ts renderNextSteps: <your Storybook folder>': NO_FOLDER_YET,
   'initSteps.ts renderNextSteps: Set "stories" in your Storybook folder\'s main file to your code\'s folder.':
@@ -74,6 +84,11 @@ const NOT_YET_DRAWN: Record<string, string> = {
   'initWorkflow.ts versionInput: \\n with:\\n ${}: ${}':
     "setup does not read the developer's own pnpm or Bun version for a project with no " +
     'packageManager field yet (BUILD DEBT, init-for-agents), so it never passes one to the workflow',
+  'initSteps.ts failedInitStepName: choosing-a-project': OLD_PROJECT_STEP,
+  'initSteps.ts failedInitStepName: Choosing a project failed': OLD_PROJECT_STEP,
+  'initSteps.ts renderNextSteps: Add a main file to ${}': MAIN_FILE_MISSING_NO_STORY,
+  'initSteps.ts renderNextSteps: No main file (main.ts, main.tsx, main.js or main.jsx) in ${}, which lists your s':
+    MAIN_FILE_MISSING_NO_STORY,
 };
 
 /**

@@ -21,6 +21,9 @@
         "react-native": "0.88.1",
         "react-native-safe-area-context": "~5.11.1",
         "storybook": "10.6.1"
+      },
+      "devDependencies": {
+        "cross-env": "^10.1.0"
       }
     },
     "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",

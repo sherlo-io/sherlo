@@ -2,16 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import { EXPO_PACKAGE_NAME } from '../../../constants';
 import { getCwd, throwError } from '../../../helpers';
-import { renderMetroConfigUnreadable } from '../../../render/initFixes';
-import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
+import { renderFailedInitStepLine, renderInitStepLine } from '../../../render/initSteps';
 import { printLines, trackProgress } from '../helpers';
 import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
-import { EVENT, STORYBOOKS_WITH_STORYBOOK_RE } from './constants';
-import readMetroConfigModuleStyle from './readMetroConfigModuleStyle';
+import { EVENT } from './constants';
+import metroConfigUnreadableRefusal from './metroConfigUnreadableRefusal';
 import readMetroConfigState from './readMetroConfigState';
 import writeMetroConfigUpdate from './writeMetroConfigUpdate';
-
-const STEP_NAME = 'Updated Metro config';
 
 /**
  * THE METRO CONFIG IS SETUP'S TO WIRE, never the person's: Storybook does not run without the
@@ -36,7 +33,11 @@ async function metroConfig(sessionId: string | null): Promise<void> {
       'utf-8'
     );
     printLines([
-      renderStepLine({ outcome: 'done', name: 'Created Metro config', detail: 'metro.config.js' }),
+      renderInitStepLine({
+        step: 'created-metro-config',
+        outcome: 'done',
+        detail: path.basename(createdPath),
+      }),
     ]);
     await trackProgress({
       event: EVENT,
@@ -49,7 +50,9 @@ async function metroConfig(sessionId: string | null): Promise<void> {
   const shownPath = path.relative(getCwd(), state.path);
 
   if (state.alreadyWrapped) {
-    printLines([renderStepLine({ outcome: 'already', name: STEP_NAME, detail: shownPath })]);
+    printLines([
+      renderInitStepLine({ step: 'updated-metro-config', outcome: 'already', detail: shownPath }),
+    ]);
     await trackProgress({
       event: EVENT,
       params: { status: 'already_updated', path: state.path },
@@ -71,22 +74,18 @@ async function metroConfig(sessionId: string | null): Promise<void> {
   }
 
   if (!result.applied) {
-    printLines(renderFailedStepLine('Updating Metro config failed'));
+    printLines(renderFailedInitStepLine('updating-metro-config'));
     await trackProgress({
       event: EVENT,
       params: { status: 'failed:manual_edit', path: state.path },
       sessionId,
     });
-    throwError(
-      renderMetroConfigUnreadable({
-        path: shownPath,
-        moduleStyle: readMetroConfigModuleStyle(state.content!),
-        hasStorybooksWithStorybook: STORYBOOKS_WITH_STORYBOOK_RE.test(state.content!),
-      })
-    );
+    throwError(metroConfigUnreadableRefusal({ path: shownPath, content: state.content! }));
   }
 
-  printLines([renderStepLine({ outcome: 'done', name: STEP_NAME, detail: shownPath })]);
+  printLines([
+    renderInitStepLine({ step: 'updated-metro-config', outcome: 'done', detail: shownPath }),
+  ]);
   await trackProgress({
     event: EVENT,
     params: { status: 'updated', path: state.path },

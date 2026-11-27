@@ -37,6 +37,7 @@
       "name": "AcmeShop",
       "displayName": "Acme Shop"
     },
+    "apps/mobile/index.js": "import { AppRegistry } from 'react-native';\nimport App from './App';\nimport { name as appName } from './app.json';\n\nAppRegistry.registerComponent(appName, () => App);\n",
     "apps/mobile/android/app/src/main/java/com/acmeshop/MainActivity.kt": "package com.acmeshop\n\nimport com.facebook.react.ReactActivity\n\nclass MainActivity : ReactActivity() {\n  override fun getMainComponentName(): String = \"AcmeShop\"\n}\n",
     "apps/mobile/metro.config.js": "const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');\n\nconst config = {};\n\nmodule.exports = mergeConfig(getDefaultConfig(__dirname), config);\n",
     "node_modules/react-native/package.json": {

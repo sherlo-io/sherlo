@@ -26,8 +26,15 @@ Setting up Sherlo...
 👉 Next steps
 ═════════════
 
-1. Add a main file to .rnstorybook
-   No main file (main.ts, main.tsx, main.js or main.jsx) in .rnstorybook, which lists your stories.
+1. Add .rnstorybook/main.ts
+   .rnstorybook has no main file, which lists your stories. Add .rnstorybook/main.ts:
+     import type { StorybookConfig } from '@storybook/react-native';
+
+     const main: StorybookConfig = {
+       stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'],
+     };
+
+     export default main;
 
 2. Run your first visual test
    npx sherlo test

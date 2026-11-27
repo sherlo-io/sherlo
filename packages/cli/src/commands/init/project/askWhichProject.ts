@@ -47,9 +47,7 @@ async function askWhichTeam(
 ): Promise<string> {
   const { teams } = await serverCalls()
     .listTeams({ personalToken: login.token })
-    .catch((error: Error) =>
-      refuseFailedServiceCall(error, 'Choosing a project failed', login.token)
-    );
+    .catch((error: Error) => refuseFailedServiceCall(error, 'choosing-a-project', login.token));
 
   if (teams.length > 0) {
     return cancelSetupWhenUnanswered(
@@ -73,9 +71,7 @@ async function askWhichTeam(
 
   const newTeam = await serverCalls()
     .createTeam({ name: teamName.trim(), personalToken: login.token })
-    .catch((error: Error) =>
-      refuseFailedServiceCall(error, 'Choosing a project failed', login.token)
-    );
+    .catch((error: Error) => refuseFailedServiceCall(error, 'choosing-a-project', login.token));
 
   return newTeam.id;
 }
@@ -87,9 +83,7 @@ async function askWhichProjectOfTheTeam(
 ): Promise<ProjectAddress> {
   const { projects } = await serverCalls()
     .listProjects({ teamId, personalToken: login.token })
-    .catch((error: Error) =>
-      refuseFailedServiceCall(error, 'Choosing a project failed', login.token)
-    );
+    .catch((error: Error) => refuseFailedServiceCall(error, 'choosing-a-project', login.token));
 
   const chosenProject = await cancelSetupWhenUnanswered(
     workstation().chooseOne<number | typeof MAKE_A_NEW_PROJECT>({
@@ -109,9 +103,7 @@ async function askWhichProjectOfTheTeam(
 
   const newProject = await serverCalls()
     .createProject({ name: projectName.trim(), teamId, personalToken: login.token })
-    .catch((error: Error) =>
-      refuseFailedServiceCall(error, 'Choosing a project failed', login.token)
-    );
+    .catch((error: Error) => refuseFailedServiceCall(error, 'choosing-a-project', login.token));
 
   // BUILD DEBT (init-for-agents): this interactive step is dead - setup asks nothing now - and goes
   // with ../steps/teamAndProject's build.

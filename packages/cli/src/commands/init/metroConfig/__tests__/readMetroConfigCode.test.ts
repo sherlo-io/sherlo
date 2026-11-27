@@ -30,7 +30,55 @@ describe('the Metro config is read by its syntax tree', () => {
       mentionsWithStorybook: false,
       configPath: null,
       configPathUnread: null,
+      withStorybookCall: null,
+      exportedFunctionReturns: null,
     });
+  });
+
+  it('reads the name an exported config function returns, when its body has exactly one return', () => {
+    expect(
+      readMetroConfigCode(
+        'module.exports = async () => {\n  const config = await getDefaultConfig(__dirname);\n  return config;\n};'
+      )?.exportedFunctionReturns
+    ).toBe('config');
+    expect(
+      readMetroConfigCode(
+        'export default function () {\n  const config = getDefaultConfig(__dirname);\n  return config;\n}'
+      )?.exportedFunctionReturns
+    ).toBe('config');
+  });
+
+  it('a function returning anything but a name, or returning twice, gives no returned name', () => {
+    expect(
+      readMetroConfigCode('module.exports = () => getDefaultConfig(__dirname);')
+        ?.exportedFunctionReturns
+    ).toBeNull();
+    expect(
+      readMetroConfigCode('module.exports = (env) => {\n  if (env) return a;\n  return b;\n};')
+        ?.exportedFunctionReturns
+    ).toBeNull();
+  });
+
+  it('reads the withStorybook call: the config it wraps and every option but configPath', () => {
+    expect(
+      readMetroConfigCode(
+        "module.exports = withStorybook(getDefaultConfig(__dirname), { enabled: true, configPath: './.ondevice' });"
+      )?.withStorybookCall
+    ).toEqual({ config: 'getDefaultConfig(__dirname)', otherOptions: ['enabled: true'] });
+    expect(
+      readMetroConfigCode('module.exports = withStorybook(getDefaultConfig(__dirname));')
+        ?.withStorybookCall
+    ).toEqual({ config: 'getDefaultConfig(__dirname)', otherOptions: [] });
+  });
+
+  it('a withStorybook call whose options are not an object, or that runs over lines, is not read', () => {
+    expect(
+      readMetroConfigCode('module.exports = withStorybook(config, options);')?.withStorybookCall
+    ).toBeNull();
+    expect(
+      readMetroConfigCode('module.exports = withStorybook(mergeConfig(\n  base,\n  extra\n));')
+        ?.withStorybookCall
+    ).toBeNull();
   });
 
   it('reads a configPath string against the project root', () => {

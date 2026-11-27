@@ -24,7 +24,7 @@ import {
   renderStorybookFolderMissing,
   renderStorybookTooOld,
 } from '../../../render/initFixes';
-import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
+import { renderFailedInitStepLine, renderInitStepLine } from '../../../render/initSteps';
 import { type FolderHistory, surroundings } from '../../../seams/surroundings';
 import hasConfigFile from '../config/hasConfigFile';
 import readConfig from '../config/readConfig';
@@ -52,7 +52,7 @@ async function checkProject(): Promise<CheckedProject> {
   try {
     return await checkTheApp();
   } catch (error) {
-    printLines(renderFailedStepLine('Checking the app failed'));
+    printLines(renderFailedInitStepLine('checking-the-app'));
     throw error;
   }
 }
@@ -122,14 +122,14 @@ async function checkTheApp(): Promise<CheckedProject> {
     // A CONFIGPATH SETUP CANNOT FOLLOW is named, never guessed past: a default folder in its place
     // could be another Storybook's.
     const metroConfigPath = getMetroConfigPath();
-    const configPathUnread = metroConfigPath
-      ? readMetroConfigCode(fs.readFileSync(metroConfigPath, 'utf8'))?.configPathUnread
+    const metroConfigCode = metroConfigPath
+      ? readMetroConfigCode(fs.readFileSync(metroConfigPath, 'utf8'))
       : null;
-    if (metroConfigPath && configPathUnread) {
+    if (metroConfigPath && metroConfigCode?.configPathUnread) {
       throwError(
         renderStorybookConfigPathUnread({
           metroConfig: path.relative(getCwd(), metroConfigPath),
-          configPath: configPathUnread,
+          configPath: metroConfigCode.configPathUnread,
         })
       );
     }
@@ -144,7 +144,12 @@ async function checkTheApp(): Promise<CheckedProject> {
         renderStorybookFolderMissing({
           named: folder,
           ...(await storybookFolderHistory(folder ? [folder] : DEFAULT_STORYBOOK_FOLDERS)),
-          metroConfig: metroConfigPath ? path.relative(getCwd(), metroConfigPath) : null,
+          metroConfig: metroConfigPath
+            ? {
+                file: path.relative(getCwd(), metroConfigPath),
+                withStorybookCall: metroConfigCode?.withStorybookCall ?? null,
+              }
+            : null,
         })
       );
     }
@@ -161,10 +166,9 @@ async function checkTheApp(): Promise<CheckedProject> {
     : null;
 
   printLines([
-    renderStepLine({
+    renderInitStepLine({
+      step: 'checked-the-app',
       outcome: 'done',
-      // "THE APP", NOT "THE PROJECT": project is the Sherlo project the later steps create or use.
-      name: 'Checked the app',
       detail: [
         expoVersion ? `Expo ${majorOf(expoVersion)}` : null,
         `React Native ${minorOf(reactNativeVersion)}`,

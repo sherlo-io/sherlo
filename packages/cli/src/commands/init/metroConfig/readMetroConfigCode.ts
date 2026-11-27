@@ -34,7 +34,22 @@ export type MetroConfigCode = {
    * itself sets to a string or to `__dirname`.
    */
   configPathUnread: string | null;
+  /**
+   * The first withStorybook call, as the config writes it, so a fix can show the person their own
+   * call with a configPath in it: the config it wraps, and every option but configPath. Null when
+   * there is no call, when its options are not written out as an object, and when a part of it runs
+   * over more than one line - a fix line shows one line of code, never a guess at a shorter one.
+   */
+  withStorybookCall: WithStorybookCall | null;
+  /**
+   * The name a config exported as a function returns, when the function's own body ends its work
+   * with one `return <name>;`, so a fix shows that line wrapped. Null when the export is no
+   * function, and when the function returns anything but one name - never a guess at which line.
+   */
+  exportedFunctionReturns: string | null;
 };
+
+export type WithStorybookCall = { config: string; otherOptions: string[] };
 
 /** Null when the code does not parse. */
 function readMetroConfigCode(content: string): MetroConfigCode | null {
@@ -50,8 +65,15 @@ function readMetroConfigCode(content: string): MetroConfigCode | null {
     mentionsWithStorybook: false,
     configPath: null,
     configPathUnread: null,
+    withStorybookCall: null,
+    exportedFunctionReturns: exportedFunctionReturnsOf(program as AstNode),
   };
+  let sawWithStorybookCall = false;
   for (const node of allNodes(program)) {
+    if (!sawWithStorybookCall && isCallOf(node, 'withStorybook')) {
+      sawWithStorybookCall = true;
+      code.withStorybookCall = withStorybookCallOf(node, content);
+    }
     if (isSherloWithStorybookSource(node) || isCallOf(node, 'createSherloStorybook')) {
       code.wiredForSherlo = true;
     }
@@ -116,11 +138,85 @@ function isCallOf(node: AstNode, name: string): boolean {
   );
 }
 
+/** `module.exports`. */
+export function isModuleExports(node: any): boolean {
+  return (
+    node.type === 'MemberExpression' &&
+    node.object?.type === 'Identifier' &&
+    node.object.name === 'module' &&
+    node.property?.type === 'Identifier' &&
+    node.property.name === 'exports'
+  );
+}
+
+/** What `module.exports = <value>` or `export default <value>` exports, or null with neither. */
+function exportedValueOf(program: AstNode): AstNode | null {
+  for (const statement of program.body as AstNode[]) {
+    if (statement.type === 'ExportDefaultDeclaration') return statement.declaration;
+    if (
+      statement.type === 'ExpressionStatement' &&
+      statement.expression.type === 'AssignmentExpression' &&
+      statement.expression.operator === '=' &&
+      isModuleExports(statement.expression.left)
+    ) {
+      return statement.expression.right;
+    }
+  }
+  return null;
+}
+
+function exportedFunctionReturnsOf(program: AstNode): string | null {
+  const exported = exportedValueOf(program);
+  const isFunction =
+    exported &&
+    ['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'].includes(
+      exported.type
+    );
+  if (!isFunction || exported.body.type !== 'BlockStatement') return null;
+
+  const returns = ownReturnsOf(exported.body);
+  if (returns.length !== 1 || returns[0].argument?.type !== 'Identifier') return null;
+  return returns[0].argument.name;
+}
+
+/**
+ * Every return of the function the block belongs to, an `if` or a loop's included, a nested
+ * function's not: a config returned on one path of several is not the one config to wrap.
+ */
+function ownReturnsOf(node: AstNode): AstNode[] {
+  if (!node || typeof node.type !== 'string') return [];
+  if (node.type === 'ReturnStatement') return [node];
+  if (
+    ['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'].includes(node.type)
+  ) {
+    return [];
+  }
+  return Object.entries(node)
+    .filter(([key]) => !['loc', 'leadingComments', 'trailingComments'].includes(key))
+    .flatMap(([, value]) => (Array.isArray(value) ? value : [value]))
+    .filter((child) => child && typeof child === 'object')
+    .flatMap((child) => ownReturnsOf(child as AstNode));
+}
+
 function keyName(property: AstNode): string | undefined {
   const { key } = property;
   if (key.type === 'Identifier') return key.name;
   if (key.type === 'StringLiteral') return key.value;
   return undefined;
+}
+
+function withStorybookCallOf(call: AstNode, content: string): WithStorybookCall | null {
+  const [config, options] = call.arguments as AstNode[];
+  if (!config) return null;
+  if (options && options.type !== 'ObjectExpression') return null;
+
+  const sourceOf = (node: AstNode) => content.slice(node.start, node.end);
+  const otherOptions = ((options?.properties ?? []) as AstNode[])
+    .filter((property) => property.type !== 'ObjectProperty' || keyName(property) !== 'configPath')
+    .map(sourceOf);
+  const parts = [sourceOf(config), ...otherOptions];
+  if (parts.some((part) => part.includes('\n'))) return null;
+  return { config: sourceOf(config), otherOptions };
 }
 
 function configPathOf(value: AstNode): MetroConfigPath | null {

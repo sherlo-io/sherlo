@@ -18,7 +18,7 @@ Setting up Sherlo...
 
 [0mCreate .ondevice with Storybook's main.ts and index.ts.[0m
 [0mOr point configPath in metro.config.js at your Storybook folder:[0m
-  [34mconfigPath[39m[2m:[22m [32m'./<your Storybook folder>'[39m
+  [32mwithStorybook[39m[2m([22m[32mgetDefaultConfig[39m[2m([22m__dirname[2m),[22m [2m{[22m [34mconfigPath[39m[2m:[22m [32m'./<your Storybook folder>'[39m [2m})[22m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

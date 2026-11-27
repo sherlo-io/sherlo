@@ -110,6 +110,134 @@ export function renderFailedStepLine(name: string): string[] {
 }
 
 /**
+ * Setup's steps, by what each one did. SETUP'S STEP NAMES ARE WRITTEN HERE, with every other line
+ * it prints, so the reach test (../commands/pose/__tests__/initRenderReach.test.ts) sees which ones
+ * a pose draws; `sherlo test` names its own steps (./testSteps).
+ */
+export type InitStep =
+  | 'checked-the-app'
+  | 'logged-in'
+  | 'using-team'
+  | 'using-project'
+  | 'created-team'
+  | 'created-project'
+  | 'installed-storybook'
+  | 'added-for-storybook'
+  | 'installed-sherlo'
+  | 'updated-sherlo'
+  | 'created-metro-config'
+  | 'updated-metro-config'
+  | 'added-github-workflow';
+
+/** The one line a finished step of setup prints. */
+export function renderInitStepLine({
+  step,
+  outcome,
+  detail,
+}: {
+  step: InitStep;
+  outcome: StepOutcome;
+  detail: string;
+}): string {
+  return renderStepLine({ outcome, name: initStepName(step), detail });
+}
+
+function initStepName(step: InitStep): string {
+  switch (step) {
+    case 'checked-the-app':
+      // "THE APP", NOT "THE PROJECT": project is the Sherlo project the later steps create or use.
+      return 'Checked the app';
+    case 'logged-in':
+      return 'Logged in';
+    case 'using-team':
+      return 'Using team';
+    case 'using-project':
+      return 'Using project';
+    case 'created-team':
+      return 'Created team';
+    case 'created-project':
+      return 'Created project';
+    case 'installed-storybook':
+      return 'Installed Storybook';
+    case 'added-for-storybook':
+      return 'Added for Storybook';
+    case 'installed-sherlo':
+      return 'Installed Sherlo';
+    case 'updated-sherlo':
+      return 'Updated Sherlo';
+    case 'created-metro-config':
+      return 'Created Metro config';
+    case 'updated-metro-config':
+      return 'Updated Metro config';
+    case 'added-github-workflow':
+      return 'Added GitHub workflow';
+  }
+}
+
+/** The workflow step's line when the code is not on GitHub, so setup writes no workflow. */
+export function renderNoGithubWorkflowLine(): string {
+  return renderStepLine({
+    outcome: 'done',
+    name: 'No GitHub workflow',
+    detail: 'the code is not on GitHub',
+  });
+}
+
+/** Setup's steps that can stop the run, by what each one was doing. */
+export type FailedInitStep =
+  | 'checking-the-app'
+  | 'logging-in'
+  | 'finding-the-project'
+  | 'choosing-a-team'
+  | 'choosing-a-project'
+  | 'creating-a-team'
+  | 'creating-the-project'
+  | 'installing-storybook'
+  | 'installing-sherlo'
+  | 'updating-metro-config';
+
+/** The red line of a setup step that stopped, above the error that says why. */
+export function renderFailedInitStepLine(step: FailedInitStep): string[] {
+  return renderFailedStepLine(failedInitStepName(step));
+}
+
+function failedInitStepName(step: FailedInitStep): string {
+  switch (step) {
+    case 'checking-the-app':
+      return 'Checking the app failed';
+    case 'logging-in':
+      return 'Logging in failed';
+    case 'finding-the-project':
+      return 'Finding the project failed';
+    case 'choosing-a-team':
+      return 'Choosing a team failed';
+    case 'choosing-a-project':
+      return 'Choosing a project failed';
+    case 'creating-a-team':
+      return 'Creating a team failed';
+    case 'creating-the-project':
+      return 'Creating the project failed';
+    case 'installing-storybook':
+      return 'Installing Storybook failed';
+    case 'installing-sherlo':
+      return 'Installing Sherlo failed';
+    case 'updating-metro-config':
+      return 'Updating Metro config failed';
+  }
+}
+
+/**
+ * A saved login the service refused, said while setup logs in again in the same run: the blank
+ * line and the sentence, which the terminal erases once Authorize is clicked. Setup logs in again
+ * itself, so it does not list the causes the other commands' refusal names
+ * (`REJECTED_LOGIN_MESSAGE`), whose reader must log in by hand.
+ */
+export function renderSavedLoginRejected(): string[] {
+  // WHAT IS KNOWN, NOT WHY: a 401 says the login no longer works, never that it expired.
+  return ['', 'Your saved login no longer works. Log in again to continue.'];
+}
+
+/**
  * The next steps, in their own section, numbered in the order they are done. The first ones
  * depend on the Storybook the project had:
  *
@@ -358,12 +486,28 @@ export function renderNextSteps({
     ? []
     : storyListUnreadable === 'main-file-missing'
       ? [
-          {
-            title: `Add a main file to ${storybookFolder}`,
-            content: [
-              `No main file (main.ts, main.tsx, main.js or main.jsx) in ${storybookFolder}, which lists your stories.`,
-            ],
-          },
+          // THE WHOLE FILE IS ON THE SCREEN when the app has a story: its `stories` load that story's
+          // folder, read from the app's files, in the form Storybook's own template writes.
+          leftOutStory && storybookFolder
+            ? {
+                title: `Add ${storybookFolder}/main.ts`,
+                content: [
+                  `${storybookFolder} has no main file, which lists your stories. Add ${storybookFolder}/main.ts:`,
+                  `  ${renderCode("import type { StorybookConfig } from '@storybook/react-native';")}`,
+                  '',
+                  `  ${renderCode('const main: StorybookConfig = {')}`,
+                  `  ${renderCode(`  stories: ['${importPath(storybookFolder, path.posix.dirname(leftOutStory))}/**/*.stories.?(ts|tsx|js|jsx)'],`)}`,
+                  `  ${renderCode('};')}`,
+                  '',
+                  `  ${renderCode('export default main;')}`,
+                ],
+              }
+            : {
+                title: `Add a main file to ${storybookFolder}`,
+                content: [
+                  `No main file (main.ts, main.tsx, main.js or main.jsx) in ${storybookFolder}, which lists your stories.`,
+                ],
+              },
         ]
       : [
           {

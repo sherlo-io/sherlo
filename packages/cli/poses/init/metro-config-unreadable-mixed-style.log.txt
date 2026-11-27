@@ -20,11 +20,11 @@ Add these lines, in the form your file uses:
 
 a) With require
    const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');
-   module.exports = withStorybook(config);
+   return withStorybook(config);
 
 b) With import
    import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';
-   export default withStorybook(config);
+   return withStorybook(config);
 
 Then run setup again. It picks up where it stopped:
   npx sherlo init

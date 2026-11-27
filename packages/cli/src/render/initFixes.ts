@@ -17,6 +17,7 @@
 import chalk from 'chalk';
 import type { Agent } from 'package-manager-detector';
 import typedInitCommand from '../commands/init/typedInitCommand';
+import type { WithStorybookCall } from '../commands/init/metroConfig/readMetroConfigCode';
 import { LOGIN_COMMAND } from '../commands/login/constants';
 import { FULL_INIT_COMMAND, MAX_PROJECT_NAME_LENGTH, TEAM_OPTION } from '../constants';
 import type { FolderHistory } from '../seams/surroundings';
@@ -273,14 +274,24 @@ export function renderMetroConfigUnreadable({
   path,
   moduleStyle,
   hasStorybooksWithStorybook,
+  exportedFunctionReturns,
 }: {
   path: string;
   /** How the config loads modules, read from its text; 'unknown' when it uses both or neither. */
   moduleStyle: 'require' | 'import' | 'unknown';
   /** Whether the config loads Storybook's own withStorybook, which Sherlo's replaces. */
   hasStorybooksWithStorybook: boolean;
+  /**
+   * The name a config exported as a function returns, read from its code: the wrapped line is that
+   * return, since Metro calls the function and the export itself is no config. Null otherwise.
+   */
+  exportedFunctionReturns: string | null;
 }): InitRefusal {
   const showsBoth = moduleStyle === 'unknown';
+  const wrappedLine = (exportLine: string) =>
+    exportedFunctionReturns === null
+      ? exportLine
+      : `return withStorybook(${exportedFunctionReturns});`;
   return refusal(`Setup can't edit ${path}`, [
     words(
       showsBoth
@@ -292,14 +303,14 @@ export function renderMetroConfigUnreadable({
     ...(moduleStyle !== 'import'
       ? [
           `   ${renderCode("const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');")}`,
-          `   ${renderCode('module.exports = withStorybook(config);')}`,
+          `   ${renderCode(wrappedLine('module.exports = withStorybook(config);'))}`,
         ]
       : []),
     ...(showsBoth ? ['', choiceName('b) With import')] : []),
     ...(moduleStyle !== 'require'
       ? [
           `   ${renderCode("import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';")}`,
-          `   ${renderCode('export default withStorybook(config);')}`,
+          `   ${renderCode(wrappedLine('export default withStorybook(config);'))}`,
         ]
       : []),
     ...(hasStorybooksWithStorybook
@@ -361,8 +372,8 @@ export function renderStorybookFolderMissing({
   folder: string;
   /** What git knows of that folder. */
   history: FolderHistory;
-  /** The Metro config, from the app's folder, or null when the app has none yet. */
-  metroConfig: string | null;
+  /** The Metro config, or null when the app has none yet. */
+  metroConfig: FolderMissingMetroConfig | null;
 }): InitRefusal {
   const message = named
     ? `Storybook is installed, but its folder ${named} is missing`
@@ -391,15 +402,40 @@ export function renderStorybookFolderMissing({
         ]
       : []),
     words(`Create ${named ?? '.rnstorybook'} with Storybook's main.ts and index.ts.`),
-    ...(metroConfig
-      ? [
-          words(`Or point configPath in ${metroConfig} at your Storybook folder:`),
-          `  ${renderCode("configPath: './<your Storybook folder>'")}`,
-        ]
-      : []),
+    ...pointConfigPath(metroConfig),
     ...rerun(),
   ]);
 }
+
+/**
+ * THE PERSON'S OWN withStorybook CALL, with a configPath in it: the config it wraps and its other
+ * options as the file writes them, so the line is theirs to paste. A call setup could not read on
+ * one line offers no line at all, never a guessed one. With no Metro config there is nothing to
+ * point: setup writes one, and it runs Storybook from the default folder.
+ */
+function pointConfigPath(metroConfig: FolderMissingMetroConfig | null): string[] {
+  if (!metroConfig) {
+    return [
+      words(
+        'There is no Metro config to change: setup writes metro.config.js, which runs Storybook from .rnstorybook.'
+      ),
+    ];
+  }
+  const call = metroConfig.withStorybookCall;
+  if (!call) return [];
+  const options = [...call.otherOptions, "configPath: './<your Storybook folder>'"].join(', ');
+  return [
+    words(`Or point configPath in ${metroConfig.file} at your Storybook folder:`),
+    `  ${renderCode(`withStorybook(${call.config}, { ${options} })`)}`,
+  ];
+}
+
+/** The Metro config of an app whose Storybook folder is missing, and its withStorybook call. */
+export type FolderMissingMetroConfig = {
+  /** From the app's folder. */
+  file: string;
+  withStorybookCall: WithStorybookCall | null;
+};
 
 /**
  * The person is signed in but cannot reach the project the config or `--project` names: a teammate
@@ -609,21 +645,24 @@ export function renderInvalidJson({ path, reason }: { path: string; reason: stri
 
 /**
  * An installed package's package.json setup could not read: `reason` is the read's or the parser's
- * own words. The install command is the project's own package manager's, which writes it again.
+ * own words. A plain install skips a package it believes is unchanged, so its folder is deleted
+ * first; the install command is the project's own package manager's, which writes it again.
  */
 export function renderInstalledPackageUnreadable({
   file,
+  packageFolder,
   reason,
   installCommand,
 }: {
   file: string;
+  packageFolder: string;
   reason: string;
   installCommand: string;
 }): InitRefusal {
   return refusal(`Can't read ${file}`, [
     words(reason),
     '',
-    words('Reinstall your dependencies to write it fresh, then run setup again:'),
+    words(`Delete the ${packageFolder} folder, then reinstall and run setup again:`),
     code(installCommand),
     code(typedInitCommand()),
   ]);

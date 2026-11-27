@@ -17,7 +17,7 @@ import {
   renderServiceFailed,
   renderServiceUnreachable,
 } from '../../../render/initFixes';
-import { renderFailedStepLine } from '../../../render/initSteps';
+import { type FailedInitStep, renderFailedInitStepLine } from '../../../render/initSteps';
 import { serverCalls } from '../../../seams/serverCalls';
 import { printLines } from '../helpers';
 import {
@@ -52,7 +52,7 @@ export async function whyRefused(
 }
 
 /**
- * `failedStep` names the step that stopped, e.g. "Choosing a team failed". `personalToken` is the
+ * `failedStep` is the step that stopped, e.g. `choosing-a-team`. `personalToken` is the
  * login the call spent; null for a call that spent none - the browser login's own calls, made before
  * there is a login - and for one whose refusal the caller already told apart. `noAccessScreen` is
  * the call's own screen for a refusal while the login works, asked before the red line as it may
@@ -60,7 +60,7 @@ export async function whyRefused(
  */
 async function refuseFailedServiceCall(
   error: Error,
-  failedStep: string,
+  failedStep: FailedInitStep,
   personalToken: string | null,
   noAccessScreen?: () => Promise<InitRefusal>
 ): Promise<never> {
@@ -69,7 +69,7 @@ async function refuseFailedServiceCall(
   const noAccess = refusal === 'no-access' && noAccessScreen ? await noAccessScreen() : null;
 
   // LIKE EVERY STOP, the step that stopped is marked red above the error, whatever the error.
-  printLines(renderFailedStepLine(failedStep));
+  printLines(renderFailedInitStepLine(failedStep));
 
   if (refusal === 'dead-login') {
     throwError({ ...renderLoginRejected(), errorToReport: error });

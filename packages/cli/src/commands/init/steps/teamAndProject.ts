@@ -19,7 +19,7 @@ import {
   renderNotInAnyTeam,
   renderTeamNotChosen,
 } from '../../../render/initFixes';
-import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
+import { renderFailedInitStepLine, renderInitStepLine } from '../../../render/initSteps';
 import { serverCalls } from '../../../seams/serverCalls';
 import type { SavedLogin } from '../../../seams/savedLogins';
 import hasConfigFile from '../config/hasConfigFile';
@@ -78,7 +78,7 @@ async function showProjectInConfig(project: ProjectAddress, person: Person): Pro
           if (refusal === 'dead-login') throw new ListTeamsAuthError(error.message);
           throw error;
         }),
-    'Finding the project failed'
+    'finding-the-project'
   );
   const personalToken = login.token;
 
@@ -88,21 +88,17 @@ async function showProjectInConfig(project: ProjectAddress, person: Person): Pro
     const { email } = await serverCalls()
       .whoAmI({ personalToken })
       .catch((error: Error) =>
-        refuseFailedServiceCall(error, 'Finding the project failed', personalToken)
+        refuseFailedServiceCall(error, 'finding-the-project', personalToken)
       );
 
-    printLines(renderFailedStepLine('Finding the project failed'));
+    printLines(renderFailedInitStepLine('finding-the-project'));
     return throwError(renderNoAccessToProject({ project: asConfigProject(project), email }));
   }
   const { team } = teamProjects;
 
   printLines([
-    renderStepLine({ outcome: 'done', name: 'Using team', detail: team.name }),
-    renderStepLine({
-      outcome: 'done',
-      name: 'Using project',
-      detail: projectInTeam.name,
-    }),
+    renderInitStepLine({ step: 'using-team', outcome: 'done', detail: team.name }),
+    renderInitStepLine({ step: 'using-project', outcome: 'done', detail: projectInTeam.name }),
   ]);
 }
 
@@ -117,7 +113,7 @@ async function chooseTeam(
   } = await spendTheLogin(
     person,
     ({ token }) => serverCalls().listTeams({ personalToken: token }),
-    'Choosing a team failed'
+    'choosing-a-team'
   );
   const personalToken = login.token;
 
@@ -126,35 +122,31 @@ async function chooseTeam(
   const team = namedTeam ?? (teamFlag ? undefined : onlyTeam);
 
   if (team) {
-    printLines([renderStepLine({ outcome: 'done', name: 'Using team', detail: team.name })]);
+    printLines([renderInitStepLine({ step: 'using-team', outcome: 'done', detail: team.name })]);
     return { team, login };
   }
 
   // IN NO TEAM, A TEAM ID CAN'T BE RIGHT: there is no list to pick from, and setup without `--team`
   // makes the person's first team itself.
   if (teamFlag && teams.length === 0) {
-    printLines(renderFailedStepLine('Choosing a team failed'));
+    printLines(renderFailedInitStepLine('choosing-a-team'));
     throwError(renderNotInAnyTeam());
   }
 
   if (teamFlag || teams.length > 1) {
-    printLines(renderFailedStepLine('Choosing a team failed'));
+    printLines(renderFailedInitStepLine('choosing-a-team'));
     throwError(renderTeamNotChosen({ teamFlag, teams }));
   }
 
   const { name } = await serverCalls()
     .whoAmI({ personalToken })
-    .catch((error: Error) =>
-      refuseFailedServiceCall(error, 'Creating a team failed', personalToken)
-    );
+    .catch((error: Error) => refuseFailedServiceCall(error, 'creating-a-team', personalToken));
 
   const newTeam = await serverCalls()
     .createTeam({ name: teamNameFor(name), personalToken })
-    .catch((error: Error) =>
-      refuseFailedServiceCall(error, 'Creating a team failed', personalToken)
-    );
+    .catch((error: Error) => refuseFailedServiceCall(error, 'creating-a-team', personalToken));
 
-  printLines([renderStepLine({ outcome: 'done', name: 'Created team', detail: newTeam.name })]);
+  printLines([renderInitStepLine({ step: 'created-team', outcome: 'done', detail: newTeam.name })]);
   return { team: newTeam, login };
 }
 
@@ -169,11 +161,11 @@ async function createProject(
   const newProject = await serverCalls()
     .createProject({ name: appName(), teamId: team.id, personalToken })
     .catch((error: Error) =>
-      refuseFailedServiceCall(error, 'Creating the project failed', personalToken, async () => {
+      refuseFailedServiceCall(error, 'creating-the-project', personalToken, async () => {
         const { email } = await serverCalls()
           .whoAmI({ personalToken })
           .catch((whoAmIError: Error) =>
-            refuseFailedServiceCall(whoAmIError, 'Creating the project failed', null)
+            refuseFailedServiceCall(whoAmIError, 'creating-the-project', null)
           );
         return renderNoAccessToCreateProject({ team: team.name, teamId: team.id, email });
       })
@@ -185,7 +177,7 @@ async function createProject(
   // person reads names. The project token the service hands back is never printed: a token for CI
   // is made in the web app, where the next steps point.
   printLines([
-    renderStepLine({ outcome: 'done', name: 'Created project', detail: newProject.name }),
+    renderInitStepLine({ step: 'created-project', outcome: 'done', detail: newProject.name }),
   ]);
 
   return project;

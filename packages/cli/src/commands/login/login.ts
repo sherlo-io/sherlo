@@ -21,7 +21,7 @@ import { printSherloIntro, spinner, throwError } from '../../helpers';
 import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { emit } from '../../helpers/transcriptSink';
 import { renderLoginNotFinished } from '../../render/initFixes';
-import { renderFailedStepLine } from '../../render/initSteps';
+import { renderFailedInitStepLine } from '../../render/initSteps';
 import { renderLoginWaitingSpinner } from '../../render/login';
 import { printLines } from '../init/helpers';
 import refuseFailedServiceCall from '../init/project/refuseFailedServiceCall';
@@ -185,7 +185,7 @@ async function refuseFailedLoginCall(
   error: Error,
   { insideSetup }: { insideSetup: boolean }
 ): Promise<never> {
-  if (insideSetup) return refuseFailedServiceCall(error, 'Logging in failed', null);
+  if (insideSetup) return refuseFailedServiceCall(error, 'logging-in', null);
 
   return throwError({ message: error.message, errorToReport: error });
 }
@@ -204,7 +204,7 @@ function refuseUnfinishedLogin(
 
   // INSIDE SETUP, LIKE EVERY STOP THERE: the step is marked red, and the fix is setup again.
   if (insideSetup) {
-    printLines(renderFailedStepLine('Logging in failed'));
+    printLines(renderFailedInitStepLine('logging-in'));
     throwError(renderLoginNotFinished({ sentence }));
   }
 

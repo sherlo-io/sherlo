@@ -126,8 +126,10 @@ async function refusalForUnreadableInstalledPackage(error: unknown): Promise<unk
   const cause = (error as { cause?: unknown }).cause;
   if (!(cause instanceof InstalledPackageUnreadableError)) return error;
 
+  const file = path.relative(getCwd(), cause.packageJsonPath);
   const refusal = renderInstalledPackageUnreadable({
-    file: path.relative(getCwd(), cause.packageJsonPath),
+    file,
+    packageFolder: path.dirname(file),
     reason: cause.reason,
     installCommand: await packageManagerCommand('install'),
   });

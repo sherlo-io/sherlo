@@ -19,7 +19,7 @@ Setting up Sherlo...
 [0mWrap its export in Sherlo's withStorybook, the way your file loads modules:[0m
 
    [35mconst[39m withStorybook [2m=[22m [32mrequire[39m[2m([22m[32m'@sherlo/react-native-storybook/metro/withStorybook'[39m[2m);[22m
-   module[2m.[22mexports [2m=[22m [32mwithStorybook[39m[2m([22mconfig[2m);[22m
+   [35mreturn[39m [32mwithStorybook[39m[2m([22mconfig[2m);[22m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

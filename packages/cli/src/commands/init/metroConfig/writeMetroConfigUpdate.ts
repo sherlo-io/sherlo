@@ -2,7 +2,7 @@ import fs from 'fs';
 import { generateCode, parseModule } from 'magicast';
 import { parse as babelParse } from '@babel/parser';
 import { NEW_IMPORT_PACKAGE, WITH_STORYBOOK_IMPORT_RE } from './constants';
-import readMetroConfigCode from './readMetroConfigCode';
+import readMetroConfigCode, { isModuleExports } from './readMetroConfigCode';
 
 /**
  * Wires the Metro config for Sherlo, writing it only when it changed. `applied: false` means the
@@ -202,16 +202,6 @@ function requireCall(packageName: string): any {
     arguments: [{ type: 'StringLiteral', value: packageName }],
     optional: false,
   };
-}
-
-function isModuleExports(node: any): boolean {
-  return (
-    node.type === 'MemberExpression' &&
-    node.object?.type === 'Identifier' &&
-    node.object.name === 'module' &&
-    node.property?.type === 'Identifier' &&
-    node.property.name === 'exports'
-  );
 }
 
 function isStorybookWithStorybookPath(value: unknown): boolean {

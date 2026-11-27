@@ -15,9 +15,9 @@ import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
 import { renderStorybookInstallFailed } from '../../../render/initFixes';
 import {
-  renderFailedStepLine,
+  renderFailedInitStepLine,
+  renderInitStepLine,
   renderPnpmSettingsLine,
-  renderStepLine,
 } from '../../../render/initSteps';
 import { type InstallFailure, workstation } from '../../../seams/workstation';
 import { addCommand } from '../dependencies/installSherlo';
@@ -79,7 +79,7 @@ async function storybook({
     }));
   } catch (error) {
     spinner.stop();
-    printLines(renderFailedStepLine('Installing Storybook failed'));
+    printLines(renderFailedInitStepLine('installing-storybook'));
 
     // The command, with the versions Sherlo tested, picks the package manager's output and log.
     const { output, logFile } = error as InstallFailure;
@@ -99,9 +99,9 @@ async function storybook({
     ([name]) => !(name in dependenciesBefore) && !(name in STORYBOOK_VERSIONS)
   );
   printLines([
-    renderStepLine({
+    renderInitStepLine({
+      step: 'installed-storybook',
       outcome: 'done',
-      name: 'Installed Storybook',
       // NEVER A NULL VERSION: where no package.json of it is on disk to read (Yarn 4 keeps packages
       // in its own store), the version is the exact one the install just added.
       detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${
@@ -112,9 +112,9 @@ async function storybook({
     // The version installed, read from node_modules; the range package.json declares where none
     // is on disk to read.
     ...addedBesideStorybook.map(([name, declaredRange]) =>
-      renderStepLine({
+      renderInitStepLine({
+        step: 'added-for-storybook',
         outcome: 'done',
-        name: 'Added for Storybook',
         detail: `${name} ${getPackageVersion(name) ?? declaredRange}`,
       })
     ),

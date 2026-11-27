@@ -10,7 +10,11 @@
 import ansiEscapes from 'ansi-escapes';
 import { renderLoginLink } from '../../../render/login';
 import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
-import { renderStepLine } from '../../../render/initSteps';
+import {
+  type FailedInitStep,
+  renderInitStepLine,
+  renderSavedLoginRejected,
+} from '../../../render/initSteps';
 import { savedLogins, type SavedLogin } from '../../../seams/savedLogins';
 import { logInThroughTheBrowser } from '../../login/login';
 import { printLines } from '../helpers';
@@ -42,7 +46,7 @@ async function logIn(): Promise<Person> {
 export async function spendTheLogin<Answer>(
   person: Person,
   call: (login: SavedLogin) => Promise<Answer>,
-  failedStep: string
+  failedStep: FailedInitStep
 ): Promise<{ answer: Answer; login: SavedLogin }> {
   try {
     const answer = await call(person.login);
@@ -53,7 +57,7 @@ export async function spendTheLogin<Answer>(
     if (!person.isSaved) return refuseFailedServiceCall(error as Error, failedStep, token);
     // Told apart here, so the refusal below does not ask the team list again.
     if ((await whyRefused(error, token)) !== 'dead-login') {
-      return refuseFailedServiceCall(error as Error, 'Logging in failed', null);
+      return refuseFailedServiceCall(error as Error, 'logging-in', null);
     }
   }
 
@@ -77,23 +81,13 @@ async function logInAgain(): Promise<SavedLogin> {
   const serviceAddress = getEndpointUrl();
 
   savedLogins().remove(serviceAddress);
-  printLines(['', SETUP_REJECTED_LOGIN_SENTENCE]);
+  const rejectedLoginLines = renderSavedLoginRejected();
+  printLines(rejectedLoginLines);
 
   return logInThroughTheBrowserStep(serviceAddress, {
-    linesAboveToErase: LINES_OF_THE_REJECTED_LOGIN,
+    linesAboveToErase: rejectedLoginLines.length,
   });
 }
-
-/**
- * Setup's own words for the refused login. Setup logs in
- * again itself, so it does not list the causes the other commands' refusal names
- * (`REJECTED_LOGIN_MESSAGE`), whose reader must log in by hand.
- */
-// WHAT IS KNOWN, NOT WHY: a 401 says the login no longer works, never that it expired.
-const SETUP_REJECTED_LOGIN_SENTENCE = 'Your saved login no longer works. Log in again to continue.';
-
-/** The blank line and the sentence `logInAgain` printed. */
-const LINES_OF_THE_REJECTED_LOGIN = 2;
 
 async function logInThroughTheBrowserStep(
   serviceAddress: string,
@@ -123,7 +117,7 @@ async function logInThroughTheBrowserStep(
  * being logged in is where setup starts from, not work it did.
  */
 function printLoggedIn({ email }: SavedLogin): void {
-  printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: email })]);
+  printLines([renderInitStepLine({ step: 'logged-in', outcome: 'done', detail: email })]);
 }
 
 export default logIn;

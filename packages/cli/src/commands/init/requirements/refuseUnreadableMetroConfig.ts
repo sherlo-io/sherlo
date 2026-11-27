@@ -1,10 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { getCwd, throwError } from '../../../helpers';
-import { renderMetroConfigUnreadable } from '../../../render/initFixes';
-import { STORYBOOKS_WITH_STORYBOOK_RE } from '../metroConfig/constants';
 import getMetroConfigPath from '../metroConfig/getMetroConfigPath';
-import readMetroConfigModuleStyle from '../metroConfig/readMetroConfigModuleStyle';
+import metroConfigUnreadableRefusal from '../metroConfig/metroConfigUnreadableRefusal';
 import { rewriteMetroConfig } from '../metroConfig/writeMetroConfigUpdate';
 
 /**
@@ -20,11 +18,7 @@ async function refuseUnreadableMetroConfig(): Promise<void> {
 
   if (rewriteMetroConfig(content) === null) {
     throwError(
-      renderMetroConfigUnreadable({
-        path: path.relative(getCwd(), configPath),
-        moduleStyle: readMetroConfigModuleStyle(content),
-        hasStorybooksWithStorybook: STORYBOOKS_WITH_STORYBOOK_RE.test(content),
-      })
+      metroConfigUnreadableRefusal({ path: path.relative(getCwd(), configPath), content })
     );
   }
 }

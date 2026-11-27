@@ -33,6 +33,8 @@
       }
     },
     "apps/mobile/app.json": { "name": "AcmeShop", "displayName": "Acme Shop" },
+    "apps/mobile/index.js": "import { AppRegistry } from 'react-native';\nimport App from './App';\nimport { name as appName } from './app.json';\n\nAppRegistry.registerComponent(appName, () => App);\n",
+    "apps/mobile/App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",
       "version": "0.88.1",

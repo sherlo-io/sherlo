@@ -16,15 +16,13 @@
 import fs from 'fs';
 import path from 'path';
 import { getCwd } from '../../../helpers';
-import { renderStepLine } from '../../../render/initSteps';
+import { renderInitStepLine, renderNoGithubWorkflowLine } from '../../../render/initSteps';
 import { GITHUB_WORKFLOW_PATH, renderSherloWorkflow } from '../../../render/initWorkflow';
 import { surroundings } from '../../../seams/surroundings';
 import { workstation } from '../../../seams/workstation';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import { printLines } from '../helpers';
 import detectPackageManager from '../helpers/detectPackageManager';
-
-const STEP_NAME = 'Added GitHub workflow';
 
 /**
  * The repository's root: the nearest folder at or above `folder` holding `.git` (a folder, or the
@@ -49,13 +47,7 @@ function findGitRoot(folder: string): string | null {
  * "not on GitHub" is all either reader needs.
  */
 function printWhyNoWorkflow(): void {
-  printLines([
-    renderStepLine({
-      outcome: 'done',
-      name: 'No GitHub workflow',
-      detail: 'the code is not on GitHub',
-    }),
-  ]);
+  printLines([renderNoGithubWorkflowLine()]);
 }
 
 /**
@@ -109,7 +101,13 @@ async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
   const workflowDetail = path.relative(projectRoot, workflowFile);
 
   if (fs.existsSync(workflowFile)) {
-    printLines([renderStepLine({ outcome: 'already', name: STEP_NAME, detail: workflowDetail })]);
+    printLines([
+      renderInitStepLine({
+        step: 'added-github-workflow',
+        outcome: 'already',
+        detail: workflowDetail,
+      }),
+    ]);
     return { hasWorkflow: true };
   }
 
@@ -128,7 +126,9 @@ async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
     })
   );
 
-  printLines([renderStepLine({ outcome: 'done', name: STEP_NAME, detail: workflowDetail })]);
+  printLines([
+    renderInitStepLine({ step: 'added-github-workflow', outcome: 'done', detail: workflowDetail }),
+  ]);
   return { hasWorkflow: true };
 }
 

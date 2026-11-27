@@ -19,7 +19,7 @@ ERROR: Setup can't edit metro.config.mjs
 Wrap its export in Sherlo's withStorybook, the way your file loads modules:
 
    import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';
-   export default withStorybook(config);
+   return withStorybook(config);
 
 Then run setup again. It picks up where it stopped:
   npx sherlo init

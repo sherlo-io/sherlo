@@ -8,6 +8,7 @@
       "packageManager": "pnpm@10.12.1"
     },
     "pnpm-workspace.yaml": "packages:\n  - 'apps/*'\n  - 'packages/*'\n",
+    "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",
     "apps/mobile/package.json": {
       "name": "mobile",
       "version": "1.0.0",
