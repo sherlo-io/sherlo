@@ -76,6 +76,14 @@ describe('the local device', () => {
         model: pixel7.emuName,
         os: `Android ${pixel7.lacking}`,
       });
+
+      // A name no phone maker ships, so no list Sherlo grows can ever offer it.
+      writeConfig('not_a_sherlo_phone', 34);
+      expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5554' })).toEqual({
+        local: true,
+        model: 'not_a_sherlo_phone',
+        os: 'Android 14',
+      });
     } finally {
       fs.rmSync(avdHome, { recursive: true, force: true });
     }
