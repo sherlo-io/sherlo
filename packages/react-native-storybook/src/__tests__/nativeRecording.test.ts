@@ -979,9 +979,9 @@ describe('what the app records for each story', () => {
     expect(registry.get('Installer').methods).toEqual({});
     expect(lastCallsAfterBridgeRead(app, 'bridge--loaded', 4)).toEqual([
       ['__turboModuleProxy', 'lookup', ['Installer']],
-      // Laid as the read ran, so taken up as it ended, ahead of the constant it answered.
-      ['global', 'installed', ['coreBridge']],
+      // The read in its turn, then the global laid as it ran, taken up as it ended.
       ['Installer', 'methods', []],
+      ['global', 'installed', ['coreBridge']],
       ['coreBridge', 'get', ['Emitter']],
     ]);
   });
@@ -1063,8 +1063,8 @@ describe('what the app records for each story', () => {
     expect(installer.methods).toEqual({});
     expect(Object.getOwnPropertyNames(app.fakeGlobal)).toHaveLength(before);
     expect(lastCallsAfterBridgeRead(app, 'bridge--swapped', 3)).toEqual([
-      ['global', 'installed', ['coreBridge']],
       ['Installer', 'methods', []],
+      ['global', 'installed', ['coreBridge']],
       ['coreBridge', 'get', ['Emitter']],
     ]);
   });
@@ -1099,13 +1099,13 @@ describe('what the app records for each story', () => {
     startStoryRecording('level--read');
 
     expect(storyRecordingOf('level--read')?.nativeCalls.slice(-2)).toEqual([
+      expect.objectContaining({ module: 'Installer', method: 'methods' }),
       expect.objectContaining({
         module: 'global',
         method: 'installed',
         args: ['level'],
         answer: { reading: 3 },
       }),
-      expect.objectContaining({ module: 'Installer', method: 'methods' }),
     ]);
   });
 

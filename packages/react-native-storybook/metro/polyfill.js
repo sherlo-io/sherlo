@@ -668,8 +668,9 @@ var exactUndo = require('../src/mocking/exactUndo');
   // back as its own on every event, and a Proxy over it aborts the app. The SDK starts and reads
   // each story's part (src/nativeRecording.ts).
   //
-  // THE SHAPE OF THE RECORDING. Every entry takes the next number of one order (`order`), and what
-  // came before the first story belongs to every story. A call goes in nativeCalls as
+  // THE SHAPE OF THE RECORDING. Every entry takes the next number of one order (`order`) as its
+  // use begins, and what came before the first story belongs to every story. A call goes in
+  // nativeCalls as
   // { module, method, args, kind: 'sync' | 'async', answer?, threw?, callbacks? }:
   // - A module's method: module and method by name. A constant read is a call of its name with no
   //   arguments, noted once a story; a promise's value or each callback's arguments come later.
@@ -680,8 +681,8 @@ var exactUndo = require('../src/mocking/exactUndo');
   //   off every run of native code the recorder sees (then as first seen, with a blind road):
   //   { module: 'global', method: 'installed', args: [name], answer: { $: 'native', handle: name,
   //   type: 'object' or 'function' } }, before any use of it: one there before the first story
-  //   belongs to every story, one a call installed follows that call, and one the read of a
-  //   module's constant installed comes ahead of the constant's entry. A global holding data as
+  //   belongs to every story, and one a call or a read of a module's member installed follows
+  //   that call or read, whose entry keeps the turn it took as it began. A global holding data as
   //   the bundle began is the same entry with the data written down as its answer. The globals the
   //   bundle began with that the engine or the bundle's own code made come once, ahead of every
   //   story: { module: 'global', method: 'notFromThePhone', args: [name, ...], kind: 'sync' }.
@@ -758,9 +759,17 @@ var exactUndo = require('../src/mocking/exactUndo');
       chance: { undo: null, wrapped: null, drawn: 0 },
     };
 
-    function keep(list, entry, shared) {
-      entry.order = recorder.order++;
-      recorder.kept.push({ story: shared ? null : recorder.story, list: list, entry: entry });
+    // An entry takes the next turn, or the `turn` its use took as it began when it is kept only
+    // once the use ended; either way the entries are kept in their turns.
+    function keep(list, entry, shared, turn) {
+      entry.order = turn === undefined ? recorder.order++ : turn;
+      var at = recorder.kept.length;
+      while (at > 0 && recorder.kept[at - 1].entry.order > entry.order) at--;
+      recorder.kept.splice(at, 0, {
+        story: shared ? null : recorder.story,
+        list: list,
+        entry: entry,
+      });
       return entry;
     }
 
@@ -1026,6 +1035,9 @@ var exactUndo = require('../src/mocking/exactUndo');
         var methods = {};
         var standIn = new Proxy(real, {
           get: function (target, key) {
+            // The read takes its turn before native runs, so a global native lays as it answers
+            // is laid after the read, whose note, if any, is kept once the answer is known.
+            var turn = recorder.order++;
             var value = fromNative(
               acrossNative(function () {
                 return target[key];
@@ -1034,7 +1046,7 @@ var exactUndo = require('../src/mocking/exactUndo');
             );
             if (typeof key !== 'string') return value;
             return quietly(function () {
-              return moduleMemberForBundle(moduleName, methods, target, key, value);
+              return moduleMemberForBundle(moduleName, methods, target, key, value, turn);
             }, value);
           },
         });
@@ -1048,10 +1060,11 @@ var exactUndo = require('../src/mocking/exactUndo');
     // as it is, noted once a story as a call of its name. The read of a method is noted too, once,
     // for every story, as { module: 'global', method: 'memberRead', args: [module, key], kind:
     // 'sync', answer: what it is (kindOf) }: the bundle may read one to bind or test it and never
-    // call it, and a module's file the bundle first runs in a story runs in no later story.
-    function moduleMemberForBundle(moduleName, methods, target, key, value) {
+    // call it, and a module's file the bundle first runs in a story runs in no later story. Either
+    // note goes in the read's `turn`.
+    function moduleMemberForBundle(moduleName, methods, target, key, value, turn) {
       if (typeof value === 'function') {
-        noteOnceForEveryStory('memberRead', [moduleName, key], kindOf(value));
+        noteOnceForEveryStory('memberRead', [moduleName, key], kindOf(value), turn);
         var isHeld = false;
         try {
           isHeld = safeWrapping.isHeldToItsValue(target, key);
@@ -1069,13 +1082,12 @@ var exactUndo = require('../src/mocking/exactUndo');
       var constantKey = 'constant ' + moduleName + '.' + key;
       if (!recorder.notedInStory[constantKey]) {
         recorder.notedInStory[constantKey] = true;
-        keep('nativeCalls', {
-          module: moduleName,
-          method: key,
-          args: [],
-          kind: 'sync',
-          answer: serialised(value),
-        });
+        keep(
+          'nativeCalls',
+          { module: moduleName, method: key, args: [], kind: 'sync', answer: serialised(value) },
+          false,
+          turn
+        );
       }
       return value;
     }
@@ -1112,15 +1124,16 @@ var exactUndo = require('../src/mocking/exactUndo');
 
     // A fact of the run a story learned, noted once for every story read from then on: a file
     // the bundle first runs in a story is not run again by a later story of the same run, which
-    // the quick check runs fresh.
-    function noteOnceForEveryStory(method, args, answer) {
+    // the quick check runs fresh. Kept in `turn` when it is given, the next one else.
+    function noteOnceForEveryStory(method, args, answer, turn) {
       var key = method + ' ' + JSON.stringify(args);
       if (recorder.notedInLaunch[key]) return;
       recorder.notedInLaunch[key] = true;
       keep(
         'nativeCalls',
         { module: 'global', method: method, args: args, kind: 'sync', answer: answer },
-        true
+        true,
+        turn
       );
     }
 

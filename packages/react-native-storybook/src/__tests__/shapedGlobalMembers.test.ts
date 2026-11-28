@@ -13,7 +13,7 @@ import {
   rendererSource,
   TURBO_MODULE_REGISTRY,
 } from './nativeRoadFiles';
-import { forgetTheRecorder, runFile, startAppIn } from './recordingApp';
+import { forgetTheRecorder, nativeFunction, runFile, startAppIn } from './recordingApp';
 
 afterEach(forgetTheRecorder);
 
@@ -210,5 +210,43 @@ describe('what the recorder notes below a global that cannot be replaced', () =>
     expect(native.listings()).toBe(2);
     expect(notesOf('meter--read', 'shape')).toHaveLength(2);
     expect(native.listings()).toBe(3);
+  });
+
+  it('a member read of a recorded native object is noted in its turn even when its note is kept only once native answered', () => {
+    const app = startAppIn('testing', 'new');
+    runFile(app, FABRIC_RENDERER, rendererSource);
+    app.fakeGlobal.nativeModulesOfTheTest = {
+      // Native lays a global that cannot be replaced only as the module's constants are first read.
+      Installer: {
+        get exported() {
+          Object.defineProperty(app.fakeGlobal, 'appCore', {
+            value: { ping: nativeFunction(() => 'pong') },
+            enumerable: true,
+            writable: false,
+          });
+          return {};
+        },
+      },
+    };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+    const installer = registry.get('Installer');
+    // The bundle reads the global before that read, and finds none.
+    expect(app.fakeGlobal.appCore).toBeUndefined();
+    expect(installer.exported).toEqual({});
+
+    startStoryRecording('core--laid-in-a-read');
+    // The read is the last entry before native ran, so the global is laid as that read is
+    // answered, not as the lookup before it is.
+    const calls = storyRecordingOf('core--laid-in-a-read')?.nativeCalls ?? [];
+    expect(
+      calls
+        .slice(-4)
+        .map(({ module, method, order, laidAfter }: any) => [module, method, order, laidAfter])
+    ).toEqual([
+      ['__turboModuleProxy', 'lookup', 5, undefined],
+      ['Installer', 'exported', 6, undefined],
+      ['global', 'shape', 7, 6],
+      ['global', 'shape', 8, 6],
+    ]);
   });
 });
