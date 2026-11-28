@@ -503,7 +503,7 @@ describe('what the app records for each story', () => {
         'global',
         'notFromThePhone',
         ['Math', ...MADE_BY_THE_BUNDLE],
-        { Math: { type: 'object', tag: 'Math' }, ...BUNDLE_KINDS },
+        { Math: { type: 'object', native: true, tag: 'Math' }, ...BUNDLE_KINDS },
       ],
       ['appCore', 'get', ['Emitter'], ref('#1')],
       ['#1', 'get', ['prototype'], {}],
@@ -1807,12 +1807,60 @@ describe('what the app records for each story', () => {
     // What the quick check's own engine holds under those names differs from these in kind, tag
     // or name, so it takes each for the phone's, never its own.
     expect(listed?.answer).toMatchObject({
-      Math: { type: 'object', tag: { $: 'undefined' } },
+      Math: { type: 'object', native: true, tag: { $: 'undefined' } },
       parseInt: { type: 'function', native: true, name: 'readNumber', length: 1 },
-      JSON: { type: 'object', tag: 'JSON' },
+      JSON: { type: 'object', native: true, tag: 'JSON' },
     });
     // The bundle is still handed what native laid.
     expect(app.fakeGlobal.Math).toBe(phoneTable);
+  });
+
+  it('a start object whose functions are all native is noted native', () => {
+    const phoneTable = Object.create(null);
+    phoneTable.read = nativeFunction(() => 'phone');
+    phoneTable.size = 3;
+    const app = startAppIn('testing', 'new', {}, { engine: { Math: phoneTable, JSON } });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('table--native');
+    const listed = storyRecordingOf('table--native')?.nativeCalls.find(
+      ({ method }) => method === 'notFromThePhone'
+    );
+    expect(listed?.answer).toMatchObject({
+      Math: { type: 'object', native: true },
+      JSON: { type: 'object', native: true },
+    });
+  });
+
+  it('a start global holding a function the bundle made is noted not native, whether the global is an object or an engine function', () => {
+    const polyfilledObject = Object.create(null);
+    polyfilledObject.read = nativeFunction(() => 'phone');
+    polyfilledObject.added = function addedByThePolyfill() {
+      return 'bundle';
+    };
+    const polyfilledParse = nativeFunction(function readNumber(_text: string) {
+      return 7;
+    }) as unknown as Record<string, unknown>;
+    polyfilledParse.extra = function extraByThePolyfill() {
+      return 'bundle';
+    };
+    const app = startAppIn(
+      'testing',
+      'new',
+      {},
+      { engine: { Math: polyfilledObject, parseInt: polyfilledParse, JSON } }
+    );
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('table--polyfilled');
+    const listed = storyRecordingOf('table--polyfilled')?.nativeCalls.find(
+      ({ method }) => method === 'notFromThePhone'
+    );
+    expect(listed?.answer).toMatchObject({
+      Math: { type: 'object', native: false },
+      parseInt: { type: 'function', native: false },
+      JSON: { type: 'object', native: true },
+    });
   });
 
   it("an engine global laid after the phone's first enumerable one is recorded, never dropped", () => {
