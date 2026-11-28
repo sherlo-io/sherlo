@@ -108,6 +108,7 @@ export function startAppIn(
     readOnly?: Record<string, unknown>;
     notEnumerated?: Record<string, unknown>;
     engine?: Record<string, unknown>;
+    globalObjectAs?: string[];
     withoutCallableRoad?: boolean;
     callableModules?: string;
     sdkConstants?: Record<string, unknown>;
@@ -123,6 +124,14 @@ export function startAppIn(
   // anything else is there: never enumerable.
   Object.entries(options.engine ?? {}).forEach(([name, value]) => {
     Object.defineProperty(app.fakeGlobal, name, { value, enumerable: false, writable: false });
+  });
+  // The names the engine lays holding the global object itself, as `globalThis` does.
+  (options.globalObjectAs ?? []).forEach((name) => {
+    Object.defineProperty(app.fakeGlobal, name, {
+      value: app.fakeGlobal,
+      enumerable: false,
+      writable: false,
+    });
   });
   Object.assign(app.fakeGlobal, {
     __turboModuleProxy: (name: string) =>

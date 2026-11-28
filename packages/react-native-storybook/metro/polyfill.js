@@ -2332,20 +2332,39 @@ var exactUndo = require('../src/mocking/exactUndo');
       return member && 'value' in member ? serialised(member.value) : { $: 'undefined' };
     }
 
+    // Whether each own data member of the value that is a function is one native code made, read
+    // through descriptions alone, so no getter runs: a function a polyfill laid on it is the
+    // app's code, not the engine's.
+    function holdsOnlyNativeFunctions(value) {
+      return Reflect.ownKeys(value).every(function (key) {
+        var member = Object.getOwnPropertyDescriptor(value, key);
+        if (!member || !('value' in member) || typeof member.value !== 'function') return true;
+        return isNativeFunction(member.value);
+      });
+    }
+
     // What a start global the recorder does not record is, read through descriptions alone, for
     // the quick check to tell its own global of that name from the phone's: data as its value, a
-    // function by whether native code made it with its name and length, an object by its tag.
+    // function or an object by whether it is native whole (native code made it, if a function, and
+    // every function it holds is native too), a function with its name and length, an object with
+    // its tag.
     function kindOf(value) {
       if (typeof value === 'function') {
         return {
           type: 'function',
-          native: isNativeFunction(value),
+          native: isNativeFunction(value) && holdsOnlyNativeFunctions(value),
           name: ownDataOf(value, 'name'),
           length: ownDataOf(value, 'length'),
         };
       }
       if (safeWrapping.isObjectOrFunction(value)) {
-        return { type: 'object', tag: ownDataOf(value, Symbol.toStringTag) };
+        return {
+          type: 'object',
+          // The global object is the realm's own: each function on it is a start global judged by
+          // itself, never by being on it.
+          native: value === global || holdsOnlyNativeFunctions(value),
+          tag: ownDataOf(value, Symbol.toStringTag),
+        };
       }
       return { type: typeof value, value: serialised(value) };
     }
