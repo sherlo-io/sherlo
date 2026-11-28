@@ -57,6 +57,18 @@ describe('the pull request checks workflow', () => {
     expect(triggers).not.toMatch(/types:/);
   });
 
+  it('the type checks run sherlo-dev type-check after installing the Bun version dev-tools pins', () => {
+    const job = jobText('package-checks');
+    const setupBun = job.indexOf('oven-sh/setup-bun@v2');
+    expect(setupBun).toBeGreaterThan(job.indexOf('./.github/actions/install-with-libs'));
+    expect(job).toContain('bun-version-file: node_modules/@sherlo-io/dev-tools/.bun-version');
+    expect(job.indexOf('yarn sherlo-dev type-check ${{ matrix.package.dir }}')).toBeGreaterThan(
+      setupBun
+    );
+    expect(job.indexOf('yarn sherlo-dev type-check contracts')).toBeGreaterThan(setupBun);
+    expect(workflowWithoutComments).not.toMatch(/tsc --noEmit/);
+  });
+
   it('pr_checks also starts by hand', () => {
     const triggers = workflowWithoutComments.slice(
       workflowWithoutComments.search(/^on:/m),

@@ -50,8 +50,13 @@ jobs:
         working-directory: ${{ matrix.package.dir }}
         run: yarn lint
 
+      - name: Set up Bun at the version dev-tools pins
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: node_modules/@sherlo-io/dev-tools/.bun-version
+
       - name: Typecheck
-        run: yarn tsc --noEmit -p ${{ matrix.package.dir }}
+        run: yarn sherlo-dev type-check ${{ matrix.package.dir }}
 
       # THE POSE CONTRACT AND ITS READER ARE GENERATED from the types the CLI's seams
       # declare (packages/cli/scripts/generate-pose-contract.ts). This regenerates both
@@ -69,7 +74,7 @@ jobs:
       # nobody runs pins nothing.
       - name: Typecheck the pose contract law
         if: matrix.package.name == 'cli'
-        run: yarn tsc --noEmit -p contracts
+        run: yarn sherlo-dev type-check contracts
 
       # THE PACKAGED-BUILD GATE, cli only - the command the e2e suites run when a
       # run is dispatched with `cli_ref=<this branch>`. A ref whose packaged build

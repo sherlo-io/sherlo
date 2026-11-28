@@ -32,8 +32,8 @@
     "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:js": "oxlint --report-unused-disable-directives",
     "lint:js:fix": "oxlint --fix --report-unused-disable-directives",
-    "lint:types": "tsc --noEmit",
-    "typecheck": "tsc --noEmit -p packages/cli && tsc --noEmit -p packages/react-native-storybook && tsc --noEmit -p contracts",
+    "lint:types": "sherlo-dev type-check",
+    "typecheck": "sherlo-dev type-check packages/cli packages/react-native-storybook contracts",
     "test:related": "./scripts/test-related.sh",
     "test:android-sdk": "cd packages/react-native-storybook/android/jvm-tests && ./gradlew testDebugUnitTest --console=plain",
     "test:all-units": "yarn --cwd packages/cli test && yarn --cwd packages/react-native-storybook test",
@@ -45,6 +45,7 @@
     "switch-env:prod": "./scripts/switch-env.sh prod"
   },
   "devDependencies": {
+    "@sherlo-io/dev-tools": "^1.0.0",
     "lerna": "^9.0.3",
     "oxfmt": "0.73.0",
     "oxlint": "1.88.0",
