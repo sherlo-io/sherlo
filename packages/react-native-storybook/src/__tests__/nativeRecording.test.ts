@@ -41,6 +41,7 @@ import {
   KINDS_AT_START,
   LIST_ENTRY_AT_START,
   MADE_BY_THE_BUNDLE,
+  SURFACE_ENTRY_AT_START,
   methodKind,
   nativeFunction,
   noteForEveryStory,
@@ -190,7 +191,7 @@ describe('what the app records for each story', () => {
       ['__turboModuleProxy', 'lookup'],
       ['Clipboard', 'getString'],
     ]);
-    expect(storyRecordingOf('buttons--primary')?.nativeCalls).toHaveLength(15);
+    expect(storyRecordingOf('buttons--primary')?.nativeCalls).toHaveLength(16);
 
     // Each device setup is its own launch, with a recording of its own.
     const darkApp = startAppIn('testing', 'new');
@@ -340,6 +341,7 @@ describe('what the app records for each story', () => {
       ]),
       ['global', 'installed', ['camera'], 'sync', cameraRef('camera', 'object')],
       [...LIST_ENTRY_AT_START.slice(0, 3), 'sync', BUNDLE_KINDS],
+      [...SURFACE_ENTRY_AT_START.slice(0, 3), 'sync', SURFACE_ENTRY_AT_START[3]],
       ['camera', 'get', ['version'], 'sync', '2.1'],
       ['camera', 'get', ['capture'], 'sync', cameraRef('#1')],
       ['#1', 'apply', [cameraRef('camera', 'object'), ['high']], 'sync', 'photo-high'],
@@ -431,6 +433,7 @@ describe('what the app records for each story', () => {
       ...DATA_ENTRIES_AT_START,
       ['global', 'installed', ['nativeParts'], ref('nativeParts', 'object')],
       LIST_ENTRY_AT_START,
+      SURFACE_ENTRY_AT_START,
       ['nativeParts', 'get', ['Emitter'], ref('#1')],
       ['#1', 'get', ['prototype'], {}],
       ['#1', 'construct', [['taps'], { $: 'subclass' }], ref('#2', 'object')],
@@ -505,6 +508,7 @@ describe('what the app records for each story', () => {
         ['Math', ...MADE_BY_THE_BUNDLE],
         { Math: { type: 'object', native: true, tag: 'Math' }, ...BUNDLE_KINDS },
       ],
+      ['global', 'engineSurface', [], expect.any(Array)],
       ['appCore', 'get', ['Emitter'], ref('#1')],
       ['#1', 'get', ['prototype'], {}],
       ['#1', 'construct', [['cart'], { $: 'subclass' }], ref('#2', 'object')],
@@ -726,6 +730,7 @@ describe('what the app records for each story', () => {
       ...DATA_ENTRIES_AT_START,
       ['global', 'installed', ['library'], { $: 'native', handle: 'library', type: 'object' }],
       LIST_ENTRY_AT_START,
+      SURFACE_ENTRY_AT_START,
       ['__turboModuleProxy', 'lookup', ['Clipboard'], module],
       ['global', 'lookedUp', ['__turboModuleProxy', 'Clipboard'], module],
       ['__turboModuleProxy', 'lookup', ['Clipboard'], module],
@@ -837,9 +842,9 @@ describe('what the app records for each story', () => {
     expect(
       recording?.nativeCalls.map(({ module, method, args, kind }) => [module, method, args, kind])
     ).toEqual([
-      ...KINDS_AT_START.slice(0, -1),
+      ...KINDS_AT_START.slice(0, -2),
       ['global', 'installed', ['uploader'], 'sync'],
-      KINDS_AT_START.at(-1),
+      ...KINDS_AT_START.slice(-2),
       ['uploader', 'get', ['start'], 'sync'],
       [
         '#1',
@@ -1696,15 +1701,15 @@ describe('what the app records for each story', () => {
     startStoryRecording('logs--plain');
     expect(storyRecordingOf('logs--plain')?.blindRoads).toEqual(atStart);
     expect(storyRecordingOf('logs--plain')?.nativeCalls).toEqual([
-      ...CALLS_AT_START.slice(0, -1),
+      ...CALLS_AT_START.slice(0, -2),
       expect.objectContaining({
         module: 'global',
         method: 'installed',
         args: ['nativeLogger'],
         answer: { $: 'native', handle: 'nativeLogger', type: 'function' },
       }),
-      // The list, after the five start globals the bundle did not make.
-      { ...CALLS_AT_START.at(-1), order: 5 },
+      // The list and the surface, after the five start globals the bundle did not make.
+      ...CALLS_AT_START.slice(-2).map((call) => ({ ...call, order: 5 })),
     ]);
     startStoryRecording('logs--long');
     expect(storyRecordingOf('logs--long')?.blindRoads).toEqual(atStart);
@@ -1767,7 +1772,9 @@ describe('what the app records for each story', () => {
     // Neither held as a value nor named as unseen.
     const others = JSON.stringify({
       ...recording,
-      nativeCalls: recording?.nativeCalls.filter((entry) => !listed.includes(entry)),
+      nativeCalls: recording?.nativeCalls.filter(
+        (entry) => !listed.includes(entry) && entry.method !== 'engineSurface'
+      ),
     });
     ['defineModule', 'moduleTable', 'NaN', 'Infinity', 'Math'].forEach((name) => {
       expect(others).not.toContain(`"${name}"`);
@@ -1782,6 +1789,67 @@ describe('what the app records for each story', () => {
         ({ method }) => method === 'notFromThePhone'
       )
     ).toEqual(listed);
+  });
+
+  it("the recorder notes the engine's surface once, every own key of each engine global and of each value reached from one", () => {
+    const chime = Symbol('chime');
+    const sound = nativeFunction(function ring() {
+      return 'ring';
+    }) as unknown as Record<string | symbol, unknown>;
+    sound.volume = 3;
+    sound[chime] = 1;
+    const phoneTools = Object.create(null);
+    phoneTools.sound = sound;
+    phoneTools.again = sound;
+    phoneTools.zebra = 1;
+    phoneTools.alpha = { inner: 2 };
+    const app = startAppIn('testing', 'new', {}, { engine: { Tools: phoneTools } });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('tools--one');
+    const surfaceOf = (storyId: string) =>
+      storyRecordingOf(storyId)?.nativeCalls.filter(({ method }) => method === 'engineSurface');
+    const noted = surfaceOf('tools--one');
+    expect(noted).toHaveLength(1);
+    // Each place by the path it was first reached by, its own keys sorted and its symbols apart,
+    // each visited once: the second road to the same function adds nothing.
+    expect(noted?.[0]).toMatchObject({ module: 'global', args: [], kind: 'sync' });
+    expect(noted?.[0].answer).toEqual([
+      { path: ['Tools'], keys: ['again', 'alpha', 'sound', 'zebra'], symbols: [] },
+      {
+        path: ['Tools', 'again'],
+        keys: ['length', 'name', 'prototype', 'volume'],
+        symbols: ['Symbol(chime)'],
+      },
+      { path: ['Tools', 'alpha'], keys: ['inner'], symbols: [] },
+      { path: ['Tools', 'again', 'prototype'], keys: ['constructor'], symbols: [] },
+      {
+        // The function the test's native wrapper stands for, a second function with the same keys.
+        path: ['Tools', 'again', 'prototype', 'constructor'],
+        keys: ['length', 'name', 'prototype', 'volume'],
+        symbols: ['Symbol(chime)'],
+      },
+    ]);
+    // Every story is handed the one note again, never a second.
+    startStoryRecording('tools--two');
+    expect(surfaceOf('tools--two')).toEqual(noted);
+  });
+
+  it("noting the engine's surface runs no getter", () => {
+    const phoneTools = Object.create(null);
+    const getter = vi.fn(() => ({ hidden: true }));
+    Object.defineProperty(phoneTools, 'lazy', { get: getter, enumerable: true });
+    phoneTools.plain = 1;
+    const app = startAppIn('testing', 'new', {}, { engine: { Tools: phoneTools } });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('tools--lazy');
+    const noted = storyRecordingOf('tools--lazy')?.nativeCalls.find(
+      ({ method }) => method === 'engineSurface'
+    );
+    expect(getter).not.toHaveBeenCalled();
+    // The getter is listed by its name and never entered.
+    expect(noted?.answer).toEqual([{ path: ['Tools'], keys: ['lazy', 'plain'], symbols: [] }]);
   });
 
   it("a phone global taken for the engine's is listed with what it is, for the quick check to tell it from its own", () => {

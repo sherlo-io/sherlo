@@ -36,10 +36,23 @@ export const DATA_ENTRIES_AT_START = [
 // phone's: the bundle's is a function of JavaScript source (the test's mock).
 export const BUNDLE_KINDS = { __d: { type: 'function', native: false, name: 'Mock', length: 0 } };
 export const LIST_ENTRY_AT_START = ['global', 'notFromThePhone', MADE_BY_THE_BUNDLE, BUNDLE_KINDS];
-export const ENTRIES_AT_START = [...DATA_ENTRIES_AT_START, LIST_ENTRY_AT_START];
+// The engine's surface follows the list, with no turn of its own, and is empty when the app has no
+// engine globals.
+export const SURFACE_ENTRY_AT_START = ['global', 'engineSurface', [], []];
+export const ENTRIES_AT_START = [
+  ...DATA_ENTRIES_AT_START,
+  LIST_ENTRY_AT_START,
+  SURFACE_ENTRY_AT_START,
+];
 // The same entries in full, in their places in an app with no globals of its own: the data after
-// `__turboModuleProxy`, the list after every start global the bundle did not make.
-const ORDERS_AT_START = [1, 2, GLOBALS_OF_A_NEW_APP.length - MADE_BY_THE_BUNDLE.length];
+// `__turboModuleProxy`, the list after every start global the bundle did not make, the surface in
+// the list's turn.
+const ORDERS_AT_START = [
+  1,
+  2,
+  GLOBALS_OF_A_NEW_APP.length - MADE_BY_THE_BUNDLE.length,
+  GLOBALS_OF_A_NEW_APP.length - MADE_BY_THE_BUNDLE.length,
+];
 export const CALLS_AT_START = ENTRIES_AT_START.map(([module, method, args, answer], index) => ({
   module,
   method,

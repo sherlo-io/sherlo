@@ -2369,6 +2369,46 @@ var exactUndo = require('../src/mocking/exactUndo');
       return { type: typeof value, value: serialised(value) };
     }
 
+    // The engine's surface, for the quick check to shape its own realm to what the phone's engine
+    // held: for each place, the engine's global (as the leading run listed it) or an object or
+    // function reached from one through own data members, each visited once, the sorted names of
+    // its own keys and, apart, its own symbols as written, Symbol(description). A place is named
+    // by the path of keys the walk first reached it by, a symbol in a path written the same way.
+    // Every member is read through its description alone, so no getter runs.
+    function surfaceOfTheEngine(starts) {
+      var seen = new WeakSet();
+      seen.add(global);
+      var places = [];
+      var queue = starts.slice();
+      for (var next = 0; next < queue.length; next++) {
+        var place = queue[next];
+        if (!safeWrapping.isObjectOrFunction(place.value) || seen.has(place.value)) continue;
+        seen.add(place.value);
+        var names = [];
+        var symbols = [];
+        var reached = [];
+        try {
+          Reflect.ownKeys(place.value).forEach(function (key) {
+            (typeof key === 'symbol' ? symbols : names).push(String(key));
+            var member = Object.getOwnPropertyDescriptor(place.value, key);
+            if (member && 'value' in member) {
+              reached.push({ key: String(key), value: member.value });
+            }
+          });
+        } catch (_) {
+          // A place that refuses the look is noted as far as it was read.
+        }
+        reached.sort(function (a, b) {
+          return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+        });
+        reached.forEach(function (member) {
+          queue.push({ path: place.path.concat(member.key), value: member.value });
+        });
+        places.push({ path: place.path, keys: names.sort(), symbols: symbols.sort() });
+      }
+      return places;
+    }
+
     // The globals the bundle began with. The engine lays its own as it starts, before a native side
     // or the bundle lays any, and the language lays each of them not enumerable: the engine's are
     // the run of globals not enumerable that the global object lists first, as it lists them in
@@ -2390,6 +2430,7 @@ var exactUndo = require('../src/mocking/exactUndo');
         notFromThePhone.push(name);
         kinds[name] = kindOf(value);
       };
+      var enginesValues = [];
       var isInTheEnginesRun = true;
       namesOfGlobals().forEach(function (name) {
         globalsSeen[name] = true;
@@ -2397,7 +2438,10 @@ var exactUndo = require('../src/mocking/exactUndo');
         isInTheEnginesRun = isInTheEnginesRun && !!laid && !laid.enumerable;
         if (name.indexOf('__sherlo') === 0) return;
         var description = plainGlobalOf(name);
-        if (description && isInTheEnginesRun) return listNotFromThePhone(name, description.value);
+        if (description && isInTheEnginesRun) {
+          enginesValues.push({ path: [name], value: description.value });
+          return listNotFromThePhone(name, description.value);
+        }
         var isNative = !!description && isNativeValue(description.value);
         if (isNative && recordGlobal(name, description)) return;
         if (description && !isNative) {
@@ -2424,6 +2468,20 @@ var exactUndo = require('../src/mocking/exactUndo');
           true
         );
       }
+      // Kept always, empty or not: a recording with no note of it is never vouched for. It takes
+      // the turn of the last start global, no turn of its own, as it holds nothing the bundle ran.
+      keep(
+        'nativeCalls',
+        {
+          module: 'global',
+          method: 'engineSurface',
+          args: [],
+          kind: 'sync',
+          answer: surfaceOfTheEngine(enginesValues),
+        },
+        true,
+        Math.max(recorder.order - 1, 0)
+      );
     });
 
     // Globals that appeared since: `asItRan` as a run of native code the recorder sees ends, a call
