@@ -36,6 +36,26 @@ describe('whether pods link Sherlo into a configuration', () => {
     expect(podsLinkSherloInto(iosFolder, 'Staging')).toBe(false);
   });
 
+  it('a release xcconfig whose search paths name the Sherlo pod but whose linker flags do not is not linked', () => {
+    const support = 'Pods/Target Support Files/Pods-App/Pods-App';
+    writeFile('Podfile.lock', 'PODS: one\n');
+    writeFile('Pods/Manifest.lock', 'PODS: one\n');
+    writeFile(
+      `${support}.release.xcconfig`,
+      [
+        'FRAMEWORK_SEARCH_PATHS = $(inherited) "${PODS_CONFIGURATION_BUILD_DIR}/sherlo-react-native-storybook"',
+        'HEADER_SEARCH_PATHS = $(inherited) "${PODS_ROOT}/Headers/Public/sherlo-react-native-storybook"',
+        'OTHER_LDFLAGS = $(inherited) -ObjC -l"c++" -l"other"',
+        'SWIFT_INCLUDE_PATHS = $(inherited) "${PODS_CONFIGURATION_BUILD_DIR}/sherlo-react-native-storybook"',
+        '',
+      ].join('\n')
+    );
+
+    expect(podsLinkSherloInto(iosFolder, 'Release')).toBe(false);
+    expect(installedPodsAreCurrent(iosFolder, ['Release'])).toBe(false);
+    expect(installedPodsAreCurrent(iosFolder)).toBe(false);
+  });
+
   it('is false when the pods are not installed', () => {
     expect(podsLinkSherloInto(iosFolder, 'Release')).toBe(false);
   });

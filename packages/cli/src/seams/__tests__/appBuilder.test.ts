@@ -259,6 +259,28 @@ describe('app builder, Android', () => {
     expect(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).toBe(original);
   });
 
+  it("a failed expo prebuild shows the log's error lines, then its last lines", async () => {
+    const errorLine =
+      'Error: [android.dangerous]: withAndroidDangerousBaseMod: Path to google-services.json is not defined. Please specify the `expo.android.googleServicesFile` field in app.json.';
+    const prebuildFails: RunProcess = async (call) => {
+      fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+      const notes = Array.from({ length: 40 }, (_, index) => `note ${index}`);
+      fs.writeFileSync(
+        call.logPath,
+        [...notes, 'error: Prebuild failed', errorLine, 'npm notice done'].join('\n')
+      );
+      return 1;
+    };
+    const failure = await makeLiveAppBuilder(prebuildFails)
+      .generateNativeFolder({ platform: 'android', projectRoot, env: {} })
+      .catch((error: Error) => error);
+    if (!(failure instanceof Error)) throw new Error('prebuild did not fail');
+    const shown = failure.message.split('\n');
+    expect(shown[0]).toBe('error: Prebuild failed');
+    expect(shown).toContain(errorLine);
+    expect(shown.at(-1)).toBe('`expo prebuild` failed - see .sherlo/build-android.log');
+  });
+
   it("runs expo prebuild with the build's variables", async () => {
     fs.rmSync(path.join(projectRoot, 'android'), { recursive: true });
     await liveBuilder().generateNativeFolder({
@@ -410,9 +432,22 @@ describe('app builder, iOS', () => {
           '{ platform:macOS, arch:arm64, variant:Designed for [iPad,iPhone], id:0000 }\n' +
           `${JSON.stringify([
             { target: 'Pods', buildSettings: { WRAPPER_NAME: 'Pods.framework' } },
+            // A Watch app comes first: it is an .app too, built for the watchOS simulator.
+            {
+              target: 'App Watch App',
+              buildSettings: {
+                TARGET_BUILD_DIR: path.join(projectRoot, 'Release-watchsimulator'),
+                WRAPPER_NAME: 'App Watch App.app',
+                PLATFORM_NAME: 'watchsimulator',
+              },
+            },
             {
               target: 'App',
-              buildSettings: { TARGET_BUILD_DIR: xcodeProductsDir, WRAPPER_NAME: 'App.app' },
+              buildSettings: {
+                TARGET_BUILD_DIR: xcodeProductsDir,
+                WRAPPER_NAME: 'App.app',
+                PLATFORM_NAME: 'iphonesimulator',
+              },
             },
           ])}`
       );
@@ -514,11 +549,23 @@ describe('app builder, iOS', () => {
     expect(args).toEqual(expect.arrayContaining(['-workspace', 'App.xcworkspace']));
     expect(args).toEqual(expect.arrayContaining(['-scheme', 'App']));
     expect(args).toEqual(expect.arrayContaining(['-configuration', 'Release']));
-    expect(args).toEqual(expect.arrayContaining(['-sdk', 'iphonesimulator']));
     expect(args).toContain('ARCHS=arm64');
     expect(args).toContain('CODE_SIGNING_ALLOWED=NO');
     // A derived data path would move Xcode's compilation cache out of its own folder.
     expect(args).not.toContain('-derivedDataPath');
+  });
+
+  it('the iOS build asks for a generic iOS Simulator destination, never one SDK for every target', async () => {
+    await compileIos();
+    const settingsCall = callsOf('xcodebuild').find((call) =>
+      call.args.includes('-showBuildSettings')
+    );
+    for (const args of [xcodebuildBuildCall().args, settingsCall?.args]) {
+      expect(args).toEqual(
+        expect.arrayContaining(['-destination', 'generic/platform=iOS Simulator'])
+      );
+      expect(args).not.toContain('-sdk');
+    }
   });
 
   it("builds iOS in the scheme's archive configuration when the project has no Release and no configuration is set", async () => {
@@ -647,6 +694,7 @@ describe('app builder, iOS', () => {
     expect(result.lastLines).toEqual([
       'The pod install step failed: `bundle exec pod install` exited with 18.',
       'Bundler::RubyVersionMismatch: Your Ruby version is 3.2.0, but your Gemfile specified 3.4.5',
+      'at /x.rb:1',
     ]);
     expect(callsOf('xcodebuild')).toHaveLength(0);
   });

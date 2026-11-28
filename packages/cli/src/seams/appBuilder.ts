@@ -43,6 +43,7 @@ import {
   sdkDirOfLocalProperties,
 } from './androidFlavors';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
+import { lastLinesOf } from './buildLogLines';
 import { easBuildIdIn } from './easBuildId';
 import { schemeNamesInProject, schemesInXcodeList } from './iosScheme';
 import {
@@ -246,9 +247,6 @@ function easProfileEnv(projectRoot: string, profileName: string): Record<string,
 /* The live builder                                                           */
 /* ========================================================================== */
 
-/** How many of a failed build's last lines the run shows. */
-const LAST_LINES_SHOWN = 30;
-
 const MB_PER_GB = 1024;
 
 /**
@@ -373,7 +371,10 @@ function appPathFromBuildSettings(settingsPath: string): string | undefined {
   const jsonStart = text.search(/^\[\s*(\{|$)/m);
   if (jsonStart === -1) return undefined;
   const targets: { buildSettings: Record<string, string> }[] = JSON.parse(text.slice(jsonStart));
-  const app = targets.find((target) => target.buildSettings.WRAPPER_NAME?.endsWith('.app'));
+  // A scheme may also build a Watch app, which is an `.app` of the watchOS simulator: the iOS one is wanted.
+  const apps = targets.filter((target) => target.buildSettings.WRAPPER_NAME?.endsWith('.app'));
+  const app =
+    apps.find((target) => target.buildSettings.PLATFORM_NAME === 'iphonesimulator') ?? apps[0];
   return app && path.join(app.buildSettings.TARGET_BUILD_DIR, app.buildSettings.WRAPPER_NAME);
 }
 
@@ -421,13 +422,6 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     packageJsonBeforePrebuild.delete(key);
     fs.rmSync(path.join(projectRoot, platform), { recursive: true, force: true });
     fs.writeFileSync(path.join(projectRoot, 'package.json'), original);
-  }
-
-  /** The last lines of a build's log, as the build tool wrote them, from `fromByte` on. */
-  function lastLinesOf(logPath: string, fromByte = 0): string[] {
-    if (!fs.existsSync(logPath)) return [];
-    const text = fs.readFileSync(logPath).subarray(fromByte).toString('utf8');
-    return text.trimEnd().split('\n').slice(-LAST_LINES_SHOWN);
   }
 
   async function compileAndroid(params: CompileParams): Promise<CompiledApp> {
@@ -599,8 +593,9 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       ios.scheme,
       '-configuration',
       configuration,
-      '-sdk',
-      'iphonesimulator',
+      // A destination, not -sdk: each target of the scheme (a Watch app too) gets its own simulator SDK.
+      '-destination',
+      'generic/platform=iOS Simulator',
       'ARCHS=arm64',
       'CODE_SIGNING_ALLOWED=NO',
       'COMPILATION_CACHE_ENABLE_CACHING=YES',
@@ -824,7 +819,12 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       });
       if (exitCode !== 0) {
         undoPrebuild(projectRoot, platform);
-        throw new Error(`\`expo prebuild\` failed - see ${buildLogPath(platform)}`);
+        // The one catcher is the command's error exit, which prints the message: the log's lines
+        // are in it, as a failed compile shows them, and the log's path comes after.
+        const shown = lastLinesOf(path.join(projectRoot, buildLogPath(platform)));
+        throw new Error(
+          [...shown, `\`expo prebuild\` failed - see ${buildLogPath(platform)}`].join('\n')
+        );
       }
     },
     compile: async (params) => {
