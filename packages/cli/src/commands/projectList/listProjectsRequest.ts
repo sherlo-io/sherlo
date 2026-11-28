@@ -30,6 +30,7 @@
  */
 import fetch from 'node-fetch';
 import type { ProjectList } from '../../render/projectList';
+import { isRefusalErrorType } from '../../seams/serviceRefusedToken';
 import listTeamsRequest, { ListTeamsAuthError } from '../teamList/listTeamsRequest';
 
 /** Bounded so a hung endpoint cannot leave the command waiting forever. */
@@ -51,6 +52,14 @@ export class ListProjectsAuthError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ListProjectsAuthError';
+  }
+}
+
+/** The team is not among the token owner's teams: they are not in it, or the id is wrong. */
+export class TeamNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TeamNotFoundError';
   }
 }
 
@@ -100,7 +109,7 @@ async function listProjectsRequest(
   const team = teams.find((candidate) => candidate.id === teamId);
 
   if (!team) {
-    throw new Error(
+    throw new TeamNotFoundError(
       `Team \`${teamId}\` was not found among the teams this token's owner belongs to. ` +
         'Check the id, or list your teams with `npx sherlo team list`.'
     );
@@ -133,9 +142,7 @@ async function listProjectsRequest(
   };
 
   if (json.errors?.length) {
-    const isAuthError = json.errors.some((error) =>
-      /unauthorized|forbidden|auth/i.test(error.errorType ?? '')
-    );
+    const isAuthError = json.errors.some((error) => isRefusalErrorType(error.errorType));
 
     if (isAuthError) throw new ListProjectsAuthError('GraphQL authorization error');
 

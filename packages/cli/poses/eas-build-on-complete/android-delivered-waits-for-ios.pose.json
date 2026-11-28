@@ -69,7 +69,7 @@
         "bundleFormat": "plain-js",
         "expoUpdatesEnabled": false,
         "hasExpoDevClient": false,
-        "expoSdkVersion": "54.0.0",
+        "expoSdkVersion": "58.0.0",
         "androidAbis": ["arm64-v8a", "x86_64"]
       }
     },

@@ -1,0 +1,38 @@
+
+             888                       888          
+             888                       888          
+             888                       888          
+    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
+    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
+    "Y8888b. 888  888 88888888 888     888 888  888 
+         X88 888  888 Y8b.     888     888 Y88..88P 
+    '88888P' 888  888  "Y8888  888     888  "Y88P"
+
+Make sure your mobile app looks perfect on every device
+
+Setting up Sherlo...
+
+✔ Checked the app        Expo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>
+✔ Logged in              anna@example.com
+✔ Using team             Anna's team
+✔ Using project          Acme Shop
+✔ Created config         sherlo.config.json (already done)
+✔ Installed Sherlo       @sherlo/react-native-storybook <SHERLO_VERSION> (already done)
+✔ Updated Metro config   metro.config.js (already done)
+✔ Updated start file     .rnstorybook/index.ts (already done)
+✔ Added GitHub workflow  .github/workflows/sherlo.yml (already done)
+✔ Added agent skill      sherlo-tests in .agents/skills and .claude/skills, named in AGENTS.md and CLAUDE.md (already done)
+
+
+👉 Next step
+════════════
+
+Run your first visual test
+   npx sherlo test
+   AI agents: the first run builds the app and can take a long time, so don't let it time out.
+
+──────────
+
+AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: npx sherlo feedback --help
+
+[exit 0]

@@ -6,21 +6,16 @@ import { workstation } from '../../../seams/workstation';
 
 export const EVENT = '5_config';
 
-const IPHONE = {
-  id: 'iphone.15.pro',
-  osVersion: '17',
-} as const;
-
+/** One Android phone: the first test needs one build, and an Android build works on any machine. */
 const DEFAULT_DEVICES = [
-  IPHONE,
   {
     id: 'pixel.7.pro',
     osVersion: '13',
   } as const,
 ];
 
+/** The one Android phone for an app whose lowest Android is above 13. */
 const ANDROID_14_DEVICES = [
-  IPHONE,
   {
     id: 'pixel.8',
     osVersion: '14',

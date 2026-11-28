@@ -12,10 +12,16 @@ import path from 'path';
 
 const BLOCK_MARKER = /^<!-- (\/?)(scenes|stories) -->$/;
 
-/** The line that sends the coding agent to the guide; it names scenes only for a team with them on. */
-export function pointerFor(scenesAreOn: boolean): string {
+/**
+ * The line that sends the coding agent to the guide; it names scenes only for a team with them on.
+ * `appFolder`: the app's folder from the repository's root, '' when the app is the root; the guide's
+ * `npx sherlo` commands run there, so a monorepo's line names it.
+ */
+export function pointerFor(scenesAreOn: boolean, appFolder: string): string {
   const tests = scenesAreOn ? 'Sherlo stories or scenes' : 'Sherlo stories';
-  return `For finding untested screens or writing ${tests}, use the sherlo-tests skill first.`;
+  const where =
+    appFolder === '' ? '' : `, and run its commands in ${appFolder.split(path.sep).join('/')}`;
+  return `For finding untested screens or writing ${tests}, use the sherlo-tests skill first${where}.`;
 }
 
 /** The shipped guide for a team with scenes on or off. */

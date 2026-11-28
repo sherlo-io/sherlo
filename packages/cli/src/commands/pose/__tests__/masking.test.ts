@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { describe, expect, it, vi } from 'vitest';
+import { version as cliVersion } from '../../../../package.json';
 import start from '../../../start';
 import { CLASSES_THE_TOOL_FOLDS, maskScreen } from '../maskScreen';
 import { applyMasks } from '../pose';
@@ -259,6 +260,12 @@ describe('the masker folds every volatile class the tool prints', () => {
         'teamId=<TEAM>',
         'projectIndex=<PROJECT>',
       ].join('\n')
+    );
+  });
+
+  it("folds where in the CLI's code an unexpected error was raised, which moves with every build", () => {
+    expect(maskScreen(`${ESC}[2m(in cli/dist/index.js:96393:27)${ESC}[22m`, {})).toBe(
+      `${ESC}[2m(in <SOURCE_LOCATION>)${ESC}[22m`
     );
   });
 
@@ -560,11 +567,109 @@ async function runMask(
 
 describe('the machine facts a feedback dry run prints', () => {
   it('folds the CLI version and the operating system to their placeholders', () => {
-    const dryRun = '  Sherlo CLI: 3.0.0\n  Operating system: Darwin 25.5.0\n  Expo: 53.0.0';
+    const dryRun = '  Sherlo CLI: 3.0.0\n  Operating system: Darwin 25.5.0';
 
     expect(maskScreen(dryRun, {})).toBe(
-      '  Sherlo CLI: <VERSION>\n  Operating system: <SYSTEM>\n  Expo: 53.0.0'
+      '  Sherlo CLI: <SHERLO_VERSION>\n  Operating system: <SYSTEM>'
     );
+  });
+
+  it('folds each known version of the app to its own placeholder and keeps "not known"', () => {
+    const dryRun = [
+      '  Sherlo SDK: 3.0.0-alpha.0',
+      '  React Native: 0.88.1',
+      '  Expo: 58.0.26',
+      '  Storybook: not known',
+    ].join('\n');
+
+    expect(maskScreen(dryRun, {})).toBe(
+      [
+        '  Sherlo SDK: <SHERLO_VERSION>',
+        '  React Native: <REACT_NATIVE_VERSION>',
+        '  Expo: <EXPO_VERSION>',
+        '  Storybook: not known',
+      ].join('\n')
+    );
+  });
+});
+
+describe('the versions sherlo init shows', () => {
+  it('folds the versions on the line that checks the app, each to its own placeholder', () => {
+    const checked = `${ESC}[32m✔${ESC}[39m Checked the app        ${ESC}[2mExpo 58, React Native 0.88, Storybook 10.6${ESC}[22m`;
+
+    expect(maskScreen(checked, {})).toBe(
+      `${ESC}[32m✔${ESC}[39m Checked the app        ${ESC}[2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>${ESC}[22m`
+    );
+  });
+
+  it("folds the Storybook version setup installed, and the Sherlo SDK at the CLI's own version", () => {
+    const installed = [
+      `${ESC}[32m✔${ESC}[39m Installed Storybook    ${ESC}[2m@storybook/react-native 10.6.2${ESC}[22m`,
+      `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook ${cliVersion}${ESC}[22m`,
+      `  yarn add @sherlo/react-native-storybook@${cliVersion}`,
+      'npm error notarget No matching version found for @sherlo/react-native-storybook@file:/tmp/sdk.tgz.',
+    ].join('\n');
+
+    expect(maskScreen(installed, {})).toBe(
+      [
+        `${ESC}[32m✔${ESC}[39m Installed Storybook    ${ESC}[2m@storybook/react-native <STORYBOOK_VERSION>${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook <SHERLO_VERSION>${ESC}[22m`,
+        '  yarn add @sherlo/react-native-storybook@<SHERLO_VERSION>',
+        'npm error notarget No matching version found for @sherlo/react-native-storybook@<SHERLO_VERSION>.',
+      ].join('\n')
+    );
+  });
+
+  it("folds the range on the CLI's own major, and keeps another Sherlo SDK version", () => {
+    const installed = [
+      `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 2.9.9${ESC}[22m`,
+      `  yarn add @sherlo/react-native-storybook@^${cliVersion.split('.')[0]}`,
+    ].join('\n');
+
+    expect(maskScreen(installed, {})).toBe(
+      [
+        `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 2.9.9${ESC}[22m`,
+        '  yarn add @sherlo/react-native-storybook@<SHERLO_VERSION>',
+      ].join('\n')
+    );
+  });
+
+  it('folds the range Bun and Yarn 1 quote apart from the package on its line', () => {
+    const range = `^${cliVersion.split('.')[0]}`;
+    const failed = [
+      `error: No version matching "${range}" found for specifier "@sherlo/react-native-storybook" (but package exists)`,
+      `error Couldn't find any versions for "@sherlo/react-native-storybook" that matches "${range}"`,
+      `error Couldn't find any versions for "left-pad" that matches "${range}"`,
+    ].join('\n');
+
+    expect(maskScreen(failed, {})).toBe(
+      [
+        'error: No version matching "<SHERLO_VERSION>" found for specifier "@sherlo/react-native-storybook" (but package exists)',
+        `error Couldn't find any versions for "@sherlo/react-native-storybook" that matches "<SHERLO_VERSION>"`,
+        `error Couldn't find any versions for "left-pad" that matches "${range}"`,
+      ].join('\n')
+    );
+  });
+
+  it('keeps the range a pose that states its CLI version asks for: the picture shows it', () => {
+    const releaseDay = [
+      `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 3.0.0${ESC}[22m`,
+      '  yarn add @sherlo/react-native-storybook@^3',
+    ].join('\n');
+
+    expect(maskScreen(releaseDay, { sherloVersion: '3.0.1' })).toBe(releaseDay);
+  });
+
+  it('keeps the version a refusal names and the oldest supported one', () => {
+    const refusals = [
+      'ERROR: Storybook 8.6.4 is too old: Sherlo needs 9.0.0 or newer',
+      'ERROR: Expo SDK 54 is too old: Sherlo needs Expo SDK 55 or newer',
+      '  npx expo install expo@^55.0.0',
+      '  yarn add react-native@0.82.0',
+      '  yarn add @sherlo/react-native-storybook',
+    ].join('\n');
+
+    expect(maskScreen(refusals, {})).toBe(refusals);
   });
 });
 

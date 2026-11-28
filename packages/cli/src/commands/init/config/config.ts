@@ -1,11 +1,24 @@
-import { renderConfigTitle, renderDevicesCanBeAdjusted } from '../../../render/initConfig';
-import { printLines, trackProgress } from '../helpers';
-import { EVENT } from './constants';
-import createConfig from './createConfig';
+/**
+ * STEP 7 - `sherlo.config.json`: the project setup settled, and one device. Never a token: the file
+ * is committed.
+ *
+ * One Android phone, so the first test needs one build, on any machine: an iPhone needs a Mac.
+ * An app whose lowest Android is above 13 gets an Android 14 phone instead.
+ * A file that already names this project and has devices is left as it is.
+ *
+ * Still to do: the field becomes `projectId`, in every reader of the config.
+ */
+import { DEVICES } from '@sherlo/shared';
+import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
+import { renderConfigLine } from '../../../render/initSteps';
+import { InvalidatedConfig } from '../../../types';
+import { printLines, refuseFileAccess, trackProgress } from '../helpers';
+import { defaultDevicesFor, EVENT } from './constants';
+import getConfigPath from './getConfigPath';
 import hasConfigFile from './hasConfigFile';
-import updateConfig from './updateConfig';
+import readConfig from './readConfig';
+import writeConfig from './writeConfig';
 
-/** Writes `sherlo.config.json` with the project the project step settled, and never a token. */
 async function config({
   sessionId,
   project,
@@ -14,41 +27,59 @@ async function config({
   /** The team id, a slash and the project's number. */
   project: string;
 }): Promise<void> {
-  printLines(renderConfigTitle());
-
-  let configValue, hasAddedDefaultDevices, action;
-
   try {
-    if (!hasConfigFile()) {
-      ({ createdConfig: configValue, hasAddedDefaultDevices } = await createConfig(project));
+    const existingConfig: InvalidatedConfig | null = hasConfigFile() ? await readConfig() : null;
+    const hasDevices = Array.isArray(existingConfig?.devices) && existingConfig!.devices.length > 0;
 
-      action = 'created';
-    } else {
-      ({ updatedConfig: configValue, hasAddedDefaultDevices } = await updateConfig(project));
-
-      action = 'updated';
+    if (existingConfig && existingConfig.project === project && hasDevices) {
+      // No project id: the team and project lines above already name them.
+      printLines([
+        renderConfigLine({
+          outcome: 'already',
+          existed: true,
+          file: DEFAULT_CONFIG_FILENAME,
+          addedDevices: [],
+        }),
+      ]);
+      await trackProgress({ event: EVENT, params: { action: 'already_created' }, sessionId });
+      return;
     }
 
-    // A `token` an older setup wrote stays in the file (updateConfig) but is never reported.
-    const configWithoutToken: Record<string, unknown> = { ...configValue };
-    delete configWithoutToken.token;
+    const defaultDevices = hasDevices ? [] : await defaultDevicesFor();
+    const newConfig = {
+      ...existingConfig,
+      project,
+      devices: hasDevices ? existingConfig!.devices : defaultDevices,
+    };
+    await writeConfig(newConfig).catch((error: unknown) =>
+      refuseFileAccess({
+        failedStep: existingConfig ? 'updating-config' : 'creating-config',
+        access: 'write',
+        file: getConfigPath(),
+        error,
+      })
+    );
 
+    printLines([
+      renderConfigLine({
+        outcome: 'done',
+        existed: !!existingConfig,
+        file: DEFAULT_CONFIG_FILENAME,
+        addedDevices: defaultDevices.map(({ id }) => DEVICES[id].displayName),
+      }),
+    ]);
+
+    // A `token` an older setup wrote stays in the file (writeConfig) but is never reported.
+    const configWithoutToken: Record<string, unknown> = { ...newConfig };
+    delete configWithoutToken.token;
     await trackProgress({
       event: EVENT,
-      params: { action, configWithoutToken },
+      params: { action: existingConfig ? 'updated' : 'created', configWithoutToken },
       sessionId,
     });
   } catch (error) {
-    await trackProgress({
-      event: EVENT,
-      params: { status: 'failed', error },
-      sessionId,
-    });
+    await trackProgress({ event: EVENT, params: { status: 'failed', error }, sessionId });
     throw error;
-  }
-
-  if (hasAddedDefaultDevices) {
-    printLines(renderDevicesCanBeAdjusted());
   }
 }
 

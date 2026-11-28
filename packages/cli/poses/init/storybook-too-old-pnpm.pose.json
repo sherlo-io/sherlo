@@ -1,0 +1,68 @@
+{
+  "pose": 1,
+  "argv": ["init"],
+  "files": {
+    "App.tsx": "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Acme Shop</Text>;\n}\n",
+    "index.ts": "import { registerRootComponent } from 'expo';\n\nimport App from './App';\n\nregisterRootComponent(App);\n",
+    "package.json": {
+      "name": "acme-shop",
+      "version": "1.0.0",
+      "private": true,
+      "main": "index.ts",
+      "dependencies": {
+        "@storybook/react-native": "^8.6.4",
+        "expo": "~55.0.32",
+        "react": "19.2.0",
+        "react-native": "0.83.10"
+      },
+      "devDependencies": {
+        "@storybook/addon-actions": "^8.6.4",
+        "@storybook/addon-controls": "^8.6.4",
+        "@storybook/addon-essentials": "^8.6.4",
+        "@storybook/addon-interactions": "^8.6.4",
+        "@storybook/addon-ondevice-actions": "^8.6.4",
+        "@storybook/addon-ondevice-controls": "^8.6.4",
+        "@storybook/addon-react-native-web": "^0.0.26",
+        "@storybook/blocks": "^8.6.4",
+        "@storybook/react": "^8.6.4",
+        "storybook": "^8.6.4"
+      }
+    },
+    "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",
+    "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "node_modules/react-native/package.json": {
+      "name": "react-native",
+      "version": "0.83.10",
+      "main": "index.js"
+    },
+    "node_modules/react-native/index.js": "",
+    "node_modules/expo/package.json": { "name": "expo", "version": "55.0.32", "main": "index.js" },
+    "node_modules/expo/index.js": "",
+    "node_modules/@storybook/react-native/package.json": {
+      "name": "@storybook/react-native",
+      "version": "8.6.4",
+      "main": "index.js"
+    },
+    "node_modules/@storybook/react-native/index.js": ""
+  },
+  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": {
+    "branch": "main",
+    "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+    "dirty": false,
+    "remotes": ["git@github.com:acme/acme-shop.git"]
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "trackCliInit",
+      "with": { "event": "0_init" },
+      "answer": { "sessionId": "init-session-1" }
+    }
+  ],
+  "masks": {},
+  "workstation": {
+    "install": { "package": "@sherlo/react-native-storybook" },
+    "pnpmVersion": "10.4.0"
+  }
+}

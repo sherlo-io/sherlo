@@ -43,21 +43,7 @@ module.exports = withStorybook(config);`
     expect(state.path).not.toBeNull();
   });
 
-  it('detects hasWithStorybook for v10 path when withStorybook( is present but not wrapped', async () => {
-    await setupTest(
-      'metro.config.js',
-      `const withStorybook = require('@storybook/react-native/withStorybook');
-module.exports = withStorybook(config);`
-    );
-
-    const { default: readMetroConfigState } = await import('../readMetroConfigState');
-    const state = await readMetroConfigState();
-
-    expect(state.alreadyWrapped).toBe(false);
-    expect(state.hasWithStorybook).toBe(true);
-  });
-
-  it('detects hasWithStorybook for v9 path when withStorybook( is present but not wrapped', async () => {
+  it("Storybook's own withStorybook is not Sherlo's wiring", async () => {
     await setupTest(
       'metro.config.js',
       `const withStorybook = require('@storybook/react-native/metro/withStorybook');
@@ -68,7 +54,20 @@ module.exports = withStorybook(config);`
     const state = await readMetroConfigState();
 
     expect(state.alreadyWrapped).toBe(false);
-    expect(state.hasWithStorybook).toBe(true);
+  });
+
+  it("a comment naming Sherlo's package is not Sherlo's wiring", async () => {
+    await setupTest(
+      'metro.config.js',
+      `// TODO: switch to @sherlo/react-native-storybook/metro/withStorybook
+const { getDefaultConfig } = require('expo/metro-config');
+module.exports = getDefaultConfig(__dirname);`
+    );
+
+    const { default: readMetroConfigState } = await import('../readMetroConfigState');
+    const state = await readMetroConfigState();
+
+    expect(state.alreadyWrapped).toBe(false);
   });
 
   it('returns path:null when no metro config file found', async () => {
@@ -81,6 +80,5 @@ module.exports = withStorybook(config);`
     expect(state.path).toBeNull();
     expect(state.content).toBeNull();
     expect(state.alreadyWrapped).toBe(false);
-    expect(state.hasWithStorybook).toBe(false);
   });
 });

@@ -6,20 +6,22 @@
  * puts its one registration under `isStorybookMode` and loads the app's entry otherwise.
  *
  * The file is found and read by the SDK's own rules (react-native-storybook
- * metro/detectStorybookSetup.js). Left as it is: a start file that already branches on Storybook
- * mode, and one on the old setup, which only exports Storybook for the app's own root to render.
+ * metro/detectStorybookSetup.js), in the Storybook folder setup found (../steps/storybookFolder).
+ * Left as it is, with the reason answered: a start file that already branches on Storybook mode, one
+ * that registers nothing yet or is not there (the next step prints the branched registration, or the
+ * whole file, from the same text, ./startFileBranch), and one setup cannot rewrite.
  * Tested in ./__tests__/writeStartFile.
  */
 import fs from 'fs';
 import path from 'path';
-import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 import { detectEntryFile } from '../../test/detectBundler';
+import { modeImportLine, startFileBranch } from './startFileBranch';
 
 // What detectEntryFile answers when package.json names no main.
 const DEFAULT_MAIN = 'index.js';
 
 type StorybookSetupReader = {
-  findStorybookEntry(projectRoot: string): string | null;
+  findStorybookEntry(projectRoot: string, configPath: string): string | null;
   detectStorybookSetup(source: string): 'default' | 'old';
   findRootRegistrations(source: string): {
     registrations: { start: number; end: number }[];
@@ -27,54 +29,68 @@ type StorybookSetupReader = {
   } | null;
 };
 
+/**
+ * What setup did with the start file. `written` and `already`: the file branches on Storybook mode.
+ * `unregistered`: it registers nothing yet, so the next step names the registration to add, branched,
+ * requiring `appRequest`. `missing`: the folder has no index file, so the next step prints the whole
+ * file to create there, branched. `left`: setup cannot make it branch, for the reason named:
+ *
+ *     not-one-registration  - the file registers a root more than once, or inside other code
+ *     no-app-entry          - package.json's "main" names no file and the app has no index file
+ */
+export type StartFileOutcome =
+  | { written: string }
+  | { already: string }
+  | { unregistered: string; appRequest: string }
+  | { missing: string; appRequest: string }
+  | { left: 'not-one-registration' | 'no-app-entry' };
+
+/**
+ * Rewrite the start file in `storybookFolder` (from the app's folder, one the app has) to branch on
+ * Storybook mode, and answer what was done.
+ */
+function writeStartFile(projectRoot: string, storybookFolder: string): StartFileOutcome {
+  const reader = storybookSetupReader();
+  const startFile = reader.findStorybookEntry(projectRoot, storybookFolder);
+  if (!startFile) {
+    // The name Storybook's installer writes; the app request is the same from any name in the folder.
+    const missing = path.join(projectRoot, storybookFolder, 'index.ts');
+    const appRequest = appEntryRequest(projectRoot, missing);
+    return appRequest ? { missing, appRequest } : { left: 'no-app-entry' };
+  }
+
+  const source = fs.readFileSync(startFile, 'utf8');
+  if (/\bisStorybookMode\b/.test(source)) return { already: startFile };
+
+  const appRequest = appEntryRequest(projectRoot, startFile);
+  if (reader.detectStorybookSetup(source) !== 'default') {
+    return appRequest ? { unregistered: startFile, appRequest } : { left: 'no-app-entry' };
+  }
+
+  const found = reader.findRootRegistrations(source);
+  // The registration is a statement of its own at the top of the file; anything else is the
+  // person's own shape, which setup does not guess at.
+  if (!found || found.registrations.length !== 1) return { left: 'not-one-registration' };
+  if (!appRequest) return { left: 'no-app-entry' };
+  const [registration] = found.registrations;
+
+  fs.writeFileSync(
+    startFile,
+    `${modeImportLine(found.usesImports)}\n` +
+      source.slice(0, registration.start) +
+      startFileBranch(source.slice(registration.start, registration.end), appRequest).join('\n') +
+      source.slice(registration.end)
+  );
+  return { written: startFile };
+}
+
+export default writeStartFile;
+
 /** The SDK's reader of the Storybook start file: a plain script, loaded only when asked. */
 function storybookSetupReader(): StorybookSetupReader {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require('../../../../../react-native-storybook/metro/detectStorybookSetup');
 }
-
-/**
- * Rewrite the start file to branch on Storybook mode. Answers the file rewritten, or null when it
- * was left as it is.
- */
-function writeStartFile(projectRoot: string): string | null {
-  const reader = storybookSetupReader();
-  const startFile = reader.findStorybookEntry(projectRoot);
-  if (!startFile) return null;
-
-  const source = fs.readFileSync(startFile, 'utf8');
-  if (/\bisStorybookMode\b/.test(source)) return null;
-  if (reader.detectStorybookSetup(source) !== 'default') return null;
-
-  const found = reader.findRootRegistrations(source);
-  // The registration is a statement of its own at the top of the file; anything else is the
-  // person's own shape, which setup does not guess at.
-  if (!found || found.registrations.length !== 1) return null;
-  const [registration] = found.registrations;
-
-  const modeImport = found.usesImports
-    ? `import { isStorybookMode } from '${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}';\n`
-    : `const { isStorybookMode } = require('${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}');\n`;
-  const appRequest = appEntryRequest(projectRoot, startFile);
-  if (!appRequest) return null;
-
-  const branch = [
-    '// Storybook in Storybook mode; the app otherwise, as a scene launch needs it.',
-    'if (isStorybookMode) {',
-    `  ${source.slice(registration.start, registration.end)}`,
-    '} else {',
-    `  require('${appRequest}');`,
-    '}',
-  ].join('\n');
-
-  fs.writeFileSync(
-    startFile,
-    modeImport + source.slice(0, registration.start) + branch + source.slice(registration.end)
-  );
-  return startFile;
-}
-
-export default writeStartFile;
 
 /**
  * What the start file requires to load the app, as a path from the start file's folder with no
@@ -101,9 +117,6 @@ function appEntryRequest(projectRoot: string, startFile: string): string | null 
       const launchTimeEntry = require('../../../../../react-native-storybook/metro/launchTimeEntry');
       entryPath = launchTimeEntry.findAppEntry(projectRoot);
     } catch {
-      console.log(
-        'Sherlo init found no app entry: "main" in package.json names no file and the project root has no index file, so the Storybook entry file is unchanged. Set "main" to your app\'s entry file and run npx sherlo init again'
-      );
       return null;
     }
   }

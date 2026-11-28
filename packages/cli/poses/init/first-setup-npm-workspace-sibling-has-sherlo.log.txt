@@ -1,0 +1,72 @@
+
+             888                       888          
+             888                       888          
+             888                       888          
+    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
+    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
+    "Y8888b. 888  888 88888888 888     888 888  888 
+         X88 888  888 Y8b.     888     888 Y88..88P 
+    '88888P' 888  888  "Y8888  888     888  "Y88P"
+
+Make sure your mobile app looks perfect on every device
+
+Setting up Sherlo...
+
+✔ Checked the app        React Native <REACT_NATIVE_VERSION>
+✔ Logged in              anna@example.com
+✔ Using team             Anna's team
+✔ Created project        acme-shop
+✔ Created config         sherlo.config.json, one device: Pixel 7 Pro
+- Installing Storybook...
+✔ Installed Storybook    @storybook/react-native <STORYBOOK_VERSION>
+- Installing Sherlo...
+✔ Installed Sherlo       @sherlo/react-native-storybook <SHERLO_VERSION>
+✔ Updated Metro config   metro.config.js
+✔ Added GitHub workflow  ../../.github/workflows/sherlo.yml
+
+
+👉 Next steps
+═════════════
+
+1. Let Sherlo open Storybook
+   Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it. Pick one:
+
+   a) Entry-point swapping (Storybook's default, recommended)
+      In .rnstorybook/index.ts, below StorybookUIRoot, add:
+        import { AppRegistry } from 'react-native';
+        import { name as appName } from '../app.json';
+        AppRegistry.registerComponent(appName, () => StorybookUIRoot);
+
+   b) In-app integration
+      At the top of App.tsx, add:
+        import { isStorybookMode } from '@sherlo/react-native-storybook';
+        import Storybook from './.rnstorybook';
+      Replace export default App; with:
+        export default function AppOrStorybook(props: any) {
+          if (isStorybookMode) return <Storybook />;
+          return <App {...props} />;
+        }
+
+2. Replace the example stories
+   Right now Sherlo would test Storybook's examples, not your app.
+   Set "stories" in .rnstorybook/main.ts to ['../*.stories.?(ts|tsx|js|jsx)'].
+
+   You can start with a few components or screens, one story per state:
+     // Button.stories.tsx
+     import { Button } from './Button';
+     export default { component: Button };
+     export const Default = { args: { title: 'Default' } };
+     export const Disabled = { args: { title: 'Disabled', disabled: true } };
+
+   Before you write stories, read:
+     node_modules/@sherlo/react-native-storybook/guides/writing-stories.md
+
+3. Run your first visual test
+   npx sherlo test
+   AI agents: the first run builds the app and can take a long time, so don't let it time out.
+
+──────────
+
+AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: npx sherlo feedback --help
+
+[exit 0]

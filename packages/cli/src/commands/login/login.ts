@@ -20,7 +20,11 @@
 import { printSherloIntro, spinner, throwError } from '../../helpers';
 import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { emit } from '../../helpers/transcriptSink';
+import { renderLoginNotFinished } from '../../render/initFixes';
+import { renderFailedInitStepLine } from '../../render/initSteps';
 import { renderLoginWaitingSpinner } from '../../render/login';
+import { printLines } from '../init/helpers';
+import refuseFailedServiceCall from '../init/project/refuseFailedServiceCall';
 import { browser } from '../../seams/browser';
 import {
   hasExpired,
@@ -61,19 +65,31 @@ export default login;
  * It prints the link and the wait, and nothing after them: what a finished login means is the
  * calling command's to say.
  */
-export async function logInThroughTheBrowser(serviceAddress: string): Promise<SavedLogin> {
+export async function logInThroughTheBrowser(
+  serviceAddress: string,
+  { insideSetup = false }: { insideSetup?: boolean } = {}
+): Promise<SavedLogin> {
+  const refuseFailedCall = (error: Error) => refuseFailedLoginCall(error, { insideSetup });
+
   const pendingLogin =
-    savedLogins().readPending(serviceAddress) ?? (await startNewLogin(serviceAddress));
+    savedLogins().readPending(serviceAddress) ??
+    (await startNewLogin(serviceAddress).catch(refuseFailedCall));
 
   emit({ kind: 'login-link', authorizeUrl: pendingLogin.authorizeUrl });
   await browser().open(pendingLogin.authorizeUrl);
 
-  const answer = await whileShowingTheWait(() => waitForTheAnswer(pendingLogin));
+  // Caught once the wait is gone, so the red step line sits under the wait, as for a login that
+  // ended unfinished.
+  const answer = await whileShowingTheWait(() => waitForTheAnswer(pendingLogin)).catch(
+    refuseFailedCall
+  );
 
   // Collected, cancelled, expired or used: the pending login is spent in every one of them.
   savedLogins().removePending(serviceAddress);
 
-  if (answer.status !== 'approved') refuseUnfinishedLogin(answer.status, pendingLogin);
+  if (answer.status !== 'approved') {
+    refuseUnfinishedLogin(answer.status, { insideSetup });
+  }
 
   const newLogin: SavedLogin = { token: answer.token, email: answer.email };
   savedLogins().save(serviceAddress, newLogin);
@@ -106,9 +122,7 @@ async function serviceAcceptsToken(personalToken: string): Promise<boolean> {
  * that is killed while it waits leaves it for the next run.
  */
 async function startNewLogin(serviceAddress: string): Promise<PendingLogin> {
-  const pendingLogin = await serverCalls()
-    .startCliLogin()
-    .catch((error: Error) => throwError({ message: error.message, errorToReport: error }));
+  const pendingLogin = await serverCalls().startCliLogin();
 
   savedLogins().savePending(serviceAddress, pendingLogin);
 
@@ -150,9 +164,7 @@ async function waitForTheAnswer(pendingLogin: PendingLogin): Promise<FinishedLog
   const { loginId, pollSecret } = pendingLogin;
 
   for (;;) {
-    const answer = await serverCalls()
-      .pollCliLogin({ loginId, pollSecret })
-      .catch((error: Error) => throwError({ message: error.message, errorToReport: error }));
+    const answer = await serverCalls().pollCliLogin({ loginId, pollSecret });
 
     if (answer.status === 'approved') return answer;
     if (answer.status !== 'pending') return { status: answer.status };
@@ -163,30 +175,40 @@ async function waitForTheAnswer(pendingLogin: PendingLogin): Promise<FinishedLog
   }
 }
 
+/**
+ * A login call the service refused or could not answer. INSIDE SETUP, LIKE EVERY STOP THERE: the
+ * step is marked red, and a call that never reached the service says so, in the words setup's
+ * other service calls use (../init/project/refuseFailedServiceCall). A login call spends no saved
+ * login - there is none yet - so its failure is never read as a dead one.
+ */
+async function refuseFailedLoginCall(
+  error: Error,
+  { insideSetup }: { insideSetup: boolean }
+): Promise<never> {
+  if (insideSetup) return refuseFailedServiceCall(error, 'logging-in', null);
+
+  return throwError({ message: error.message, errorToReport: error });
+}
+
 /** A login that ended without a token: the person cancelled it, or nobody answered in time. */
 function refuseUnfinishedLogin(
   status: 'cancelled' | 'expired' | 'used',
-  pendingLogin: PendingLogin
+  { insideSetup }: { insideSetup: boolean }
 ): never {
   const sentence = {
     cancelled: 'The login was canceled in the browser.',
-    expired: describeExpiry(pendingLogin.expiresAt),
+    // No time: a clock time reads wrong on another person's clock, and the next step is the same.
+    expired: 'The login link expired before anyone clicked Authorize.',
     used: 'This login was already collected by another run.',
   }[status];
+
+  // INSIDE SETUP, LIKE EVERY STOP THERE: the step is marked red, and the fix is setup again.
+  if (insideSetup) {
+    printLines(renderFailedInitStepLine('logging-in'));
+    throwError(renderLoginNotFinished({ sentence }));
+  }
 
   throwError({
     message: `${sentence}\n  Run \`npx sherlo ${LOGIN_COMMAND}\` to start a new one.`,
   });
-}
-
-/**
- * When the login expired, read from the expiry the service gave it - never a fixed number of
- * minutes. Written in UTC, so the same expiry reads the same on every machine.
- */
-function describeExpiry(expiresAt: string): string {
-  const expiry = new Date(expiresAt);
-  if (Number.isNaN(expiry.getTime())) return 'The login expired. Nobody clicked Authorize in time.';
-
-  const hoursAndMinutes = expiry.toISOString().slice(11, 16);
-  return `The login expired at ${hoursAndMinutes} UTC. Nobody clicked Authorize in time.`;
 }

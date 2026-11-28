@@ -1,0 +1,42 @@
+
+             888                       888          
+             888                       888          
+             888                       888          
+    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
+    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
+    "Y8888b. 888  888 88888888 888     888 888  888 
+         X88 888  888 Y8b.     888     888 Y88..88P 
+    '88888P' 888  888  "Y8888  888     888  "Y88P"
+
+Make sure your mobile app looks perfect on every device
+
+Setting up Sherlo...
+
+✔ Checked the app        Expo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>
+✔ Logged in              anna@example.com
+✔ Using team             Storefront
+✖ Creating the project failed
+
+ERROR: anna@example.com can't create projects in Storefront
+
+a) Ask your team to create the project
+   Someone who can creates it in the web app.
+   Then run setup with its projectIndex. It picks up where it stopped:
+     npx sherlo init --project tm000001/<projectIndex>
+
+b) Use another account
+   Log out, then run setup again and log in with it when setup asks:
+     npx sherlo logout
+     npx sherlo init
+
+AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.
+
+──────────
+
+Need help?
+➜ Discord: https://discord.gg/G7eqTBkWZt
+➜ Email: contact@sherlo.io
+
+AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: npx sherlo feedback --help
+
+[exit 1]

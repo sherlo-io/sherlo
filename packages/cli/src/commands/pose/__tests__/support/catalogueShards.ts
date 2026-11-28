@@ -1,18 +1,20 @@
 /**
- * THE CATALOGUE LAW, CUT INTO SHARDS. Running a pose is real work (116 of them take a few seconds
- * of CPU together) and a test file is held to five seconds of its own work, so the catalogue is
- * checked by several test files at once: `catalogue.test.ts` holds shard 1 and the other cases,
- * `catalogueShard2.test.ts` to `catalogueShard4.test.ts` hold the rest. A pose belongs to the
- * shard its place in the sorted catalogue gives it; `catalogue.test.ts` checks that the shards
- * together are the whole catalogue.
+ * THE CATALOGUE LAW, CUT INTO SHARDS. Running a pose is real work (about a quarter of a second
+ * each, measured: 52 poses took 11.9 s in one file) and a test file is held to five seconds of its
+ * own work, and every test file of the folder runs at once on the same cores, so the catalogue is
+ * checked by 32 test files, about 8 or 9 poses and 1 to 2 s apiece: `catalogue.test.ts` holds
+ * shard 1 and the other cases, `catalogueShard2.test.ts` to `catalogueShard32.test.ts` hold the
+ * rest. A pose belongs to the shard its place in the sorted
+ * catalogue gives it; `catalogue.test.ts` checks that the shards together are the whole catalogue
+ * and that each shard has its file.
  */
 import fs from 'fs';
-import type { CataloguedPose } from '../../catalogue';
+import type { CataloguedPose, PoseReader } from '../../catalogue';
 import { renderPose } from '../../catalogue';
 import { runPose } from '../../pose';
 import { readPoseDocument } from '../../readPose';
 
-export const SHARD_COUNT = 4;
+export const SHARD_COUNT = 32;
 
 /** The title every shard's committed-bytes case begins with: the one the book pages cite. */
 export const COMMITTED_BYTES_TITLE =
@@ -29,29 +31,39 @@ export function shardTitle(shard: number): string {
 }
 
 /**
- * The poses of `poses` whose rendered bytes are not the committed ones, each with where. Under
- * `MINT_POSES=1` it writes the bytes instead and reports nothing.
+ * The poses of `poses` whose rendered bytes are not the committed ones, each with where: the
+ * person's screen, and an init pose's agent log too. Under `MINT_POSES=1` it writes the bytes
+ * instead and reports nothing.
  */
 export async function posesDivergingFromCommitted(poses: CataloguedPose[]): Promise<string[]> {
   const diverged: string[] = [];
 
-  for (const { name, posePath, screenPath } of poses) {
-    const rendered = await renderPose(posePath);
+  for (const { name, posePath, screenPath, agentLogPath } of poses) {
+    const renders: Array<{ reader: PoseReader; filePath: string; label: string }> = [
+      { reader: 'person', filePath: screenPath, label: name },
+      ...(agentLogPath
+        ? [{ reader: 'agent' as const, filePath: agentLogPath, label: `${name} (agent log)` }]
+        : []),
+    ];
 
-    if (process.env.MINT_POSES === '1') {
-      fs.writeFileSync(screenPath, rendered);
-      continue;
+    for (const { reader, filePath, label } of renders) {
+      const rendered = await renderPose(posePath, reader);
+
+      if (process.env.MINT_POSES === '1') {
+        fs.writeFileSync(filePath, rendered);
+        continue;
+      }
+
+      if (!fs.existsSync(filePath)) {
+        diverged.push(`${label} - no committed screen`);
+        continue;
+      }
+
+      const committed = fs.readFileSync(filePath, 'utf8');
+      if (rendered === committed) continue;
+
+      diverged.push(`${label} - ${describeFirstDivergence(rendered, committed)}`);
     }
-
-    if (!fs.existsSync(screenPath)) {
-      diverged.push(`${name} - no committed screen`);
-      continue;
-    }
-
-    const committed = fs.readFileSync(screenPath, 'utf8');
-    if (rendered === committed) continue;
-
-    diverged.push(`${name} - ${describeFirstDivergence(rendered, committed)}`);
   }
 
   return diverged;

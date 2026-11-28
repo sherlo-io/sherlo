@@ -1,0 +1,49 @@
+
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+    [93m.[39m[93md[39m[93m8[39m[93m8[39m[93m8[39m[93m8[39m[93mb[39m  [93m8[39m[93m8[39m[93m8[39m [93m8[39m[93mb[39m[93m.[39m   [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m [97m8[39m[97m8[39m[97m8[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  
+    [97m8[39m[97m8[39m[97mK[39m      [97m8[39m[97m8[39m[97m8[39m [97m"[39m[97m8[39m[97m8[39m[97mb[39m [97md[39m[97m8[39m[97mP[39m  [97mY[39m[97m8[39m[97mb[39m [97m8[39m[97m8[39m[97m8[39m[97m"[39m    [97m8[39m[97m8[39m[97m8[39m [97md[39m[97m8[39m[97m8[39m[97m"[39m[97m"[39m[97m8[39m[97m8[39m[97mb[39m 
+    [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mb[39m[96m.[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m 
+         [96mX[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96mb[39m[96m.[39m     [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96m8[39m[96m.[39m[96m.[39m[96m8[39m[96m8[39m[96mP[39m 
+    [96m'[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mP[39m[96m'[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96mP[39m[96m"[39m
+
+[2m[3mMake sure your mobile app looks perfect on every device[23m[22m
+
+Setting up Sherlo...
+
+[31m✖[39m Checking the app failed
+
+[31mERROR: Storybook is installed, but its folder .ondevice is missing[39m
+
+[0mGit never held .ondevice, so there is nothing to restore.[0m
+[0mCreate .ondevice with two files:[0m
+[0m  .ondevice/main.ts:[0m
+    [35mimport[39m type [2m{[22m [33mStorybookConfig[39m [2m}[22m [35mfrom[39m [32m'@storybook/react-native'[39m[2m;[22m
+
+    [35mconst[39m [34mmain[39m[2m:[22m [33mStorybookConfig[39m [2m=[22m [2m{[22m
+      [34mstories[39m[2m:[22m [2m[[22m[32m'../src/**/*.stories.?(ts|tsx|js|jsx)'[39m[2m],[22m
+    [2m};[22m
+
+    [35mexport[39m [35mdefault[39m main[2m;[22m
+
+[0m  .ondevice/index.ts:[0m
+    [35mimport[39m [2m{[22m view [2m}[22m [35mfrom[39m [32m'./storybook.requires'[39m[2m;[22m
+
+    [35mconst[39m [33mStorybookUIRoot[39m [2m=[22m view[2m.[22m[32mgetStorybookUI[39m[2m({[22m [34mshouldPersistSelection[39m[2m:[22m [34mfalse[39m [2m});[22m
+
+    [35mexport[39m [35mdefault[39m [33mStorybookUIRoot[39m[2m;[22m
+
+[0mOr point configPath in metro.config.js at your Storybook folder:[0m
+  [32mwithStorybook[39m[2m([22m[32mgetDefaultConfig[39m[2m([22m__dirname[2m),[22m [2m{[22m [34mconfigPath[39m[2m:[22m [32m'./<your Storybook folder>'[39m [2m})[22m
+
+[0mThen run setup again. It picks up where it stopped:[0m
+[36m  npx sherlo init[39m
+
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
+
+[exit 1]

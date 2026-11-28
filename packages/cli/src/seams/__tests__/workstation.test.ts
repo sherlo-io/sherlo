@@ -7,12 +7,18 @@
  * started with is what is read, and no `pod install` runs.
  *
  * The posed workstation's refusals: a `pods` answer the run never used is refused only when the run
- * reached the dependencies step.
+ * reached the dependencies step. Its install lays the package into node_modules at the version the
+ * pose answers.
  */
 import { EventEmitter } from 'node:events';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { defaultAgents } from 'agent-cli-detector';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ansiEscapes from 'ansi-escapes';
+import { version as cliVersion } from '../../../package.json';
+import { sherloSdkVersionRange } from '../../commands/init/dependencies/installSherlo';
 import waitForEnterPress from '../../commands/init/helpers/waitForEnterPress';
 import { forgetScenesFlag } from '../../helpers/scenesFlag';
 import { installSavedLogins, liveSavedLogins } from '../savedLogins';
@@ -111,7 +117,7 @@ describe('the scenes flag at the workstation', () => {
     await liveWorkstation.askScenesFlag('zz9999zz/1');
     expect(liveWorkstation.scenesFlag()).toBe('off');
 
-    // A posed run asks nothing and answers what its pose states.
+    // A posed open or capture asks nothing and answers what its pose states.
     const posed = posedWorkstation({
       install: { package: '@sherlo/react-native-storybook@2.0.2' },
       enter: 'pressed',
@@ -122,6 +128,81 @@ describe('the scenes flag at the workstation', () => {
 
     restores.forEach((restore) => restore());
     forgetScenesFlag();
+  });
+});
+
+describe("setup's team flags at a posed workstation", () => {
+  const install = { package: '@sherlo/react-native-storybook@2.0.2' };
+  let restores: (() => void)[] = [];
+
+  afterEach(() => {
+    restores.forEach((restore) => restore());
+    restores = [];
+  });
+
+  const serverListing = (featureFlags: { scenes?: boolean; agentSkills?: boolean }) => {
+    const listTeams = vi.fn(async () => ({
+      teams: [{ id: 'k3j9x2ab', name: 'T', projectCount: 1, role: null, featureFlags }],
+    }));
+    restores.push(installServerCalls({ ...liveServerCalls, listTeams }));
+    return listTeams;
+  };
+
+  it('keeps the flags setup listed, and asks nothing', async () => {
+    const listTeams = serverListing({});
+    const posed = posedWorkstation({ install });
+
+    await posed.settleTeamFlags('k3j9x2ab/1', { agentSkills: true }, 't');
+
+    expect(listTeams).not.toHaveBeenCalled();
+    expect(posed.scenesFlag()).toBe('off');
+    expect(posed.agentSkillsFlag()).toBe('on');
+  });
+
+  it("asks the team list for the config project's team with the login setup found it with", async () => {
+    const listTeams = serverListing({ scenes: true, agentSkills: true });
+    const posed = posedWorkstation({ install });
+
+    await posed.settleTeamFlags('k3j9x2ab/1', undefined, 'fresh');
+
+    expect(listTeams).toHaveBeenCalledWith({ personalToken: 'fresh' });
+    expect(posed.scenesFlag()).toBe('on');
+    expect(posed.agentSkillsFlag()).toBe('on');
+    expect(posed.refusals()).toEqual([]);
+  });
+
+  it('reads both flags off for a team the list does not hold', async () => {
+    serverListing({ scenes: true, agentSkills: true });
+    const posed = posedWorkstation({ install });
+
+    await posed.settleTeamFlags('zz9999zz/1', undefined, 't');
+
+    expect(posed.scenesFlag()).toBe('off');
+    expect(posed.agentSkillsFlag()).toBe('off');
+  });
+
+  it('a team list that fails is no answer: the read rejects rather than read the flags off', async () => {
+    const failure = new Error('request to https://api.sherlo.io failed');
+    restores.push(
+      installServerCalls({
+        ...liveServerCalls,
+        listTeams: async () => {
+          throw failure;
+        },
+      })
+    );
+    const posed = posedWorkstation({ install });
+
+    await expect(posed.settleTeamFlags('k3j9x2ab/1', undefined, 't')).rejects.toBe(failure);
+  });
+
+  it('refuses a pose that states scenes in its workstation', async () => {
+    serverListing({});
+    const posed = posedWorkstation({ install, scenes: 'on' });
+
+    await posed.settleTeamFlags('k3j9x2ab/1', {}, 't');
+
+    expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'settleTeamFlags' })]);
   });
 });
 
@@ -140,18 +221,84 @@ describe('the posed workstation', () => {
 
   it('a pose that answers pod install is refused when the dependencies step ran and never asked for it', async () => {
     const posed = posedWorkstation({
-      install: { package: '@sherlo/react-native-storybook@2.0.2' },
+      install: { package: '@sherlo/react-native-storybook@3.0.0' },
       pods: 'installed',
       enter: 'pressed',
     });
 
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'posed-install-'));
     await posed.addPackage({
-      packageSpec: '@sherlo/react-native-storybook',
-      command: 'yarn add @sherlo/react-native-storybook',
-      projectRoot: '/nowhere',
+      packageSpec: '@sherlo/react-native-storybook@^3',
+      command: 'yarn add @sherlo/react-native-storybook@^3',
+      projectRoot,
     });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
 
     expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'installPods' })]);
+  });
+
+  it.each([
+    ['the version the pose names', '3.0.1', '@sherlo/react-native-storybook@3.0.0', '3.0.0'],
+    [
+      "the CLI's own version for the bare name",
+      undefined,
+      '@sherlo/react-native-storybook',
+      cliVersion,
+    ],
+    [
+      "the pose's CLI version for the bare name",
+      '3.0.1',
+      '@sherlo/react-native-storybook',
+      '3.0.1',
+    ],
+  ])(
+    'a posed install lays the package into node_modules at %s',
+    async (_, cli, answer, version) => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'posed-install-'));
+      const posed = posedWorkstation({ cli, install: { package: answer } });
+      const packageSpec = `@sherlo/react-native-storybook@${sherloSdkVersionRange(cli ?? cliVersion)}`;
+
+      await posed.addPackage({ packageSpec, command: `yarn add ${packageSpec}`, projectRoot });
+      const installed = JSON.parse(
+        fs.readFileSync(
+          path.join(projectRoot, 'node_modules/@sherlo/react-native-storybook/package.json'),
+          'utf-8'
+        )
+      );
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+
+      expect(installed).toEqual({ name: '@sherlo/react-native-storybook', version });
+    }
+  );
+
+  it.each([
+    ['an older main version', '2.0.2'],
+    ['a prerelease of the same main version', '3.1.0-alpha.0'],
+  ])('a posed install is refused when it answers ^3 with %s', async (_, answeredVersion) => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'posed-install-'));
+    const posed = posedWorkstation({
+      install: { package: `@sherlo/react-native-storybook@${answeredVersion}` },
+    });
+
+    await posed.addPackage({
+      packageSpec: '@sherlo/react-native-storybook@^3',
+      command: 'yarn add @sherlo/react-native-storybook@^3',
+      projectRoot,
+    });
+    const installed = fs.existsSync(
+      path.join(projectRoot, 'node_modules/@sherlo/react-native-storybook/package.json')
+    );
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+
+    expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'addPackage' })]);
+    expect(installed).toBe(false);
+  });
+
+  it('a posed run is the CLI version its pose names, and this CLI when it names none', () => {
+    expect(posedWorkstation({ cli: '3.0.1', install: { package: 'x' } }).sherloVersion()).toBe(
+      '3.0.1'
+    );
+    expect(posedWorkstation({ install: { package: 'x' } }).sherloVersion()).toBe(cliVersion);
   });
 });
 

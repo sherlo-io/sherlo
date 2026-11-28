@@ -1,0 +1,56 @@
+
+             888                       888          
+             888                       888          
+             888                       888          
+    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
+    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
+    "Y8888b. 888  888 88888888 888     888 888  888 
+         X88 888  888 Y8b.     888     888 Y88..88P 
+    '88888P' 888  888  "Y8888  888     888  "Y88P"
+
+Make sure your mobile app looks perfect on every device
+
+Setting up Sherlo...
+
+✔ Checked the app        Expo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>
+✔ Logged in              anna@example.com
+✔ Using team             Anna's team
+✔ Using project          Acme Shop Beta
+✔ Updated config         sherlo.config.json
+✔ Installed Sherlo       @sherlo/react-native-storybook <SHERLO_VERSION> (already done)
+✔ Updated Metro config   metro.config.js (already done)
+✔ Added GitHub workflow  .github/workflows/sherlo.yml (already done)
+
+
+👉 Next steps
+═════════════
+
+1. Let Sherlo open Storybook
+   Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it. Pick one:
+
+   a) Entry-point swapping (Storybook's default, recommended)
+      In .rnstorybook/index.ts, below StorybookUIRoot, add:
+        import { registerRootComponent } from 'expo';
+        registerRootComponent(StorybookUIRoot);
+
+   b) In-app integration
+      At the top of App.tsx, add:
+        import { isStorybookMode } from '@sherlo/react-native-storybook';
+        import Storybook from './.rnstorybook';
+      Change export default function App() { to:
+        function App() {
+      At the end of App.tsx, add:
+        export default function AppOrStorybook(props: any) {
+          if (isStorybookMode) return <Storybook />;
+          return <App {...props} />;
+        }
+
+2. Run your first visual test
+   npx sherlo test
+   AI agents: the first run builds the app and can take a long time, so don't let it time out.
+
+──────────
+
+AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: npx sherlo feedback --help
+
+[exit 0]

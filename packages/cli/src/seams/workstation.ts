@@ -42,16 +42,33 @@
  * no way to state an answer, so the posed half refuses every question and the setup is cancelled;
  * a test that needs an answer installs a workstation of its own.
  */
+import { execFile } from 'child_process';
+import fs from 'fs';
+import { createRequire } from 'module';
+import os from 'os';
+import path from 'path';
 import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
 import { runningAgent } from '../commands/feedback/runningAgent';
 import { packageNameOfSpecifier } from '../commands/test/lockfilePackages';
+import { version as cliVersion } from '../../package.json';
 import { installedPodsAreCurrent } from '../helpers/installedPods';
 import runShellCommand from '../helpers/runShellCommand';
+import { parseConfigProject } from '../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
 import { decideScenesForProject, rememberedScenesFlag } from '../helpers/scenesFlag';
+import type { TeamFeatureFlags } from '../render/teamList';
+import type { PosedFiles } from './projectFiles';
+import { serverCalls } from './serverCalls';
 
 /** Every act `sherlo init` performs on the machine it runs on, and nothing else. */
 export type Workstation = {
+  /**
+   * The version of the Sherlo CLI running setup, e.g. `3.0.1`: the SDK setup asks for is read off
+   * it. A pose names it to draw a release (a release-day install, a major not on the registry yet)
+   * while the tool itself is a prerelease.
+   */
+  sherloVersion(): string;
+
   /** Add one package to the project through its package manager. */
   addPackage(params: {
     /** The package the command asked for, e.g. `@sherlo/react-native-storybook`. */
@@ -61,6 +78,23 @@ export type Workstation = {
     projectRoot: string;
     env?: NodeJS.ProcessEnv;
   }): Promise<void>;
+
+  /**
+   * Set Storybook's lite setup up in a project that has none: install its packages, and write its
+   * config folder, its example stories and its Metro wrapper into the project. Answers whether it
+   * wrote pnpm's `allowBuilds` answer for esbuild into `pnpmSettingsFile`, without which pnpm
+   * stops the install, so the checklist can say the person's pnpm settings changed.
+   */
+  installStorybook(params: {
+    /** The whole command line, e.g. `yarn add @storybook/react-native@10.7.2 ...`. */
+    command: string;
+    projectRoot: string;
+    /**
+     * The `pnpm-workspace.yaml` pnpm reads its settings from: the workspace root's in a pnpm
+     * monorepo, else the project's own. pnpm never reads one in an app folder of a workspace.
+     */
+    pnpmSettingsFile: string;
+  }): Promise<{ updatedPnpmSettings: boolean }>;
 
   /** Run `pod install` in the project's iOS folder. */
   installPods(params: {
@@ -82,11 +116,49 @@ export type Workstation = {
 
   /** What the service said about the team of the chosen project; undefined, which is off, if unasked. */
   scenesFlag(): 'on' | 'off' | undefined;
+  /** What the service said about agent skills for that team; undefined, which is off, if unasked. */
+  agentSkillsFlag(): 'on' | 'off' | undefined;
   /** Ask the service about that team and keep the answer for `scenesFlag()`; a pose asks nothing. */
   askScenesFlag(configProject: unknown): Promise<void>;
+  /**
+   * Settle setup's team flags, kept for `scenesFlag()` and `agentSkillsFlag()`: `listedFlags` when
+   * setup listed the teams, so nothing is asked twice; with none, the service is asked about the
+   * team of `configProject` with `personalToken`, the login setup found the project with. A failed
+   * call rejects, so setup refuses it rather than read the flags as off. A pose answers from its
+   * `api`, as a real run is answered.
+   */
+  settleTeamFlags(
+    configProject: string,
+    listedFlags: TeamFeatureFlags | undefined,
+    personalToken: string
+  ): Promise<void>;
 
   /** Run one git command line in the project folder; rejects when git fails (not a git folder). */
   readGit(params: { command: string; projectRoot: string }): Promise<string>;
+
+  /**
+   * The real host behind an SSH host name, as this machine's SSH config maps it: `ssh -G <host>`
+   * prints the configuration after its Host and Match blocks, and its `hostname` line is the answer
+   * (`github-work` -> `github.com`). Null when ssh is missing or fails.
+   */
+  readSshHostName(host: string): Promise<string | null>;
+
+  /**
+   * How long modern Yarn holds a new version back, in minutes: `yarn config get npmMinimalAgeGate`
+   * in the project folder prints the setting parsed to its unit, minutes (Yarn's plugin-npm
+   * declares it a DURATION in MINUTES, default `1d`, so 1440). Null when Yarn cannot answer.
+   */
+  readYarnAgeGateMinutes(projectRoot: string): Promise<number | null>;
+
+  /** The version `pnpm --version` prints in this folder, null when pnpm cannot answer. */
+  readPnpmVersion(folder: string): Promise<string | null>;
+
+  /**
+   * Storybook's own loader (`storybook/internal/common`) as the app has it installed: setup reads
+   * the app's story list through it, so a story file counts only where Storybook itself would load
+   * it. Throws when the app has no `storybook` package.
+   */
+  storybookLoader(projectRoot: string): StorybookLoader;
 
   /** The app's resolved Expo config as JSON text, from Expo's own command; rejects when it fails. */
   readExpoConfig(projectRoot: string): Promise<string>;
@@ -115,12 +187,81 @@ export type Workstation = {
 };
 
 /**
+ * The two parts of `storybook/internal/common` setup calls: the app's main config, loaded the way
+ * Storybook loads it, and its `stories` turned into the matchers Storybook tests a file against
+ * (a file's path from the app folder, written `./src/Button.stories.tsx`).
+ */
+export type StorybookLoader = {
+  loadMainConfig(options: { configDir: string; cwd: string }): Promise<{ stories?: unknown }>;
+  normalizeStories(
+    stories: unknown,
+    options: { configDir: string; workingDir: string }
+  ): { importPathMatcher: RegExp }[];
+};
+
+/**
+ * What a failed package install throws, live or posed: everything the package manager printed,
+ * and setup's own log file that holds it.
+ */
+export type InstallFailure = Error & { output: string; logFile: string };
+
+let runLogFolder: string | undefined;
+
+/**
+ * Setup's log of a failed install, one per run: in a folder of the run's own under the system's
+ * temp folder, made the first time an install fails, so two runs at once never share a path.
+ */
+function installLogFile(): string {
+  runLogFolder ??= fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-init-'));
+  return path.join(runLogFolder, 'install.log');
+}
+
+function installFailure(
+  error: Error,
+  { stdout, stderr }: { stdout?: string; stderr?: string }
+): InstallFailure {
+  // BUILD DEBT (init-for-agents decision 6): the two streams in the order they were printed;
+  // runShellCommand keeps them apart, so stdout comes first here.
+  const output = [stdout, stderr].filter((stream) => stream && stream.trim() !== '').join('\n');
+  return Object.assign(error, { output, logFile: installLogFile() });
+}
+
+/** Run a package install; a failure writes the whole output to setup's log file and throws it. */
+async function runInstall(params: {
+  command: string;
+  projectRoot: string;
+  env?: NodeJS.ProcessEnv;
+}): Promise<void> {
+  try {
+    await runShellCommand(params);
+  } catch (error) {
+    const failure = installFailure(error as Error, error as { stdout?: string; stderr?: string });
+    fs.writeFileSync(failure.logFile, `$ ${params.command}\n\n${failure.output}\n`);
+    throw failure;
+  }
+}
+
+/**
  * The shipped answers: the package manager and CocoaPods really run, and the keyboard is really
  * read.
  */
 export const liveWorkstation: Workstation = {
+  sherloVersion: () => cliVersion,
+
   addPackage: async ({ command, projectRoot, env }) => {
-    await runShellCommand({ command, projectRoot, env });
+    await runInstall({ command, projectRoot, env });
+  },
+
+  // BUILD DEBT (init-for-agents decision 2): adds the packages only; build writes `.rnstorybook`
+  // from the templates kept in the CLI once they are installed, and on pnpm writes `allowBuilds:
+  // esbuild: false` into `pnpmSettingsFile` before the install. It also adds the
+  // react-native-reanimated and react-native-worklets versions that fit the app when it has none
+  // (Q26 A): an app with the `expo` package, bare with Expo modules included, through `expo
+  // install`, which picks its SDK's versions (Expo 55: 4.2.1 / 0.7.4); an app without it, the
+  // newest that fits its React Native (below 0.87: 4.3.4 / 0.8.3).
+  installStorybook: async ({ command, projectRoot }) => {
+    await runInstall({ command, projectRoot });
+    return { updatedPnpmSettings: false };
   },
 
   // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` when no locale is
@@ -143,9 +284,39 @@ export const liveWorkstation: Workstation = {
   podsAreCurrent: (iosFolder) => installedPodsAreCurrent(iosFolder),
 
   scenesFlag: rememberedScenesFlag,
+  // BUILD DEBT (init-for-agents): remembered from the same listTeams answer as scenes
+  // (helpers/scenesFlag reads `featureFlags.agentSkills` beside `scenes`); off until then.
+  agentSkillsFlag: () => undefined,
   askScenesFlag: decideScenesForProject,
+  // BUILD DEBT (init-for-agents): helpers/scenesFlag keeps `listedFlags` when setup has them and
+  // asks only when it has none, with the `personalToken` passed in (not the saved login), answering
+  // both flags and rejecting a failed call; until then it asks every time, for scenes.
+  settleTeamFlags: (configProject) => decideScenesForProject(configProject),
 
   readGit: ({ command, projectRoot }) => runShellCommand({ command, projectRoot }),
+
+  // No shell: the host comes from the project's git remote, so it is passed as one argument, after
+  // `--` so a host starting with `-` is never read as an option.
+  readSshHostName: (host) =>
+    new Promise((resolve) => {
+      execFile('ssh', ['-G', '--', host], { timeout: 5000 }, (error, stdout) => {
+        resolve(error ? null : (/^hostname (\S+)$/m.exec(stdout)?.[1] ?? null));
+      });
+    }),
+
+  // BUILD DEBT (init-for-agents): `yarn config get npmMinimalAgeGate` in the project folder, its
+  // number of minutes, null when Yarn fails or prints no number.
+  readYarnAgeGateMinutes: async () => {
+    throw new Error('readYarnAgeGateMinutes is not available yet.');
+  },
+
+  // BUILD DEBT (init-for-agents): `pnpm --version` in the folder, null when pnpm fails.
+  readPnpmVersion: async () => {
+    throw new Error('readPnpmVersion is not available yet.');
+  },
+
+  storybookLoader: (projectRoot) =>
+    createRequire(path.join(projectRoot, 'package.json'))('storybook/internal/common'),
 
   readExpoConfig: (projectRoot) =>
     runShellCommand({ command: 'npx expo config --json --type public', projectRoot }),
@@ -239,11 +410,40 @@ export type UnansweredAct = { call: string; problem: string };
 /** The acts `sherlo init` performs on the machine, as a pose states them. */
 export type PosedWorkstation = {
   /**
-   * What the package manager answered when asked to add Sherlo: the package it installed, version
-   * and all (`"@sherlo/react-native-storybook@2.0.2"`). Checked against the package the command
-   * actually asked for, so a pose cannot answer an install the command never made.
+   * The version of the Sherlo CLI the pose runs as, e.g. `"3.0.1"`. Left out: the version this CLI
+   * really is. Stated, setup asks for the SDK this version asks for, so one pose holds every number
+   * of an install: the CLI's version, the range it asks for, and the version the manager chose.
    */
-  install: { package: string };
+  cli?: string;
+  /**
+   * What the package manager answered when asked to add Sherlo: the package it installed, with the
+   * version it chose (`"@sherlo/react-native-storybook@3.1.4"`), or the bare name for the CLI's own
+   * version (`cli`), the one a manager takes on any day but the day it comes out. The name is checked
+   * against the package the command asked for, so a pose cannot answer an install the command
+   * never made, and the package is laid into the project's node_modules at that version.
+   */
+  install: {
+    package: string;
+    /**
+     * What the package manager printed when the install failed, on each stream. Left out for an
+     * install that worked; stated, the install fails the way a real one does, with this output.
+     */
+    failed?: { stdout: string; stderr: string };
+  };
+  /**
+   * The Storybook files setup wrote, for a project that had no Storybook: relative path ->
+   * content, laid into the project folder the way the pose's `files` are, so the steps after it
+   * read the project as the Storybook step left it. Left out for a project that already has Storybook,
+   * where setup never runs it; stated for one that does not, it is refused.
+   */
+  storybook?: {
+    wrote: PosedFiles;
+    /**
+     * What the package manager printed when adding Storybook's packages failed, on each stream:
+     * stated, setup writes no Storybook file.
+     */
+    failed?: { stdout: string; stderr: string };
+  };
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
    * installed. Left out for a project with no Podfile, where setup never runs it. Either mismatch
@@ -251,7 +451,11 @@ export type PosedWorkstation = {
    * the installed pods already match the lockfile, so setup skips `pod install` and never asks it.
    */
   pods?: 'installed' | 'current';
-  /** Whether the service has scenes on for the project's team. Left out: nothing answers, so off. */
+  /**
+   * Whether the service has scenes on for the project's team, for a command that asks nothing
+   * (open, capture). Left out: nothing answers. Setup asks the pose's `api` instead (its team list),
+   * so a setup that reaches the team's flags with this stated is a refusal of the pose.
+   */
   scenes?: 'on' | 'off';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
@@ -266,9 +470,39 @@ export type PosedWorkstation = {
    * What happened at the prompt: a person pressed Enter, the terminal was closed on it (the tool's
    * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`
    * set, as when an agent or a CI job runs setup - so the prompt is never asked and the run goes on.
+   *
+   * Optional since init-for-agents: setup asks nothing any more, so a pose of it states no prompt.
+   * BUILD DEBT: the prompt and the questions below go with the old setup's last caller.
    */
-  enter: 'pressed' | 'closed' | 'nobody';
+  enter?: 'pressed' | 'closed' | 'nobody';
+  /**
+   * What this machine's SSH config maps each host name to, as `ssh -G <host>` prints it in its
+   * `hostname` line: `{ "github-work": "github.com" }` for a remote `git@github-work:acme/app.git`.
+   * A host left out is answered as SSH answers a host no Host block names: the host itself. A host
+   * mapped to null is one ssh could not answer for (ssh missing, or `ssh -G` failed).
+   */
+  sshHostNames?: Record<string, string | null>;
+  /**
+   * What `yarn config get npmMinimalAgeGate` prints: modern Yarn's hold on a new version, in
+   * minutes (Yarn's default `1d` prints 1440). Left out: Yarn could not answer.
+   */
+  yarnAgeGateMinutes?: number;
+  /** What `pnpm --version` prints, e.g. `"10.4.0"`. Left out: pnpm could not answer. */
+  pnpmVersion?: string;
 };
+
+/**
+ * Whether a manager asked for `range` may install `version`, for the ranges setup asks for: a major
+ * (`^3` allows 3.x.y, never a prerelease), an exact version, or a local file or folder (anything).
+ */
+function rangeAllowsVersion(range: string, version: string): boolean {
+  if (/^(?:file:|portal:)/.test(range)) return true;
+  const caretMajor = /^\^(\d+)$/.exec(range)?.[1];
+  if (caretMajor !== undefined) {
+    return version.split('.')[0] === caretMajor && !version.includes('-');
+  }
+  return range === version;
+}
 
 /**
  * The workstation a pose declares. A pose with no `workstation` running `init` is a terminal
@@ -281,6 +515,8 @@ export function posedWorkstation(
   const refusals: UnansweredAct[] = [];
   let packageInstallWasAsked = false;
   let podInstallWasAsked = false;
+  let settledFlags: TeamFeatureFlags | undefined;
+  const sherloVersion = posed?.cli ?? cliVersion;
 
   function refuse(call: string, problem: string): Error {
     refusals.push({ call, problem });
@@ -305,7 +541,9 @@ export function posedWorkstation(
           ]
         : refusals,
 
-    addPackage: async ({ packageSpec }) => {
+    sherloVersion: () => sherloVersion,
+
+    addPackage: async ({ packageSpec, projectRoot }) => {
       packageInstallWasAsked = true;
 
       if (!posed) {
@@ -325,7 +563,78 @@ export function posedWorkstation(
           `the pose answers the install with \`${installedPackage}\`, and the command asked the ` +
             `package manager for \`${packageSpec}\``
         );
+        return;
       }
+
+      // NO VERSION THE REQUEST NEVER ALLOWED: a manager asked for `^3` cannot answer 2.0.2, so a
+      // pose cannot draw it.
+      const installedName = packageNameOfSpecifier(installedPackage);
+      const installedVersion = installedPackage.slice(installedName.length + 1) || sherloVersion;
+      const askedRange = packageSpec.slice(installedName.length + 1);
+      if (!rangeAllowsVersion(askedRange, installedVersion)) {
+        refuse(
+          'addPackage',
+          `the pose answers the install with version ${installedVersion}, and the command asked ` +
+            `the package manager for \`${packageSpec}\`, which does not allow it`
+        );
+        return;
+      }
+
+      // A failed install ends the way a real one does: an error carrying what the manager printed
+      // and the log file a real run writes it to (a pose writes no file).
+      if (posed.install.failed) {
+        throw installFailure(new Error('the package manager failed'), posed.install.failed);
+      }
+
+      // The package lands in node_modules the way a real install leaves it, so what setup reads
+      // back afterwards is the version the pose says the manager chose.
+      const installedPackageFolder = path.join(projectRoot, 'node_modules', installedName);
+      fs.mkdirSync(installedPackageFolder, { recursive: true });
+      fs.writeFileSync(
+        path.join(installedPackageFolder, 'package.json'),
+        `${JSON.stringify({ name: installedName, version: installedVersion }, null, 2)}\n`
+      );
+    },
+
+    installStorybook: async ({ projectRoot, pnpmSettingsFile }) => {
+      if (!posed?.storybook) {
+        // Recorded, not thrown, exactly like an unanswered `addPackage` - see this file's header.
+        refuse(
+          'installStorybook',
+          'the project has no Storybook, so the command set Storybook up - say what it wrote ' +
+            'in `"storybook": {"wrote": {...}}` in the workstation of the pose'
+        );
+        return { updatedPnpmSettings: false };
+      }
+
+      // A failed install of Storybook's packages ends the way addPackage's failed install does.
+      if (posed.storybook.failed) {
+        throw installFailure(new Error('the package manager failed'), posed.storybook.failed);
+      }
+
+      let updatedPnpmSettings = false;
+      for (const [relativePath, content] of Object.entries(posed.storybook.wrote)) {
+        const filePath = path.join(projectRoot, relativePath);
+        // pnpm reads its settings from one file only, so a pose that writes them anywhere else
+        // depicts a setup pnpm would ignore.
+        if (path.basename(filePath) === 'pnpm-workspace.yaml') {
+          if (filePath !== pnpmSettingsFile) {
+            refuse(
+              'installStorybook',
+              `the pose writes pnpm's settings to \`${relativePath}\`, and pnpm reads them from ` +
+                `\`${path.relative(projectRoot, pnpmSettingsFile)}\``
+            );
+          }
+          updatedPnpmSettings = true;
+        }
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(
+          filePath,
+          typeof content === 'string' ? content : `${JSON.stringify(content, null, 2)}\n`
+        );
+      }
+
+      return { updatedPnpmSettings };
     },
 
     installPods: async ({ command, sherloBuildUnset }) => {
@@ -354,11 +663,37 @@ export function posedWorkstation(
 
     podsAreCurrent: () => posed?.pods === 'current',
 
-    scenesFlag: () => posed?.scenes,
+    scenesFlag: () => (settledFlags ? flagWord(settledFlags.scenes) : posed?.scenes),
+    agentSkillsFlag: () => settledFlags && flagWord(settledFlags.agentSkills),
     askScenesFlag: async () => {},
+    settleTeamFlags: async (configProject, listedFlags, personalToken) => {
+      if (posed?.scenes) {
+        // Recorded, not thrown, exactly like an unanswered `addPackage` - see this file's header.
+        refuse(
+          'settleTeamFlags',
+          "setup reads the team's flags from the service, and the pose states `scenes` in its " +
+            "workstation - say them as the team's `featureFlags` in the pose's `listTeams` answer"
+        );
+      }
+      settledFlags = listedFlags ?? (await askTeamFlags(configProject, personalToken));
+    },
 
     // A pose states no git history: a read of it fails as in a folder that is not a git folder.
     readGit: () => Promise.reject(new Error('the pose holds no git history')),
+
+    // A host the pose maps nowhere is answered as SSH answers a host no Host block names: itself.
+    // A host mapped to null is one ssh could not answer for.
+    readSshHostName: async (host) => {
+      const named = posed?.sshHostNames?.[host];
+      return named === undefined ? host : named;
+    },
+
+    readYarnAgeGateMinutes: async () => posed?.yarnAgeGateMinutes ?? null,
+    readPnpmVersion: async () => posed?.pnpmVersion ?? null,
+
+    // A posed project has no installed packages, so the pose's main config is loaded by the
+    // Storybook this repository installs: the same loader, reading the pose's real files.
+    storybookLoader: () => createRequire(__filename)('storybook/internal/common'),
 
     // A pose runs no Expo command: init then keeps today's devices.
     readExpoConfig: () => Promise.reject(new Error('the pose runs no Expo command')),
@@ -400,4 +735,28 @@ export function posedWorkstation(
       throw refuse('askYesOrNo', `the pose cannot answer the question "${question}"`);
     },
   };
+}
+
+/** A flag in the words of `scenesFlag()`: off unless the service said `true`. */
+function flagWord(flag: boolean | undefined): 'on' | 'off' {
+  return flag ? 'on' : 'off';
+}
+
+/**
+ * The flags of `configProject`'s team, asked through the server seam with the login setup found
+ * the project with: a team the list does not hold has none on. A FAILED CALL REJECTS: read as off,
+ * it would leave a team with scenes on set up without them, and say nothing. A posed run's seams
+ * answer from the pose, so its team list holds the flags.
+ *
+ * BUILD DEBT (init-for-agents): helpers/scenesFlag answers both flags, and this goes - the live
+ * and the posed `settleTeamFlags` then share its one reader.
+ */
+async function askTeamFlags(
+  configProject: string,
+  personalToken: string
+): Promise<TeamFeatureFlags> {
+  const { teamId } = parseConfigProject(configProject);
+  const { teams } = await serverCalls().listTeams({ personalToken });
+
+  return teams.find((team) => team.id === teamId)?.featureFlags ?? {};
 }

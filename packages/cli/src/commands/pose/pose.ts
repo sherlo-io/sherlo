@@ -66,6 +66,7 @@ import {
   type PlayChunk,
 } from './playClock';
 import { maskScreen } from './maskScreen';
+import flagValue from '../shared/flagValue';
 import exitAfterOutput from '../../helpers/exitAfterOutput';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
@@ -131,7 +132,7 @@ export async function runPose(
   { terminal, play }: PoseOptions = { terminal: true }
 ): Promise<PosedScreen> {
   const playClock = play !== undefined ? playingTheClock() : undefined;
-  const files = posedProjectFiles(commandPose.files);
+  const files = posedProjectFiles(commandPose.files, commandPose.workingFolder);
   const api = answeringAfterTheWait(posedServerCalls(commandPose.api), playClock?.clock);
   const world = posedSurroundings({
     env: commandPose.env,
@@ -193,7 +194,8 @@ export async function runPose(
     for (const undo of [...uninstall].reverse()) undo();
   }
 
-  const mask = (text: string) => applyMasks(text, commandPose, { root: files.root(), configPath });
+  const mask = (text: string) =>
+    applyMasks(text, commandPose, { root: files.layoutRoot(), configPath });
   const screen = mask(capture.screen());
   const chunks = maskedPlayChunks(capture.chunks(), mask);
   files.remove();
@@ -510,6 +512,7 @@ export function applyMasks(
   let masked = maskScreen(screen, {
     projectRoot: machineOnly.root,
     configPath: machineOnly.configPath,
+    sherloVersion: commandPose.workstation?.cli,
   });
 
   for (const [placeholder, literal] of Object.entries(commandPose.masks)) {
@@ -529,18 +532,9 @@ export function applyMasks(
  */
 export function resolvedConfigPath(argv: string[]): string {
   return resolveConfigPath({
-    projectRoot: valueOf(argv, 'projectRoot'),
-    config: valueOf(argv, 'config'),
+    projectRoot: flagValue(argv, 'projectRoot'),
+    config: flagValue(argv, 'config'),
   });
-}
-
-/** The value of `--name value` or `--name=value` on a command line, or undefined. */
-function valueOf(argv: string[], name: string): string | undefined {
-  const index = argv.indexOf(`--${name}`);
-  if (index !== -1) return argv[index + 1];
-
-  const joined = argv.find((word) => word.startsWith(`--${name}=`));
-  return joined?.slice(`--${name}=`.length);
 }
 
 /** Read the whole of stdin, for `sherlo pose -`. */

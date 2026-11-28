@@ -1,64 +1,166 @@
-import { printSherloIntro } from '../../helpers';
-import { workstation } from '../../seams/workstation';
+/**
+ * `sherlo init` - set Sherlo up in a React Native app with no question asked (init-for-agents).
+ *
+ * The person's one act is clicking Authorize in the browser, so an AI agent can run the whole setup.
+ * Each step prints one line, and a step the project already has says so, so a rerun picks up where
+ * a failed run stopped. The run ends with the next steps, and the feedback line.
+ */
+import fs from 'fs';
+import path from 'path';
+import { getCwd, printSherloIntro, throwError } from '../../helpers';
+import { renderInstalledPackageUnreadable } from '../../render/initFixes';
+import { renderFeedbackLine, renderNextSteps, renderSetupIntro } from '../../render/initSteps';
 import { Options } from '../../types';
-import builds from './builds';
 import config from './config';
 import { THIS_COMMAND } from './constants';
-import dependencies from './dependencies';
-import { trackProgress } from './helpers';
+import { packageManagerCommand, printLines, trackProgress } from './helpers';
 import metroConfig from './metroConfig';
-import project from './project';
-import requirements, { settleNoStorybook } from './requirements';
-import scheme from './scheme';
-import skill from './skill';
-import storybookAccess from './storybookAccess';
-import testing from './testing';
+import { workstation } from '../../seams/workstation';
+import agentSkill from './steps/agentSkill';
+import checkProject from './steps/checkProject';
+import folderForStories from './steps/folderForStories';
+import refuseFailedServiceCall from './project/refuseFailedServiceCall';
+import githubWorkflow, { findGitRoot } from './steps/githubWorkflow';
+import logIn from './steps/logIn';
+import rootComponentFile from './steps/rootComponentFile';
+import rootRegistration from './steps/rootRegistration';
+import sherloSdk from './steps/sherloSdk';
+import startFileForScenes from './steps/startFileForScenes';
+import storybook from './steps/storybook';
+import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
+import storybookFolder, { storybookFile } from './steps/storybookFolder';
+import storybookSetup from './steps/storybookSetup';
+import teamAndProject from './steps/teamAndProject';
+import { EXPO_ROUTER_PACKAGE_NAME, PROJECT_OPTION, TEAM_OPTION } from '../../constants';
+import getDeclaredPackageVersion from './requirements/getDeclaredPackageVersion';
+import { InstalledPackageUnreadableError } from './requirements/getPackageVersion';
+import { setupReader } from '../feedback/runningAgent';
 
 async function init(options: Options<THIS_COMMAND>) {
-  const { token } = options;
-
-  const { sessionId } = await trackProgress({
-    event: '0_init',
-    token,
-    sessionId: null,
-    hasStarted: true,
-  });
+  const { sessionId } = await trackProgress({ event: '0_init', sessionId: null, hasStarted: true });
 
   printSherloIntro();
+  printLines(renderSetupIntro());
 
-  const { appHasStorybook } = await requirements({ token, sessionId });
+  try {
+    const project = await checkProject();
+    await trackProgress({ event: '1_requirements', sessionId });
 
-  // Before anything is installed, so a run that cannot name a project changes nothing.
-  // An app with no Storybook is welcome only for a team with scenes on, and the team is known only
-  // inside the project step (after the login, and the "React Native" line already printed). So the
-  // step asks, as soon as it knows the team and before it makes a team or a project, whether to go on.
-  const projectToWrite = await project(
-    options,
-    appHasStorybook ? undefined : (teamId) => settleNoStorybook({ teamId, sessionId })
-  );
+    const person = await logIn();
+    // BUILD DEBT (init-for-agents): `--team` joins init's options type in ../../types.
+    const teamFlag = (options as { [TEAM_OPTION]?: string })[TEAM_OPTION];
+    const { projectId, listedFlags, personalToken } = await teamAndProject(person, {
+      teamFlag,
+      projectFlag: options[PROJECT_OPTION],
+    });
+    // Written as soon as the project exists, so a run that fails at any later step leaves the
+    // project in the config, and a rerun uses it rather than making a second one.
+    await config({ sessionId, project: projectId });
+    // The team's flags decide two steps below: scenes' start file and the agent skill. A rerun
+    // looked its project up by name and listed no team, so the service is asked for them here,
+    // with the login that found the project. A failed call stops setup: read as off, it would set
+    // a team with scenes on up without them, and say nothing.
+    await workstation()
+      .settleTeamFlags(projectId, listedFlags, personalToken)
+      .catch((error: Error) =>
+        refuseFailedServiceCall(error, 'reading-team-features', personalToken)
+      );
 
-  // From the project it chose, not the folder it started in: that folder may not name one yet.
-  await workstation().askScenesFlag(projectToWrite);
+    const { installedNow } = await storybook({ hasStorybook: project.hasStorybook });
+    await sherloSdk();
+    await trackProgress({ event: '2_dependencies', params: { status: 'success' }, sessionId });
 
-  await dependencies({ sessionId });
-
-  if (appHasStorybook) {
     await metroConfig(sessionId);
+    const scenesAppEntry = startFileForScenes();
+    await githubWorkflow(project.githubWorkflowPlace);
+    // The guide goes where the workflow goes: the repository's root, also for code not on GitHub.
+    await agentSkill(
+      project.githubWorkflowPlace?.repositoryRoot ?? findGitRoot(getCwd()) ?? getCwd()
+    );
 
-    await storybookAccess(sessionId);
+    const reader = setupReader();
+    // THE FIRST TEST WAITS for the app's own stories, for a person and an agent alike, on every
+    // setup: with only Storybook's examples, the next step is to write them. An app whose code
+    // already asks Sherlo's isStorybookMode (way b) is as ready as Storybook's default setup.
+    // No folder found is named as none: a default name would send the reader to a folder the app
+    // does not have.
+    const folder = storybookFolder();
+    const storybookIndexFile = folder && storybookFile(folder, 'index');
+    const ownStories = installedNow || !folder ? null : await hasStoriesOfItsOwn(folder);
+    // A story list that could not be read says nothing of examples: the line naming why stands in.
+    const examplesOnly = !!ownStories && 'found' in ownStories && !ownStories.found;
+    const setup = installedNow ? null : storybookSetup();
+    const storybookState =
+      setup === null
+        ? 'installed'
+        : setup === 'renders-in-app'
+          ? examplesOnly
+            ? 'old-setup-example-stories'
+            : 'old-setup'
+          : setup === 'not-started'
+            ? examplesOnly
+              ? 'not-started-example-stories'
+              : 'not-started'
+            : examplesOnly
+              ? 'example-stories'
+              : 'default-setup';
+    printLines(
+      renderNextSteps({
+        storybook: storybookState,
+        storyListUnreadable:
+          ownStories && 'unreadable' in ownStories ? ownStories.unreadable : null,
+        leftOutStory: ownStories && 'leftOut' in ownStories ? ownStories.leftOut : null,
+        storybookFolder: folder,
+        storybookIndexFile,
+        hasStartFile:
+          !!storybookIndexFile && fs.existsSync(path.join(getCwd(), storybookIndexFile)),
+        storybookMainFile: folder && storybookFile(folder, 'main'),
+        storiesFolder: await folderForStories(),
+        rootRegistration: rootRegistration(),
+        rootComponent: rootComponentFile(
+          !!(await getDeclaredPackageVersion(EXPO_ROUTER_PACKAGE_NAME))
+        ),
+        scenesAppEntry,
+        reader,
+      })
+    );
+    // BUILD DEBT (init-for-agents): on the default setup in a person's terminal, run `sherlo test`
+    // here, under the line renderNextSteps printed, and only when the app has stories of its own.
+    printLines(renderFeedbackLine({ reader }));
+
+    await trackProgress({ event: '7_testing', sessionId, hasFinished: true });
+  } catch (error) {
+    const shown = await refusalForUnreadableInstalledPackage(error);
+    // A failed run ends with one block for feedback and help, in place of the usual help footer
+    // (../../start prints it).
+    Object.assign(shown as object, { showFeedbackLine: true });
+    throw shown;
   }
-
-  await config({ sessionId, project: projectToWrite });
-
-  // Into the config just written, so the first push does not stop on an iOS scheme it cannot pick.
-  await scheme();
-
-  await builds({ sessionId });
-
-  // Prints nothing: the testing lines below name the guide it leaves for the coding agent.
-  await skill();
-
-  await testing(sessionId);
 }
 
 export default init;
+
+/* ========================================================================== */
+
+/**
+ * AN INSTALLED PACKAGE.JSON SETUP COULD NOT READ is the person's to fix, so it is refused with the
+ * app's own install command; the shared read (getPackageVersion) names no package manager, as other
+ * commands have none to name. Any other error is shown as it was thrown.
+ */
+async function refusalForUnreadableInstalledPackage(error: unknown): Promise<unknown> {
+  const cause = (error as { cause?: unknown }).cause;
+  if (!(cause instanceof InstalledPackageUnreadableError)) return error;
+
+  const file = path.relative(getCwd(), cause.packageJsonPath);
+  const refusal = renderInstalledPackageUnreadable({
+    file,
+    packageFolder: path.dirname(file),
+    reason: cause.reason,
+    installCommand: await packageManagerCommand('install'),
+  });
+  try {
+    return throwError(refusal);
+  } catch (thrown) {
+    return thrown;
+  }
+}

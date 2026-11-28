@@ -16,9 +16,11 @@ export type TeamListed = {
   projectCount: number;
   /** The caller's membership role, or null when the API does not say. */
   role: string | null;
-  /** What the service switched on for the team; scenes are off unless it says `scenes: true`. */
-  featureFlags?: { scenes?: boolean };
+  featureFlags?: TeamFeatureFlags;
 };
+
+/** What the service switched on for a team; each flag is off unless it says `true`. */
+export type TeamFeatureFlags = { scenes?: boolean; agentSkills?: boolean };
 
 /** The whole of what one `sherlo team list` run needed in order to print. */
 export type TeamList = {

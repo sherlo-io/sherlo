@@ -1,26 +1,25 @@
 import fs from 'fs';
-import { ALREADY_WRAPPED_TOKEN, WITH_STORYBOOK_TOKEN } from './constants';
 import getMetroConfigPath from './getMetroConfigPath';
+import readMetroConfigCode from './readMetroConfigCode';
 
 interface MetroConfigState {
   path: string | null;
   content: string | null;
+  /** Read from the parsed code: a comment naming Sherlo's package is not a wiring. */
   alreadyWrapped: boolean;
-  hasWithStorybook: boolean;
 }
 
 async function readMetroConfigState(): Promise<MetroConfigState> {
   const configPath = getMetroConfigPath();
 
   if (!configPath) {
-    return { path: null, content: null, alreadyWrapped: false, hasWithStorybook: false };
+    return { path: null, content: null, alreadyWrapped: false };
   }
 
   const content = await fs.promises.readFile(configPath, 'utf-8');
-  const alreadyWrapped = content.includes(ALREADY_WRAPPED_TOKEN);
-  const hasWithStorybook = content.includes(WITH_STORYBOOK_TOKEN);
+  const alreadyWrapped = readMetroConfigCode(content)?.wiredForSherlo ?? false;
 
-  return { path: configPath, content, alreadyWrapped, hasWithStorybook };
+  return { path: configPath, content, alreadyWrapped };
 }
 
 export default readMetroConfigState;

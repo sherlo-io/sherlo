@@ -33,10 +33,16 @@ import {
 import authTokenFor from '../helpers/authTokenFor';
 import { ServiceRefusedTokenError, throwTokenRefusal } from './serviceRefusedToken';
 import liveGitHubTrade from './liveGitHubTrade';
-import createProjectRequest from '../commands/projectCreate/createProjectRequest';
+import createProjectRequest, {
+  CreateProjectAuthError,
+  CreateProjectNameTooLongError,
+} from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
-import listProjectsRequest from '../commands/projectList/listProjectsRequest';
-import listTeamsRequest from '../commands/teamList/listTeamsRequest';
+import listProjectsRequest, {
+  ListProjectsAuthError,
+  TeamNotFoundError,
+} from '../commands/projectList/listProjectsRequest';
+import listTeamsRequest, { ListTeamsAuthError } from '../commands/teamList/listTeamsRequest';
 import type { ProjectCreated } from '../render/projectCreated';
 import type { ProjectList } from '../render/projectList';
 import type { TeamCreated } from '../render/teamCreated';
@@ -110,6 +116,12 @@ export type ServerCalls = {
   createTeam(request: { name: string; personalToken: string }): Promise<TeamCreated>;
 
   listTeams(request: { personalToken: string }): Promise<TeamList>;
+
+  /**
+   * Who the personal token belongs to: the name they signed up with, and their email. Setup names
+   * a team it makes for them after them ("Dawid's team").
+   */
+  whoAmI(request: { personalToken: string }): Promise<PersonOfToken>;
 
   listProjects(request: { teamId: string; personalToken: string }): Promise<ProjectList>;
 
@@ -218,6 +230,9 @@ export type FeedbackContext = {
   devices?: Config['devices'];
 };
 
+/** The person a personal token belongs to. `name` is one string, as they signed up with it. */
+export type PersonOfToken = { name: string; email: string };
+
 /** A login the service started for this run: what to open, and what only this run may ask with. */
 export type PendingCliLogin = {
   loginId: string;
@@ -301,6 +316,11 @@ export const liveServerCalls: ServerCalls = {
   createTeam: (request) => createTeamRequest(request),
   listTeams: (request) => listTeamsRequest(request),
   listProjects: (request) => listProjectsRequest(request),
+
+  // BUILD DEBT (init-for-agents): the service has no query a personal token can ask this with yet.
+  whoAmI: async () => {
+    throw new Error('whoAmI is not available yet.');
+  },
 
   openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
 
@@ -386,7 +406,22 @@ export function installServerCalls(next: ServerCalls): () => void {
 /* ========================================================================== */
 
 /** The error the server sends, as the tool's client surfaces it. */
-export type ApiError = { error: string };
+export type ApiError = {
+  error: string;
+  /**
+   * The client's own error kind, where a command answers it apart: a team the person is not in, or
+   * a refusal of the team list, of a team's project list or of a new project, a project name over
+   * the service's limit.
+   */
+  errorName?:
+    | 'TeamNotFoundError'
+    | 'ListTeamsAuthError'
+    | 'ListProjectsAuthError'
+    | 'CreateProjectAuthError'
+    | 'CreateProjectNameTooLongError';
+  /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
+  cause?: { code: string; hostname?: string };
+};
 
 /**
  * What `getBuildStatus` answers: THE WIRE'S OWN SHAPE (../helpers/buildStatusRequest), named here
@@ -639,10 +674,27 @@ export type ScriptedCall =
   | {
       call: 'listTeams';
       with: Record<string, never>;
-      /** `role` is the caller's membership role, or null when the API does not say. */
+      /**
+       * `role` is the caller's membership role, or null when the API does not say. `featureFlags`
+       * is what the service switched on for the team; a flag left out is off.
+       */
       answer:
-        | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> }
+        | {
+            teams: Array<{
+              id: string;
+              name: string;
+              projectCount: number;
+              role: string | null;
+              featureFlags?: { scenes?: boolean; agentSkills?: boolean };
+            }>;
+          }
         | ApiError;
+    }
+  | {
+      /** Who the personal token belongs to: their name as they signed up with it, and their email. */
+      call: 'whoAmI';
+      with: Record<string, never>;
+      answer: { name: string; email: string } | ApiError;
     }
   | {
       call: 'listProjects';
@@ -831,6 +883,40 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     // refusal - its wording, its exit code - is what the screen shows.
     const answer = next.answer as Record<string, unknown> | null;
     if (answer !== null && typeof answer === 'object' && 'error' in answer) {
+      // A team the person is not in is its own kind, as the real client raises it, so setup can
+      // answer it as no access rather than with the service's words.
+      if (answer.errorName === 'TeamNotFoundError') {
+        throw new TeamNotFoundError(String(answer.error));
+      }
+      // A refusal is its own kind too: of the team list, a refused login; of a team's project list,
+      // a dead login or a team out of reach, which setup tells apart.
+      if (answer.errorName === 'ListTeamsAuthError') {
+        throw new ListTeamsAuthError(String(answer.error));
+      }
+      if (answer.errorName === 'ListProjectsAuthError') {
+        throw new ListProjectsAuthError(String(answer.error));
+      }
+      if (answer.errorName === 'CreateProjectAuthError') {
+        throw new CreateProjectAuthError(String(answer.error));
+      }
+      // A name over the service's limit: setup says the limit and how to give a shorter name.
+      if (answer.errorName === 'CreateProjectNameTooLongError') {
+        throw new CreateProjectNameTooLongError(String(answer.error), {
+          name: String(askedWith.name),
+          teamId: String(askedWith.teamId),
+        });
+      }
+      // A call that never reached the service is raised as node-fetch raises it: a FetchError of
+      // type 'system' with the network's code, and no host. BUILD DEBT (init-for-agents): the pose
+      // field `cause` keeps its name and its unread `hostname` until the pose contract is next
+      // generated, as node-fetch puts neither on `cause`.
+      const networkCause = answer.cause as ApiError['cause'];
+      if (networkCause) {
+        throw Object.assign(new Error(String(answer.error)), {
+          type: 'system',
+          code: networkCause.code,
+        });
+      }
       throw new Error(String(answer.error));
     }
 
@@ -862,6 +948,8 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     createTeam: async ({ name }) => answerFor('createTeam', { name }) as TeamCreated,
 
     listTeams: async () => answerFor('listTeams', {}) as TeamList,
+
+    whoAmI: async () => answerFor('whoAmI', {}) as PersonOfToken,
 
     listProjects: async ({ teamId }) => answerFor('listProjects', { teamId }) as ProjectList,
 

@@ -45,6 +45,11 @@ export type CommandPose = {
    */
   files: PosedFiles;
   /**
+   * The folder of `files` the command runs in, when it is not their root: `"apps/mobile"` poses an
+   * app inside a monorepo whose root files (`pnpm-workspace.yaml`) sit two folders up.
+   */
+  workingFolder?: string;
+  /**
    * The settings the command reads from its surroundings, stated instead of inherited. An
    * unstated setting reads as unset - the pose says `SKIP_INTRO: "true"` or the logo prints. The
    * tool's own secret-bearing settings (a token in the environment) are posed here too, and

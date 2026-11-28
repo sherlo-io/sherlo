@@ -57,6 +57,11 @@ export type CommandPose = {
    */
   files: PosedFiles;
   /**
+   * The folder of `files` the command runs in, when it is not their root: `"apps/mobile"` poses an
+   * app inside a monorepo whose root files (`pnpm-workspace.yaml`) sit two folders up.
+   */
+  workingFolder?: string;
+  /**
    * The settings the command reads from its surroundings, stated instead of inherited. An unstated
    * setting reads as unset - the pose says `SKIP_INTRO: "true"` or the logo prints. The tool's own
    * secret-bearing settings (a token in the environment) are posed here too, and masked on output.
@@ -203,6 +208,17 @@ export type PosedGit =
       dirty: boolean;
       /** Git's own sentence when the tool's fetch of 200 commits of a shallow clone was refused. */
       historyFetchRefused?: string;
+      /** The address of every remote the repository names; left out for a repository that has none yet. */
+      remotes?: string[];
+      /**
+       * Folders git's history held that are gone from the project now, each with the short hash of the
+       * commit that deleted it, or null when the deletion is not committed and the last commit still
+       * holds the folder; left out when there are none.
+       */
+      gone?: Array<{
+        folder: string;
+        deletedIn: string | null;
+      }>;
     };
 
 /** One platform's bundle as the bundler reports it. */
@@ -325,7 +341,10 @@ export type ScriptedCall =
   | {
       call: 'listTeams';
       with: Record<string, never>;
-      /** `role` is the caller's membership role, or null when the API does not say. */
+      /**
+       * `role` is the caller's membership role, or null when the API does not say. `featureFlags` is
+       * what the service switched on for the team; a flag left out is off.
+       */
       answer:
         | ApiError
         | {
@@ -334,7 +353,22 @@ export type ScriptedCall =
               name: string;
               projectCount: number;
               role: string | null;
+              featureFlags?: {
+                scenes?: boolean;
+                agentSkills?: boolean;
+              };
             }>;
+          };
+    }
+  | {
+      /** Who the personal token belongs to: their name as they signed up with it, and their email. */
+      call: 'whoAmI';
+      with: Record<string, never>;
+      answer:
+        | ApiError
+        | {
+            name: string;
+            email: string;
           };
     }
   | {
@@ -612,12 +646,46 @@ export type PosedAppBuild = {
 /** The acts `sherlo init` performs on the machine, as a pose states them. */
 export type PosedWorkstation = {
   /**
-   * What the package manager answered when asked to add Sherlo: the package it installed, version
-   * and all (`"@sherlo/react-native-storybook@2.0.2"`). Checked against the package the command
-   * actually asked for, so a pose cannot answer an install the command never made.
+   * The version of the Sherlo CLI the pose runs as, e.g. `"3.0.1"`. Left out: the version this CLI
+   * really is. Stated, setup asks for the SDK this version asks for, so one pose holds every
+   * number of an install: the CLI's version, the range it asks for, and the version the manager
+   * chose.
+   */
+  cli?: string;
+  /**
+   * What the package manager answered when asked to add Sherlo: the package it installed, with the
+   * version it chose (`"@sherlo/react-native-storybook@3.1.4"`), or the bare name for the CLI's
+   * own version (`cli`), the one a manager takes on any day but the day it comes out. The name is
+   * checked against the package the command asked for, so a pose cannot answer an install the
+   * command never made, and the package is laid into the project's node_modules at that version.
    */
   install: {
     package: string;
+    /**
+     * What the package manager printed when the install failed, on each stream. Left out for an
+     * install that worked; stated, the install fails the way a real one does, with this output.
+     */
+    failed?: {
+      stdout: string;
+      stderr: string;
+    };
+  };
+  /**
+   * The Storybook files setup wrote, for a project that had no Storybook: relative path ->
+   * content, laid into the project folder the way the pose's `files` are, so the steps after it
+   * read the project as the Storybook step left it. Left out for a project that already has
+   * Storybook, where setup never runs it; stated for one that does not, it is refused.
+   */
+  storybook?: {
+    wrote: PosedFiles;
+    /**
+     * What the package manager printed when adding Storybook's packages failed, on each stream:
+     * stated, setup writes no Storybook file.
+     */
+    failed?: {
+      stdout: string;
+      stderr: string;
+    };
   };
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
@@ -626,7 +694,11 @@ export type PosedWorkstation = {
    * the installed pods already match the lockfile, so setup skips `pod install` and never asks it.
    */
   pods?: 'installed' | 'current';
-  /** Whether the service has scenes on for the project's team. Left out: nothing answers, so off. */
+  /**
+   * Whether the service has scenes on for the project's team, for a command that asks nothing
+   * (open, capture). Left out: nothing answers. Setup asks the pose's `api` instead (its team
+   * list), so a setup that reaches the team's flags with this stated is a refusal of the pose.
+   */
   scenes?: 'on' | 'off';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
@@ -642,8 +714,26 @@ export type PosedWorkstation = {
    * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`
    * set, as when an agent or a CI job runs setup - so the prompt is never asked and the run goes
    * on.
+   *
+   * Optional since init-for-agents: setup asks nothing any more, so a pose of it states no prompt.
+   * BUILD DEBT: the prompt and the questions below go with the old setup's last caller.
    */
-  enter: 'pressed' | 'closed' | 'nobody';
+  enter?: 'pressed' | 'closed' | 'nobody';
+  /**
+   * What this machine's SSH config maps each host name to, as `ssh -G <host>` prints it in its
+   * `hostname` line: `{ "github-work": "github.com" }` for a remote
+   * `git@github-work:acme/app.git`. A host left out is answered as SSH answers a host no Host
+   * block names: the host itself. A host mapped to null is one ssh could not answer for (ssh
+   * missing, or `ssh -G` failed).
+   */
+  sshHostNames?: Record<string, string | null>;
+  /**
+   * What `yarn config get npmMinimalAgeGate` prints: modern Yarn's hold on a new version, in
+   * minutes (Yarn's default `1d` prints 1440). Left out: Yarn could not answer.
+   */
+  yarnAgeGateMinutes?: number;
+  /** What `pnpm --version` prints, e.g. `"10.4.0"`. Left out: pnpm could not answer. */
+  pnpmVersion?: string;
 };
 
 /**
@@ -997,6 +1087,22 @@ export type PosedLogins = Record<
 /** The error the server sends, as the tool's client surfaces it. */
 export type ApiError = {
   error: string;
+  /**
+   * The client's own error kind, where a command answers it apart: a team the person is not in, or
+   * a refusal of the team list, of a team's project list or of a new project, a project name over
+   * the service's limit.
+   */
+  errorName?:
+    | 'TeamNotFoundError'
+    | 'ListTeamsAuthError'
+    | 'ListProjectsAuthError'
+    | 'CreateProjectAuthError'
+    | 'CreateProjectNameTooLongError';
+  /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
+  cause?: {
+    code: string;
+    hostname?: string;
+  };
 };
 
 /**

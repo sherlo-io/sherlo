@@ -3,7 +3,10 @@
  *
  * A screen carries values no plan can state and no fixture should pin: a temporary folder, a
  * token, a build's address, a size in megabytes, a duration, the time since a build, a commit id,
- * a fingerprint, the progress lines a wait prints while it waits. Every one of them is folded
+ * a fingerprint, the progress lines a wait prints while it waits, and the versions of Expo, React
+ * Native, Storybook and Sherlo the app happens to stand on (a new release must not change a
+ * reviewed screen; the oldest supported versions and a refusal's version stay, as they are the point
+ * of their screens, and unit tests hold the real values). Every one of them is folded
  * here to a placeholder BY CLASS - recognised by its shape, never by a literal somebody typed -
  * so the same fold lands on a posed screen and on a live screen alike.
  *
@@ -27,6 +30,7 @@
  */
 /* eslint-disable no-control-regex */
 import fs from 'fs';
+import { version as cliVersion } from '../../../package.json';
 import { GITHUB_SESSION_PREFIX } from '../../constants';
 import exitAfterOutput from '../../helpers/exitAfterOutput';
 import { foldAndroidBuild, foldIosBuild } from './foldNativeBuilds';
@@ -45,6 +49,11 @@ export type MaskContext = {
   projectRoot?: string;
   /** The config file path the run resolved, which sits INSIDE the project root. */
   configPath?: string;
+  /**
+   * The CLI version the run was: a pose's `workstation.cli` when it states one. Left out: this CLI's
+   * own version, from package.json.
+   */
+  sherloVersion?: string;
 };
 
 /**
@@ -59,6 +68,7 @@ export type MaskContext = {
 export function maskScreen(screen: string, context: MaskContext): string {
   let folded = foldMachinePaths(screen, context);
 
+  folded = foldSetupLogFile(folded);
   folded = foldTeamInSetupProject(folded);
   folded = foldTokens(folded);
   folded = foldBuildUrl(folded);
@@ -76,6 +86,7 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldTimeoutMinutes(folded);
   folded = foldAuthFailureStatus(folded);
   folded = foldRunError(folded);
+  folded = foldSourceLocation(folded);
   folded = foldCommitSha(folded);
   folded = foldRunNamespace(folded);
   folded = foldAndroidBuild(folded);
@@ -83,7 +94,13 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldCaptureSettleTime(folded);
   folded = foldCaptureScreenfuls(folded);
   folded = foldCaptureMeasuredSize(folded);
-  folded = foldInstalledSdkVersion(folded);
+  folded = foldCheckedAppVersions(folded);
+  folded = foldInstalledStorybookVersion(folded);
+  folded = foldInstalledSdkVersion(folded, {
+    sherloVersion: context.sherloVersion ?? cliVersion,
+    // A pose that states its CLI version (a release day, a too-old SDK) shows the range it asks for.
+    foldsRange: context.sherloVersion === undefined,
+  });
   folded = foldFeedbackMachineFacts(folded);
   folded = stripTurboSnapDiagnostic(folded);
 
@@ -115,6 +132,7 @@ export default mask;
 export const CLASSES_THE_TOOL_FOLDS = [
   '<PROJECT_ROOT>',
   '<SHERLO_CONFIG_PATH>',
+  '<LOG_FILE>',
   '<MASKED>',
   '<APP_HOST>',
   '<TEAM>',
@@ -128,6 +146,7 @@ export const CLASSES_THE_TOOL_FOLDS = [
   '<N>',
   '<STATUS>',
   '<RUN_ERROR>',
+  '<SOURCE_LOCATION>',
   '<SHA>',
   '<SHERLO_ANDROID_BUILD_PATH>',
   '<SHERLO_ANDROID_BUILD_FILE_NAME>',
@@ -135,7 +154,10 @@ export const CLASSES_THE_TOOL_FOLDS = [
   '<SHERLO_IOS_BUILD_FILE_NAME>',
   '<SETTLED>',
   '<PARTS>',
-  '<VERSION>',
+  '<EXPO_VERSION>',
+  '<REACT_NATIVE_VERSION>',
+  '<STORYBOOK_VERSION>',
+  '<SHERLO_VERSION>',
   '<SYSTEM>',
   '<APP_BUNDLE_STEP>',
 ];
@@ -155,6 +177,14 @@ function foldMachinePaths(screen: string, { projectRoot, configPath }: MaskConte
   if (projectRoot) folded = folded.split(projectRoot).join('<PROJECT_ROOT>');
 
   return folded;
+}
+
+/**
+ * Setup's log of a failed install: it lives in a folder the run made under this machine's temp
+ * folder, with a random suffix (../../seams/workstation), so both move between runs.
+ */
+function foldSetupLogFile(screen: string): string {
+  return screen.replace(/[^\s'"`\u001b]*sherlo-init-[A-Za-z0-9]+[\\/]install\.log/g, '<LOG_FILE>');
 }
 
 /**
@@ -308,11 +338,12 @@ function foldTimeAgo(screen: string): string {
  * How long an app build or a waited test took - a platform's row's `Built in 1m 28s` and
  * `Build failed after 42s`, `sherlo build`'s `Built the Android app      in 1m 28s`, and the
  * `Finished in 3m 5s` under a test's row. Only after those words, so a duration a scenario declares
- * elsewhere (a wait's timeout) is never folded.
+ * elsewhere (a wait's timeout) is never folded. `sherlo build`'s `in` may follow the dim that opens
+ * its step's detail.
  */
 function foldBuildDuration(screen: string): string {
   return screen.replace(
-    /\b(Built the (?:Android|iOS) app +in|Built in|Finished in|failed after) (?:\d+m )?\d+s\b/g,
+    /\b(Built the (?:Android|iOS) app +(?:\u001b\[2m)?in|Built in|Finished in|failed after) (?:\d+m )?\d+s\b/g,
     '$1 <DURATION>'
   );
 }
@@ -390,6 +421,14 @@ function foldRunError(screen: string): string {
   return screen.replace(/(The test ended as[^\n]*\n[^\n]*?Error: )[^\n\u001b]*/g, '$1<RUN_ERROR>');
 }
 
+/**
+ * Where in the CLI's own code an unexpected error was raised - `(in cli/dist/index.js:96393:27)`.
+ * It moves with every build, and the screen's point is the line above it.
+ */
+function foldSourceLocation(screen: string): string {
+  return screen.replace(/\(in [^\s()]+:\d+:\d+\)/g, '(in <SOURCE_LOCATION>)');
+}
+
 /** A commit id: forty hex characters and no more - a longer run is a digest, not a commit. */
 function foldCommitSha(screen: string): string {
   return screen.replace(
@@ -433,18 +472,74 @@ function foldCaptureMeasuredSize(screen: string): string {
   return screen.replace(/\(\d+(?:\.\d+)? x \d+(?:\.\d+)?\)/g, '(<SIZE>)');
 }
 
-/** The SDK version `sherlo init` installs - a published number, a local tarball, whatever it is. */
-function foldInstalledSdkVersion(screen: string): string {
-  return screen.replace(/(@sherlo\/react-native-storybook)@[^\s"'`\u001b]+/g, '$1@<VERSION>');
+/**
+ * The versions of the app's stack on the line `sherlo init` checks the app on, e.g. `Expo 58, React
+ * Native 0.88, Storybook 10.6`. A new Expo, React Native or Storybook release changes them, and the
+ * screen says the same thing either way, so each is folded to its own placeholder. Only that line:
+ * a refusal's version ("Storybook 8.6.4 is too old") and the oldest supported one are the point of
+ * their screens, and stay.
+ */
+function foldCheckedAppVersions(screen: string): string {
+  return screen.replace(/^(.*Checked the app.*)$/gm, (line) =>
+    line
+      .replace(/Expo \d+(?:\.\d+)*/g, 'Expo <EXPO_VERSION>')
+      .replace(/React Native \d+(?:\.\d+)*/g, 'React Native <REACT_NATIVE_VERSION>')
+      .replace(/Storybook \d+(?:\.\d+)*/g, 'Storybook <STORYBOOK_VERSION>')
+  );
+}
+
+/** The Storybook version `sherlo init` installs, on its `Installed Storybook` line. */
+function foldInstalledStorybookVersion(screen: string): string {
+  return screen.replace(/(@storybook\/react-native) \d[^\s\u001b]*/g, '$1 <STORYBOOK_VERSION>');
 }
 
 /**
- * The two facts `sherlo feedback --dry-run` reads off the machine: the CLI's own version and the
- * operating system, each on its own `Name: value` line.
+ * The SDK at the run's own CLI version, or from a local tarball or folder, written after an `@` in a
+ * command or after a space on the `Installed Sherlo` line: both move with every release. So does the
+ * range on this CLI's major that setup asks for (`^3`), folded to the same mark, so a picture reads
+ * alike whether the CLI asks for a range or, as a prerelease, its exact version. Any other version
+ * (the older one a manager installs on the day this CLI's comes out) is what the picture shows, and
+ * stays. A pose that states its CLI version is folded against that, and keeps its range, so its
+ * picture holds when this CLI's own version moves.
+ */
+function foldInstalledSdkVersion(
+  screen: string,
+  { sherloVersion, foldsRange }: { sherloVersion: string; foldsRange: boolean }
+): string {
+  const majorRange = `^${sherloVersion.split('.')[0]}`;
+  const fold = (whole: string, name: string, separator: string, spec: string, dot: string) =>
+    spec === sherloVersion ||
+    (foldsRange && spec === majorRange) ||
+    /^(?:file:|portal:|\/)/.test(spec)
+      ? `${name}${separator}<SHERLO_VERSION>${dot}`
+      : whole;
+  // Yarn 4 writes the package as a descriptor ending in a colon: `@sherlo/...@npm:^3: No candidates`.
+  const folded = screen.replace(
+    /(@sherlo\/react-native-storybook)([@ ](?:npm:)?)((?:file:|portal:)?[^\s"'`\u001b:]+?)([.:]?)(?=[\s"'`\u001b]|$)/g,
+    fold
+  );
+  // Bun and Yarn 1 quote the range apart from the package, on the line that names it:
+  // `No version matching "^3" found for specifier "@sherlo/react-native-storybook"` (Bun),
+  // `Couldn't find any versions for "@sherlo/react-native-storybook" that matches "^3"` (Yarn 1).
+  return folded.replace(/^.*"@sherlo\/react-native-storybook".*$/gm, (line) =>
+    line.replace(/"([^"\s]+)"/g, (whole, spec: string) =>
+      spec === sherloVersion || (foldsRange && spec === majorRange) ? '"<SHERLO_VERSION>"' : whole
+    )
+  );
+}
+
+/**
+ * The facts `sherlo feedback --dry-run` reads off the machine and the app, each on its own `Name:
+ * value` line: the operating system, the CLI's own version, and each version of the app's stack
+ * that is known ("not known" is a declared answer, and stays).
  */
 function foldFeedbackMachineFacts(screen: string): string {
   return screen
-    .replace(/^( *Sherlo CLI: ).*$/gm, '$1<VERSION>')
+    .replace(/^( *Sherlo CLI: ).*$/gm, '$1<SHERLO_VERSION>')
+    .replace(/^( *Sherlo SDK: )\d.*$/gm, '$1<SHERLO_VERSION>')
+    .replace(/^( *Expo: )\d.*$/gm, '$1<EXPO_VERSION>')
+    .replace(/^( *React Native: )\d.*$/gm, '$1<REACT_NATIVE_VERSION>')
+    .replace(/^( *Storybook: )\d.*$/gm, '$1<STORYBOOK_VERSION>')
     .replace(/^( *Operating system: ).*$/gm, '$1<SYSTEM>');
 }
 

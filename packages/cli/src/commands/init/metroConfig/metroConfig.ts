@@ -1,53 +1,80 @@
-import { throwError } from '../../../helpers';
-import {
-  renderMetroConfigAlreadyUpdated,
-  renderMetroConfigNeedsManualEdit,
-  renderMetroConfigNotFound,
-  renderMetroConfigTitle,
-  renderMetroConfigUpdated,
-  renderMetroConfigWithoutWithStorybook,
-} from '../../../render/initMetroConfig';
-import { printLines, trackProgress } from '../helpers';
+import fs from 'fs';
+import path from 'path';
+import { EXPO_PACKAGE_NAME } from '../../../constants';
+import { getCwd, throwError } from '../../../helpers';
+import { renderFailedInitStepLine, renderInitStepLine } from '../../../render/initSteps';
+import { printLines, refuseFileAccess, trackProgress } from '../helpers';
+import getDeclaredPackageVersion from '../requirements/getDeclaredPackageVersion';
 import { EVENT } from './constants';
+import metroConfigUnreadableRefusal from './metroConfigUnreadableRefusal';
 import readMetroConfigState from './readMetroConfigState';
 import writeMetroConfigUpdate from './writeMetroConfigUpdate';
 
+/**
+ * THE METRO CONFIG IS SETUP'S TO WIRE, never the person's: Storybook does not run without the
+ * wrapper, so a missing config is
+ * written and a config without withStorybook gets it. Only a shape setup cannot read stops the run,
+ * and the project check has refused that one already, before the login.
+ */
 async function metroConfig(sessionId: string | null): Promise<void> {
-  printLines(renderMetroConfigTitle());
-
   let state;
   try {
     state = await readMetroConfigState();
   } catch (error) {
     await trackProgress({ event: EVENT, params: { status: 'failed', error }, sessionId });
-    throw error;
+    // The search found a file, so only the system refuses this read; its error names the file.
+    refuseFileAccess({
+      failedStep: 'updating-metro-config',
+      access: 'read',
+      file: (error as NodeJS.ErrnoException).path ?? path.join(getCwd(), 'metro.config.js'),
+      error,
+    });
   }
 
   if (!state.path) {
-    printLines(renderMetroConfigNotFound());
-    await trackProgress({ event: EVENT, params: { status: 'failed:not_found' }, sessionId });
-    throwError({ message: 'metro.config.js not found' });
+    const createdPath = path.join(getCwd(), 'metro.config.js');
+    const isExpo = !!(await getDeclaredPackageVersion(EXPO_PACKAGE_NAME));
+    try {
+      await fs.promises.writeFile(createdPath, defaultMetroConfig({ isExpo }), 'utf-8');
+    } catch (error) {
+      await trackProgress({
+        event: EVENT,
+        params: { status: 'failed', error, path: createdPath },
+        sessionId,
+      });
+      refuseFileAccess({
+        failedStep: 'creating-metro-config',
+        access: 'write',
+        file: createdPath,
+        error,
+      });
+    }
+    printLines([
+      renderInitStepLine({
+        step: 'created-metro-config',
+        outcome: 'done',
+        detail: path.basename(createdPath),
+      }),
+    ]);
+    await trackProgress({
+      event: EVENT,
+      params: { status: 'created', path: createdPath },
+      sessionId,
+    });
     return;
   }
 
+  const shownPath = path.relative(getCwd(), state.path);
+
   if (state.alreadyWrapped) {
-    printLines(renderMetroConfigAlreadyUpdated(state.path));
+    printLines([
+      renderInitStepLine({ step: 'updated-metro-config', outcome: 'already', detail: shownPath }),
+    ]);
     await trackProgress({
       event: EVENT,
       params: { status: 'already_updated', path: state.path },
       sessionId,
     });
-    return;
-  }
-
-  if (!state.hasWithStorybook) {
-    printLines(renderMetroConfigWithoutWithStorybook(state.path));
-    await trackProgress({
-      event: EVENT,
-      params: { status: 'failed:no_with_storybook', path: state.path },
-      sessionId,
-    });
-    throwError({ message: 'withStorybook(...) not found in metro.config.js' });
     return;
   }
 
@@ -60,20 +87,27 @@ async function metroConfig(sessionId: string | null): Promise<void> {
       params: { status: 'failed', error, path: state.path },
       sessionId,
     });
-    throw error;
+    refuseFileAccess({
+      failedStep: 'updating-metro-config',
+      access: 'write',
+      file: state.path,
+      error,
+    });
   }
 
   if (!result.applied) {
-    printLines(renderMetroConfigNeedsManualEdit(state.path));
+    printLines(renderFailedInitStepLine('updating-metro-config'));
     await trackProgress({
       event: EVENT,
       params: { status: 'failed:manual_edit', path: state.path },
       sessionId,
     });
-    return;
+    throwError(metroConfigUnreadableRefusal({ path: shownPath, content: state.content! }));
   }
 
-  printLines(renderMetroConfigUpdated(state.path));
+  printLines([
+    renderInitStepLine({ step: 'updated-metro-config', outcome: 'done', detail: shownPath }),
+  ]);
   await trackProgress({
     event: EVENT,
     params: { status: 'updated', path: state.path },
@@ -82,3 +116,31 @@ async function metroConfig(sessionId: string | null): Promise<void> {
 }
 
 export default metroConfig;
+
+/* ========================================================================== */
+
+/**
+ * The config a project with none gets: the framework's own defaults, wrapped in Sherlo's
+ * withStorybook - Expo's from expo/metro-config, a bare app's merged from @react-native/metro-config.
+ */
+function defaultMetroConfig({ isExpo }: { isExpo: boolean }): string {
+  return isExpo
+    ? [
+        "const { getDefaultConfig } = require('expo/metro-config');",
+        "const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');",
+        '',
+        'const config = getDefaultConfig(__dirname);',
+        '',
+        'module.exports = withStorybook(config);',
+        '',
+      ].join('\n')
+    : [
+        "const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');",
+        "const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');",
+        '',
+        'const config = mergeConfig(getDefaultConfig(__dirname), {});',
+        '',
+        'module.exports = withStorybook(config);',
+        '',
+      ].join('\n');
+}

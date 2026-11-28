@@ -1,0 +1,53 @@
+
+             888                       888          
+             888                       888          
+             888                       888          
+    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
+    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
+    "Y8888b. 888  888 88888888 888     888 888  888 
+         X88 888  888 Y8b.     888     888 Y88..88P 
+    '88888P' 888  888  "Y8888  888     888  "Y88P"
+
+Make sure your mobile app looks perfect on every device
+
+Setting up Sherlo...
+
+✖ Checking the app failed
+
+ERROR: Storybook is installed, but its folder .ondevice is missing
+
+Git never held .ondevice, so there is nothing to restore.
+Create .ondevice with two files:
+  .ondevice/main.ts:
+    import type { StorybookConfig } from '@storybook/react-native';
+
+    const main: StorybookConfig = {
+      stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'],
+    };
+
+    export default main;
+
+  .ondevice/index.ts:
+    import { view } from './storybook.requires';
+
+    const StorybookUIRoot = view.getStorybookUI({ shouldPersistSelection: false });
+
+    export default StorybookUIRoot;
+
+Or point configPath in metro.config.js at your Storybook folder:
+  withStorybook(getDefaultConfig(__dirname), { configPath: './<your Storybook folder>' })
+
+Then run setup again. It picks up where it stopped:
+  npx sherlo init
+
+AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.
+
+──────────
+
+Need help?
+➜ Discord: https://discord.gg/G7eqTBkWZt
+➜ Email: contact@sherlo.io
+
+AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: npx sherlo feedback --help
+
+[exit 1]

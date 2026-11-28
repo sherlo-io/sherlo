@@ -8,6 +8,11 @@
  * `./init*.ts` files beside this one.
  */
 import chalk from 'chalk';
+import path from 'path';
+import {
+  STORYBOOK_UI_ROOT,
+  STORYBOOK_VIEW_IMPORT,
+} from '../commands/init/storybookAccess/startFileBranch';
 
 /**
  * A section title, underlined, with two blank lines above it and one below.
@@ -39,7 +44,107 @@ export function renderCheckLine({
   return `${chalk[color](icon)} ${message}`;
 }
 
+/**
+ * One line of code, coloured the way an editor colours it, so little of it stays white: keywords
+ * magenta, strings green, true, false, numbers and object keys blue, called functions green,
+ * components and other capitalised names yellow, comments, brackets and punctuation dim; the rest
+ * in the terminal's own colour. A command to run is not code: it stays plain cyan.
+ */
+export function renderCode(line: string): string {
+  return line.replace(
+    CODE_TOKEN,
+    (
+      token,
+      comment?: string,
+      text?: string,
+      keyword?: string,
+      literal?: string,
+      key?: string,
+      call?: string
+    ) => {
+      if (comment !== undefined) return chalk.dim(token);
+      if (text !== undefined) return chalk.green(token);
+      // NOT CYAN: cyan is a command to run, and code is never mistaken for one.
+      if (keyword !== undefined) return chalk.magenta(token);
+      if (literal !== undefined) return chalk.blue(token);
+      if (key !== undefined) return chalk.blue(token);
+      if (call !== undefined) return chalk.green(token);
+      if (/^[A-Z]/.test(token)) return chalk.yellow(token);
+      // BRACKETS AND PUNCTUATION ARE DIMMED, so the words between them stand out.
+      return chalk.dim(token);
+    }
+  );
+}
+
+/**
+ * A Storybook folder's main file, as Storybook's own template (@storybook/react-native 10.6.0,
+ * template/cli/main.ts) writes it, less the on-device addons: its `stories` load every story file
+ * under `storiesFolder`, given from the app's folder.
+ */
+export function renderStorybookMainFile({
+  storybookFolder,
+  storiesFolder,
+}: {
+  storybookFolder: string;
+  storiesFolder: string;
+}): string[] {
+  return [
+    renderCode("import type { StorybookConfig } from '@storybook/react-native';"),
+    '',
+    renderCode('const main: StorybookConfig = {'),
+    renderCode(`  stories: [${storiesGlob({ storybookFolder, storiesFolder })}],`),
+    renderCode('};'),
+    '',
+    renderCode('export default main;'),
+  ];
+}
+
+/**
+ * A Storybook folder's index file, as Storybook's own template (@storybook/react-native 10.6.0,
+ * template/cli/index.ts) writes it, less the AsyncStorage package the app may not have: with no
+ * storage the last story opened cannot be remembered, so remembering it is off, as setup's own
+ * Storybook folder has it.
+ */
+export function renderStorybookIndexFile(): string[] {
+  return [
+    renderCode(STORYBOOK_VIEW_IMPORT),
+    '',
+    renderCode(STORYBOOK_UI_ROOT),
+    '',
+    renderCode('export default StorybookUIRoot;'),
+  ];
+}
+
+/**
+ * A main file's entry for every story file under `storiesFolder`, quoted, as it is written. The
+ * app's folder itself (`.`) is loaded without its subfolders, so the entry never reaches
+ * node_modules.
+ */
+export function storiesGlob({
+  storybookFolder,
+  storiesFolder,
+}: {
+  storybookFolder: string;
+  storiesFolder: string;
+}): string {
+  const subfolders = storiesFolder === '.' ? '' : '**/';
+  return `'${importPath(storybookFolder, storiesFolder)}/${subfolders}*.stories.?(ts|tsx|js|jsx)'`;
+}
+
+/** The path an import in `fromFolder` writes to reach `target`: `./src`, `../app.json`. */
+export function importPath(fromFolder: string, target: string): string {
+  const relative = path.posix.relative(fromFolder, target);
+  return /^\.\.?(?:\/|$)/.test(relative) ? relative : `./${relative}`;
+}
+
 /* ========================================================================== */
+
+/**
+ * In order: a comment, a string, a keyword, true/false/null or a number, an object key, a called
+ * function's name, a capitalised name, a run of brackets and punctuation.
+ */
+const CODE_TOKEN =
+  /(\/\/.*$)|('[^']*')|\b(import|from|export|default|const|let|var|if|else|return|as|function)\b|\b(true|false|null|\d+)\b|\b([A-Za-z_]\w*)(?=\s*:)|\b([A-Za-z_]\w*)(?=\()|\b[A-Z]\w*|[[\]{}();,=<>/.:]+/g;
 
 const CHECK_LINE_LOOK = {
   success: { color: 'green', icon: '✔' },

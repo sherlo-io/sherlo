@@ -85,19 +85,29 @@ describe('listTeams response', () => {
     });
   });
 
-  it("asks for each team's scenes flag and carries what the service answers", async () => {
+  it("asks for each team's scenes and agent skills flags and carries what the service answers", async () => {
     const effects = effectsAnswering({
       data: {
         listTeams: [
           { id: 'a', name: 'A', role: 'owner', projectsCount: 1, featureFlags: { scenes: true } },
+          {
+            id: 'b',
+            name: 'B',
+            role: 'owner',
+            projectsCount: 1,
+            featureFlags: { scenes: false, agentSkills: true },
+          },
         ],
       },
     });
 
     const list = await listTeamsRequest({ personalToken: PERSONAL_TOKEN }, effects);
 
-    expect(sentRequest(effects).body.query.replace(/\s+/g, '')).toContain('featureFlags{scenes}');
-    expect(list.teams[0].featureFlags).toEqual({ scenes: true });
+    expect(sentRequest(effects).body.query.replace(/\s+/g, '')).toContain(
+      'featureFlags{scenesagentSkills}'
+    );
+    expect(list.teams[0].featureFlags).toEqual({ scenes: true, agentSkills: false });
+    expect(list.teams[1].featureFlags).toEqual({ scenes: false, agentSkills: true });
   });
 
   it('uses projectsCount directly rather than counting a nested list', async () => {

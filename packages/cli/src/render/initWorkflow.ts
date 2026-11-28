@@ -5,8 +5,13 @@
  * agent - reads in their own repository.
  *
  * THE SHAPE IS THE ONE THE DOCS GIVE AND THE ACTION TAKES: a matrix job, Android on `ubuntu-latest`
- * and iOS on `macos-latest`, `SHERLO_TOKEN` in the job's env, and the action told only its
- * `platform` - the token is not one of the action's inputs (see `action.yml`).
+ * and iOS on `macos-latest`, and the action told only its `platform` (see `action.yml`). Fail-fast
+ * is off because a cancelled job never joins its test.
+ *
+ * NO SECRET: THE JOB SIGNS IN THROUGH GITHUB. With `id-token: write` the job can ask GitHub for an
+ * ID token, and `sherlo test` trades it for a session once the Sherlo GitHub App is connected to the
+ * project's team (resolvePushCredential's second rung). So the file needs no SHERLO_TOKEN, and what
+ * it points to is Connect GitHub in the project's settings.
  *
  * THE PUSH RUN FOLLOWS THE REPOSITORY'S DEFAULT BRANCH, read by GitHub when the workflow runs
  * (`github.event.repository.default_branch`), so setup never guesses a branch name. A push trigger
@@ -17,25 +22,126 @@
  * NO FULL-RUN SWITCH: the service photographs every story of a build on the project's main line
  * (Diff Scope's first rung), and infers that line from the repository's default branch - the same
  * branch this file runs on. So both runs are a plain `sherlo test`.
+ *
+ * NOT CONNECTED YET IS NOT A FAILURE: setup does not ask for CI up front, so the file can sit in a
+ * repository for days before anyone connects GitHub. `SHERLO_UNTIL_CONNECTED: notice` asks
+ * `sherlo test` to end such a job green with one notice saying where GitHub is connected, instead of
+ * failing every pull request. A workflow written by hand leaves it out, and a missing connection
+ * fails there as it always did.
  */
 
 /** Where the workflow goes in the repository - one name for the step that writes it and the lines that name it. */
 export const GITHUB_WORKFLOW_PATH = '.github/workflows/sherlo.yml';
 
-/** The line that installs the project's packages on a clean machine, per package manager. */
-const INSTALL_COMMAND: Record<string, string> = {
+/**
+ * The package managers the workflow knows, as package-manager-detector names their agents: Yarn 1
+ * is `yarn`, Yarn 2 and later is `yarn@berry`, because the two install with different words.
+ */
+type PackageManager = 'npm' | 'yarn' | 'yarn@berry' | 'pnpm' | 'bun';
+
+/**
+ * The line that installs the project's packages on a clean machine, per package manager. Each one
+ * installs exactly what the lock file says or stops, so the machine gets the developer's versions.
+ */
+const INSTALL_COMMAND: Record<PackageManager, string> = {
   npm: 'npm ci',
-  yarn: 'yarn install --immutable',
+  yarn: 'yarn install --frozen-lockfile',
+  'yarn@berry': 'yarn install --immutable',
   pnpm: 'pnpm install --frozen-lockfile',
   bun: 'bun install --frozen-lockfile',
 };
 
-export function renderSherloWorkflow({ packageManager }: { packageManager: string }): string {
+/**
+ * The package caches setup-node fills. Its cache step runs the package manager first, so only the
+ * ones GitHub's machines already have (npm, Yarn 1) or that a step before it installs (pnpm) get one.
+ * Yarn 2+ arrives only after setup-node, and Bun has no setup-node cache.
+ */
+const SETUP_NODE_CACHE: Partial<Record<PackageManager, string>> = {
+  npm: 'npm',
+  yarn: 'yarn',
+  pnpm: 'pnpm',
+};
+
+/**
+ * GITHUB'S MACHINES HAVE ONLY NODE, NPM AND YARN 1, so every other package manager is put there
+ * first. Each step takes the version from the project's `packageManager` field; `pinnedVersion` is
+ * the developer's own version, written only when the project has no such field.
+ * Proved on GitHub's ubuntu and macOS machines, Node 22 and 26 (spike ci-package-managers).
+ */
+function packageManagerSetup(packageManager: PackageManager, pinnedVersion?: string) {
+  const versionInput = (name: string) =>
+    pinnedVersion ? `\n        with:\n          ${name}: ${pinnedVersion}` : '';
+
+  switch (packageManager) {
+    case 'pnpm':
+      return {
+        beforeNode: `\n      - uses: pnpm/action-setup@v6${versionInput('version')}\n`,
+        afterNode: '',
+      };
+    case 'bun':
+      return {
+        beforeNode: `\n      - uses: oven-sh/setup-bun@v2${versionInput('bun-version')}\n`,
+        afterNode: '',
+      };
+    case 'yarn@berry':
+      return {
+        beforeNode: '',
+        afterNode:
+          '\n      # Node no longer ships corepack, which runs the Yarn your package.json names.\n' +
+          '      - name: Set up Yarn\n' +
+          '        run: |\n' +
+          '          npm install --global corepack@latest\n' +
+          '          corepack enable\n',
+      };
+    default:
+      return { beforeNode: '', afterNode: '' };
+  }
+}
+
+/**
+ * The lock file setup-node's cache keys on. It looks only in the repository's root unless told, so
+ * a workspace in a subfolder names its own.
+ */
+const LOCK_FILE: Partial<Record<PackageManager, string>> = {
+  npm: 'package-lock.json',
+  yarn: 'yarn.lock',
+  pnpm: 'pnpm-lock.yaml',
+};
+
+/**
+ * AN APP INSIDE A MONOREPO: the file sits in the repository's root (the only place GitHub reads
+ * workflows from), `installFolder` is the workspace's root and `appFolder` the app's, both relative
+ * to the repository's root. Empty for a plain app, whose file is the one it always was.
+ */
+export function renderSherloWorkflow({
+  packageManager,
+  pinnedVersion,
+  installFolder = '',
+  appFolder = '',
+}: {
+  packageManager: PackageManager;
+  pinnedVersion?: string;
+  installFolder?: string;
+  appFolder?: string;
+}): string {
+  const cache = SETUP_NODE_CACHE[packageManager];
+  const lockFile = LOCK_FILE[packageManager];
+  const cacheLine = cache
+    ? `\n          cache: ${cache}` +
+      (installFolder && lockFile
+        ? `\n          cache-dependency-path: ${installFolder}/${lockFile}`
+        : '')
+    : '';
+  const installFolderLine = installFolder ? `\n        working-directory: ${installFolder}` : '';
+  const appFolderLine = appFolder
+    ? `\n          # The app's folder inside the repository.\n          working-directory: ${appFolder}`
+    : '';
+  const setup = packageManagerSetup(packageManager, pinnedVersion);
   return `# Sherlo visual tests, added by \`npx sherlo init\`.
 #
 # Sherlo photographs your app's Storybook stories on a device and shows what changed, for review.
-# It needs one secret: SHERLO_TOKEN, a CI token from the Sherlo web app, added under
-# Settings > Secrets and variables > Actions. Docs: https://sherlo.io/docs/testing
+# It needs no secret: once you click Connect GitHub in your Sherlo project's settings
+# (https://app.sherlo.io), this job signs in through GitHub. Docs: https://sherlo.io/docs/integrations/github
 
 name: Sherlo
 
@@ -67,28 +173,26 @@ jobs:
           - platform: ios
             runs-on: macos-latest
     runs-on: \${{ matrix.runs-on }}
+    # id-token lets the job sign in to Sherlo through GitHub, with no secret to save.
+    permissions:
+      contents: read
+      id-token: write
     env:
-      SHERLO_TOKEN: \${{ secrets.SHERLO_TOKEN }}
+      # Until GitHub is connected, Sherlo ends this job green with one notice instead of failing it.
+      SHERLO_UNTIL_CONNECTED: notice
     steps:
-      - name: Check the SHERLO_TOKEN secret
-        run: |
-          if [ -z "$SHERLO_TOKEN" ]; then
-            echo "::error::Add a SHERLO_TOKEN secret: create a CI token in the Sherlo web app (https://app.sherlo.io), then add it under Settings > Secrets and variables > Actions."
-            exit 1
-          fi
-
       - uses: actions/checkout@v4
-
+${setup.beforeNode}
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/*
-
+          node-version: 22${cacheLine}
+${setup.afterNode}
       - name: Install packages
-        run: ${INSTALL_COMMAND[packageManager] ?? INSTALL_COMMAND.npm}
+        run: ${INSTALL_COMMAND[packageManager]}${installFolderLine}
 
       - name: Run Sherlo
         uses: sherlo-io/sherlo@v3
         with:
-          platform: \${{ matrix.platform }}
+          platform: \${{ matrix.platform }}${appFolderLine}
 `;
 }

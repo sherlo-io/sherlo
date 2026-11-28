@@ -1,0 +1,63 @@
+
+             888                       888          
+             888                       888          
+             888                       888          
+    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
+    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
+    "Y8888b. 888  888 88888888 888     888 888  888 
+         X88 888  888 Y8b.     888     888 Y88..88P 
+    '88888P' 888  888  "Y8888  888     888  "Y88P"
+
+Make sure your mobile app looks perfect on every device
+
+Setting up Sherlo...
+
+✔ Checked the app        Expo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>
+
+Opening your browser to log in to Sherlo...
+If it doesn't open, use this link on any device:
+
+  <LOGIN_LINK>
+
+⏳ Waiting for you to click Authorize... (Ctrl+C to stop)
+
+✔ Logged in              anna@example.com
+✔ Created team           Anna's team
+✔ Created project        Acme Shop
+✔ Created config         sherlo.config.json, one device: Pixel 7 Pro
+- Installing Storybook...
+✔ Installed Storybook    @storybook/react-native <STORYBOOK_VERSION>
+- Installing Sherlo...
+✖ Installing Sherlo failed
+
+ERROR: Sherlo couldn't be installed
+
+npm error code ENOTFOUND
+npm error syscall getaddrinfo
+npm error errno ENOTFOUND
+npm error network request to https://registry.npmjs.org/@sherlo%2freact-native-storybook failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org
+npm error network This is a problem related to network connectivity.
+npm error network In most cases you are behind a proxy or have bad network settings.
+npm error network
+npm error network If you are behind a proxy, please make sure that the 'proxy' config is set properly.  See: 'npm help config'
+
+Full output: <LOG_FILE>
+npm's own log: /Users/anna/.npm/_logs/2026-10-01T12_00_00_000Z-debug-0.log
+
+Fix the error, or install Sherlo yourself:
+  npm i @sherlo/react-native-storybook@<SHERLO_VERSION>
+
+Then run setup again. It picks up where it stopped:
+  npx sherlo init
+
+AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.
+
+──────────
+
+Need help?
+➜ Discord: https://discord.gg/G7eqTBkWZt
+➜ Email: contact@sherlo.io
+
+AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: npx sherlo feedback --help
+
+[exit 1]

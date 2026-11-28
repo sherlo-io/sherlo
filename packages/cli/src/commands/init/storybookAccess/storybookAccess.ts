@@ -3,15 +3,17 @@ import chalk from 'chalk';
 import { getCwd, throwError } from '../../../helpers';
 import { renderStorybookAccess } from '../../../render/initStorybookAccess';
 import { printLines, trackProgress, waitForEnterPress } from '../helpers';
+import storybookFolder from '../steps/storybookFolder';
 import { EVENT } from './constants';
 import writeStartFile from './writeStartFile';
 
 async function storybookAccess(sessionId: string | null): Promise<void> {
   const projectRoot = getCwd();
-  const startFile = writeStartFile(projectRoot);
-  if (startFile) {
+  const folder = storybookFolder();
+  const startFile = folder ? writeStartFile(projectRoot, folder) : null;
+  if (startFile && 'written' in startFile) {
     console.log(
-      `${chalk.green('✔')} ${path.relative(projectRoot, startFile)} opens Storybook in Storybook mode and your app otherwise`
+      `${chalk.green('✔')} ${path.relative(projectRoot, startFile.written)} opens Storybook in Storybook mode and your app otherwise`
     );
   }
 

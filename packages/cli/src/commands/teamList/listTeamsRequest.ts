@@ -18,6 +18,7 @@
  */
 import fetch from 'node-fetch';
 import type { TeamList } from '../../render/teamList';
+import { isRefusalErrorType } from '../../seams/serviceRefusedToken';
 
 /** Bounded so a hung endpoint cannot leave the command waiting forever. */
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -32,6 +33,7 @@ const LIST_TEAMS_QUERY = `
       projectsCount
       featureFlags {
         scenes
+        agentSkills
       }
     }
   }
@@ -67,7 +69,7 @@ type ApiTeamSummary = {
   name: string;
   role: string;
   projectsCount: number;
-  featureFlags?: { scenes?: boolean } | null;
+  featureFlags?: { scenes?: boolean; agentSkills?: boolean } | null;
 };
 
 /**
@@ -104,9 +106,7 @@ async function listTeamsRequest(
   };
 
   if (json.errors?.length) {
-    const isAuthError = json.errors.some((error) =>
-      /unauthorized|forbidden|auth/i.test(error.errorType ?? '')
-    );
+    const isAuthError = json.errors.some((error) => isRefusalErrorType(error.errorType));
 
     if (isAuthError) throw new ListTeamsAuthError('GraphQL authorization error');
 
@@ -121,7 +121,12 @@ async function listTeamsRequest(
       name: team.name,
       projectCount: team.projectsCount,
       role: team.role,
-      ...(team.featureFlags && { featureFlags: { scenes: team.featureFlags.scenes === true } }),
+      ...(team.featureFlags && {
+        featureFlags: {
+          scenes: team.featureFlags.scenes === true,
+          agentSkills: team.featureFlags.agentSkills === true,
+        },
+      }),
     })),
   };
 }

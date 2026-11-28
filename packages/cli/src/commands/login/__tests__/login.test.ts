@@ -156,8 +156,9 @@ describe('sherlo login', () => {
 
       expect(refusals).toEqual([]);
       expect(unusedCalls).toEqual([]);
-      expect(plain(screen)).toContain('ERROR: The login expired');
-      expect(plain(screen)).toContain('Nobody clicked Authorize in time.');
+      expect(plain(screen)).toContain(
+        'ERROR: The login link expired before anyone clicked Authorize.'
+      );
       expect(plain(screen)).toContain('Run `npx sherlo login` to start a new one.');
       expect(exitCode).toBe(1);
     }

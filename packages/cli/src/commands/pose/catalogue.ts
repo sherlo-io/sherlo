@@ -28,30 +28,49 @@ export type CataloguedPose = {
   name: string;
   posePath: string;
   screenPath: string;
+  /**
+   * `<name>.log.txt` beside an init pose: the log an AI agent reads when it runs the same setup
+   * (no terminal, `CLAUDECODE` set), committed so that reader's words are reviewed too. Null for
+   * every other command, whose agent log is not drawn.
+   */
+  agentLogPath: string | null;
 };
+
+/** Who reads a rendered pose: a person at a terminal, or an AI agent reading a pipe. */
+export type PoseReader = 'person' | 'agent';
 
 /** Every pose under `poses/`, in a stable order so two runs list them the same way. */
 export function catalogue(root: string = POSES_ROOT): CataloguedPose[] {
   return findPoseFiles(root)
     .sort()
-    .map((posePath) => ({
-      name: path.relative(root, posePath).replace(/\.pose\.json$/, ''),
-      posePath,
-      screenPath: posePath.replace(/\.pose\.json$/, '.txt'),
-    }));
+    .map((posePath) => {
+      const name = path.relative(root, posePath).replace(/\.pose\.json$/, '');
+      return {
+        name,
+        posePath,
+        screenPath: posePath.replace(/\.pose\.json$/, '.txt'),
+        agentLogPath: name.startsWith(`init${path.sep}`)
+          ? posePath.replace(/\.pose\.json$/, '.log.txt')
+          : null,
+      };
+    });
 }
 
 /**
- * The bytes one pose renders: the whole screen, then the exit code on a line of its own.
+ * The bytes one pose renders for its reader: the whole screen, then the exit code on a line of
+ * its own. The agent's run is the same pose with `CLAUDECODE` set, as Claude Code sets it, and no
+ * terminal.
  *
  * THE EXIT CODE IS PART OF THE COMMITTED BYTES. A screen that stayed the same while its exit code
  * changed from 0 to 1 is a product change of exactly the kind a CI notices and a reader does not,
  * so it is written where a reader cannot miss it rather than kept in a second file.
  */
-export async function renderPose(posePath: string): Promise<string> {
-  const { screen, exitCode, refusals } = await runPose(
-    readPoseDocument(fs.readFileSync(posePath, 'utf8'))
-  );
+export async function renderPose(posePath: string, reader: PoseReader = 'person'): Promise<string> {
+  const pose = readPoseDocument(fs.readFileSync(posePath, 'utf8'));
+  const { screen, exitCode, refusals } =
+    reader === 'agent'
+      ? await runPose({ ...pose, env: { ...pose.env, CLAUDECODE: '1' } }, { terminal: false })
+      : await runPose(pose);
 
   const refusalBlock = refusals.length > 0 ? formatRefusals(refusals) : '';
 

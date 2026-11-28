@@ -49,12 +49,17 @@ export const SHERLO_TEMP_DATA_FILENAME = 'data.json';
 /* PACKAGES */
 
 export const EXPO_PACKAGE_NAME = 'expo';
+export const EXPO_ROUTER_PACKAGE_NAME = 'expo-router';
 export const REACT_NATIVE_PACKAGE_NAME = 'react-native';
 export const SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME = '@sherlo/react-native-storybook';
 export const STORYBOOK_REACT_NATIVE_PACKAGE_NAME = '@storybook/react-native';
+/** The how-to for writing stories, shipped in the SDK, so its path holds wherever the app is. */
+export const WRITING_STORIES_GUIDE = `node_modules/${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}/guides/writing-stories.md`;
 
-export const MIN_REACT_NATIVE_VERSION = '0.81.0';
-export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '8.0.0';
+/** The first React Native that runs only on the New Architecture; Expo SDK 55 is the first Expo on it. */
+export const MIN_REACT_NATIVE_VERSION = '0.82.0';
+export const MIN_EXPO_SDK = 55;
+export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '9.0.0';
 
 /* COMMANDS */
 

@@ -39,8 +39,6 @@ describe('setup checks the project it runs in', () => {
     writePackageJson({ workspaces: ['packages/*'] });
     const { default: validateProjectContext } = await import('../validateProjectContext');
 
-    await expect(validateProjectContext()).rejects.toThrow(
-      'Init command must be run inside a React Native project, not in monorepo root'
-    );
+    await expect(validateProjectContext()).rejects.toThrow('This folder is a monorepo root');
   });
 });

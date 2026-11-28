@@ -1,0 +1,50 @@
+
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+    [93m.[39m[93md[39m[93m8[39m[93m8[39m[93m8[39m[93m8[39m[93mb[39m  [93m8[39m[93m8[39m[93m8[39m [93m8[39m[93mb[39m[93m.[39m   [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m [97m8[39m[97m8[39m[97m8[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  
+    [97m8[39m[97m8[39m[97mK[39m      [97m8[39m[97m8[39m[97m8[39m [97m"[39m[97m8[39m[97m8[39m[97mb[39m [97md[39m[97m8[39m[97mP[39m  [97mY[39m[97m8[39m[97mb[39m [97m8[39m[97m8[39m[97m8[39m[97m"[39m    [97m8[39m[97m8[39m[97m8[39m [97md[39m[97m8[39m[97m8[39m[97m"[39m[97m"[39m[97m8[39m[97m8[39m[97mb[39m 
+    [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mb[39m[96m.[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m 
+         [96mX[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96mb[39m[96m.[39m     [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96m8[39m[96m.[39m[96m.[39m[96m8[39m[96m8[39m[96mP[39m 
+    [96m'[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mP[39m[96m'[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96mP[39m[96m"[39m
+
+[2m[3mMake sure your mobile app looks perfect on every device[23m[22m
+
+Setting up Sherlo...
+
+[32m✔[39m Checked the app        [2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>[22m
+[32m✔[39m Logged in              [2manna@example.com[22m
+[32m✔[39m Using team             [2mAnna's team[22m
+[32m✔[39m Using project          [2mAcme Shop[22m
+[32m✔[39m Created config         [2msherlo.config.json[22m [2m(already done)[22m
+[32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook <SHERLO_VERSION>[22m [2m(already done)[22m
+[32m✔[39m Updated Metro config   [2mmetro.config.js[22m [2m(already done)[22m
+[32m✔[39m Added GitHub workflow  [2m.github/workflows/sherlo.yml[22m [2m(already done)[22m
+
+
+[1m👉 Next steps[22m
+[2m═════════════[22m
+
+[1m1. Let Sherlo open Storybook[22m
+   Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it. Pick one:
+
+   [1ma) Entry-point swapping (Storybook's default, recommended)[22m
+      In .rnstorybook/index.ts, below StorybookUIRoot, add:
+        [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
+        [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
+
+   [1mb) In-app integration[22m
+      At the top of your root component's file, add:
+        [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
+        [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m [2m// path from App.tsx[22m
+      Make this your root component's file's default export, with your root component in place of YourApp:
+        [35mexport[39m [35mdefault[39m [35mfunction[39m [32mAppOrStorybook[39m[2m([22m[34mprops[39m[2m:[22m any[2m)[22m [2m{[22m
+          [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
+          [35mreturn[39m [2m<[22m[33mYourApp[39m [2m{...[22mprops[2m}[22m [2m/>;[22m
+        [2m}[22m
+      If your default export wraps your root component in a call (like Sentry.wrap), wrap AppOrStorybook in it instead.
+
+[1m2. Run your first visual test[22m
+   [36mnpx sherlo test[39m
+
+[exit 0]

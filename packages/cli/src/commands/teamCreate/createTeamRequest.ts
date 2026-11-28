@@ -13,6 +13,7 @@
  */
 import fetch from 'node-fetch';
 import type { TeamCreated } from '../../render/teamCreated';
+import { isRefusalErrorType } from '../../seams/serviceRefusedToken';
 
 /** Bounded so a hung endpoint cannot leave the command waiting forever. */
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -94,9 +95,7 @@ async function createTeamRequest(
   };
 
   if (json.errors?.length) {
-    const isAuthError = json.errors.some((error) =>
-      /unauthorized|forbidden|auth/i.test(error.errorType ?? '')
-    );
+    const isAuthError = json.errors.some((error) => isRefusalErrorType(error.errorType));
 
     if (isAuthError) throw new CreateTeamAuthError('GraphQL authorization error');
 

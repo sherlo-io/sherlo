@@ -1,26 +1,18 @@
-import chalk from 'chalk';
-import { FULL_INIT_COMMAND, REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
+import { REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { throwError } from '../../../helpers';
+import { renderNoReactNative } from '../../../render/initFixes';
 import findPackageJsonPaths from './findPackageJsonPaths';
 import hasDependency from './hasDependency';
 
+/**
+ * The app's OWN package.json lists react-native: React Native's autolinking reads that file, and a
+ * monorepo root that lists it would let any workspace in the repository pass for an app.
+ */
 async function validateHasReactNative(): Promise<void> {
-  const { current, monorepoRoot } = await findPackageJsonPaths();
+  const { current } = await findPackageJsonPaths();
 
-  const hasReactNative =
-    (await hasDependency(current, REACT_NATIVE_PACKAGE_NAME)) ||
-    (await hasDependency(monorepoRoot, REACT_NATIVE_PACKAGE_NAME));
-
-  if (!hasReactNative) {
-    throwError({
-      message:
-        `\`${REACT_NATIVE_PACKAGE_NAME}\` package is not installed\n` +
-        '\n' +
-        chalk.reset('Please install it using your package manager\n') +
-        '\n' +
-        chalk.reset('Then re-run:\n') +
-        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
-    });
+  if (!(await hasDependency(current, REACT_NATIVE_PACKAGE_NAME))) {
+    throwError(renderNoReactNative());
   }
 }
 

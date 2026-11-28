@@ -23,7 +23,7 @@ Sent with it, tokens and keys blanked out:
   Project: not known
   Devices: not known
   Sherlo SDK: not known
-  Sherlo CLI: <VERSION>
+  Sherlo CLI: <SHERLO_VERSION>
   React Native: not known
   Expo: not known
   Storybook: not known
