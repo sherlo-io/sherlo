@@ -66,11 +66,11 @@ describe('the local device', () => {
         os: 'Android 13',
       });
 
-      writeConfig('pixel_7', 34);
+      writeConfig('pixel_7', 35);
       expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5554' })).toEqual({
         local: true,
         model: 'pixel_7',
-        os: 'Android 14',
+        os: 'Android 15',
       });
     } finally {
       fs.rmSync(avdHome, { recursive: true, force: true });
