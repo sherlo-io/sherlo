@@ -6,7 +6,11 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { filesTheInstallChanged, readPodTouchedFiles } from '../podTouchedFiles';
+import {
+  filesTheInstallChanged,
+  podInstallFailureLines,
+  readPodTouchedFiles,
+} from '../podTouchedFiles';
 
 let projectRoot: string;
 
@@ -71,5 +75,38 @@ describe('telling which files an install changed', () => {
       changed: [],
       changedInTheApp: [],
     });
+  });
+});
+
+describe('what a failed pod install prints', () => {
+  it("a failed pod install prints the lines that follow CocoaPods' error heading", () => {
+    const logLines = [
+      'Analyzing dependencies',
+      '',
+      '[!] Invalid `Podfile` file:',
+      'undefined local variable or method `foo` for main:Object.',
+      ' #  from /app/ios/Podfile:12',
+      '',
+      'Unrelated later output',
+    ];
+    const lines = podInstallFailureLines({ command: 'pod install', exitCode: 1, logLines });
+
+    expect(lines).toEqual([
+      'The pod install step failed: `pod install` exited with 1.',
+      '[!] Invalid `Podfile` file:',
+      'undefined local variable or method `foo` for main:Object.',
+      '#  from /app/ios/Podfile:12',
+    ]);
+  });
+
+  it('a failed pod install keeps at most eight lines under the error heading', () => {
+    const logLines = [
+      '[!] Invalid `Podfile` file:',
+      ...Array.from({ length: 12 }, (_, index) => `line ${index + 1}`),
+    ];
+    const lines = podInstallFailureLines({ command: 'pod install', logLines });
+
+    expect(lines).toHaveLength(1 + 1 + 8);
+    expect(lines[9]).toBe('line 8');
   });
 });

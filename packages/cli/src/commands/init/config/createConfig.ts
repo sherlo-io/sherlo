@@ -1,16 +1,17 @@
 import { renderConfigWritten } from '../../../render/initConfig';
 import { InvalidatedConfig } from '../../../types';
 import { printLines } from '../helpers';
-import { DEFAULT_DEVICES } from './constants';
+import { defaultDevicesFor } from './constants';
 import writeConfig from './writeConfig';
 
 /** A new config: the project and the default devices. Never a token - the file is committed. */
 async function createConfig(
   project: string
 ): Promise<{ createdConfig: InvalidatedConfig; hasAddedDefaultDevices: boolean }> {
+  const devices = await defaultDevicesFor();
   const config = {
     project,
-    devices: DEFAULT_DEVICES,
+    devices,
   };
 
   await writeConfig(config);
@@ -19,7 +20,7 @@ async function createConfig(
     renderConfigWritten({
       outcome: 'created',
       project,
-      addedDevices: DEFAULT_DEVICES,
+      addedDevices: devices,
     })
   );
 

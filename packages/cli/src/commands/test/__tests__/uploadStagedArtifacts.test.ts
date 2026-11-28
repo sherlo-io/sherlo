@@ -61,7 +61,13 @@ beforeEach(() => {
   vi.spyOn(fs, 'readFileSync').mockReturnValue(Buffer.from('BUNDLE_BYTES'));
 });
 
+/** A failed upload waits before each new try: a test of a failure fakes the clock to wait no real time. */
+function fakeTheWaits() {
+  vi.useFakeTimers({ toFake: ['setTimeout'] });
+}
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -120,6 +126,7 @@ describe('module manifest upload (SHERLO-1894)', () => {
   });
 
   it('BAIL-OPEN: manifest upload errors -> WARNING, no manifestS3Key, build NOT failed', async () => {
+    fakeTheWaits();
     // jsBundle succeeds; every manifest PUT rejects (exhausting retries).
     mockFetch.mockImplementation((url: string) => {
       if (url === MANIFEST_URL) return Promise.reject(new Error('network down'));
@@ -127,11 +134,13 @@ describe('module manifest upload (SHERLO-1894)', () => {
     });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const keys = await uploadStagedArtifacts({
+    const pending = uploadStagedArtifacts({
       platform: 'ios',
       bundleResult: bundleResult({ moduleManifest: manifest() }),
       urls: urls(true),
     });
+    await vi.runAllTimersAsync();
+    const keys = await pending;
 
     // jsBundle key is still returned; the manifest failure did not propagate.
     expect(keys.jsBundleS3Key).toBe('js-key');
@@ -143,16 +152,35 @@ describe('module manifest upload (SHERLO-1894)', () => {
   });
 
   it('a jsBundle upload failure is NOT bailed open (still a hard error)', async () => {
+    fakeTheWaits();
     mockFetch.mockRejectedValue(new Error('network down'));
     vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await expect(
+    const failing = expect(
       uploadStagedArtifacts({
         platform: 'ios',
         bundleResult: bundleResult({ moduleManifest: manifest() }),
         urls: urls(true),
       })
     ).rejects.toThrow();
+    await vi.runAllTimersAsync();
+    await failing;
+  });
+
+  it('a failed staged upload never puts the upload link in its error', async () => {
+    fakeTheWaits();
+    mockFetch.mockRejectedValue(new Error(`request to ${JS_BUNDLE_URL} failed, reason: reset`));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const failing = uploadStagedArtifacts({
+      platform: 'ios',
+      bundleResult: bundleResult({ moduleManifest: manifest() }),
+      urls: urls(true),
+    }).catch((error: Error & { cause?: unknown }) => `${error.message} ${error.cause}`);
+    await vi.runAllTimersAsync();
+
+    expect(await failing).not.toContain(JS_BUNDLE_URL);
   });
 });
 

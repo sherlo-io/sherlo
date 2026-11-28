@@ -3,6 +3,7 @@
  * is committed.
  *
  * One Android phone, so the first test needs one build, on any machine: an iPhone needs a Mac.
+ * An app whose lowest Android is above 13 gets an Android 14 phone instead.
  * A file that already names this project and has devices is left as it is.
  *
  * Still to do: the field becomes `projectId`, in every reader of the config.
@@ -12,7 +13,7 @@ import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
 import { renderConfigLine } from '../../../render/initSteps';
 import { InvalidatedConfig } from '../../../types';
 import { printLines, refuseFileAccess, trackProgress } from '../helpers';
-import { DEFAULT_DEVICES, EVENT } from './constants';
+import { defaultDevicesFor, EVENT } from './constants';
 import getConfigPath from './getConfigPath';
 import hasConfigFile from './hasConfigFile';
 import readConfig from './readConfig';
@@ -44,10 +45,11 @@ async function config({
       return;
     }
 
+    const defaultDevices = hasDevices ? [] : await defaultDevicesFor();
     const newConfig = {
       ...existingConfig,
       project,
-      devices: hasDevices ? existingConfig!.devices : DEFAULT_DEVICES,
+      devices: hasDevices ? existingConfig!.devices : defaultDevices,
     };
     await writeConfig(newConfig).catch((error: unknown) =>
       refuseFileAccess({
@@ -63,7 +65,7 @@ async function config({
         outcome: 'done',
         existed: !!existingConfig,
         file: DEFAULT_CONFIG_FILENAME,
-        addedDevices: hasDevices ? [] : DEFAULT_DEVICES.map(({ id }) => DEVICES[id].displayName),
+        addedDevices: defaultDevices.map(({ id }) => DEVICES[id].displayName),
       }),
     ]);
 

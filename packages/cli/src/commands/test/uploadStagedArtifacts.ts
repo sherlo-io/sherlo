@@ -20,12 +20,10 @@ import { Platform, StagedPlatformUploadUrls, StagedPresignedUploadUrl } from '@s
 import { PLATFORM_LABEL } from '../../constants';
 import logWarning from '../../helpers/logWarning';
 import reporting from '../../helpers/reporting';
-import throwError from '../../helpers/throwError';
+import { putWithRetries } from '../../helpers/uploadOrPrintBinaryReuse/uploadBuild';
 import { nativeBuild } from '../../seams/nativeBuild';
 import type { PhoneSide } from '../../seams/phoneSide';
 import type { BundleResult } from './buildBundle';
-
-const MAX_RETRIES = 3;
 
 export type StagedUploadKeys = {
   jsBundleS3Key: string;
@@ -181,31 +179,12 @@ export async function putBuffer({
     level: 'info',
   });
 
-  let attempt = 0;
-  while (attempt < MAX_RETRIES) {
-    try {
-      // The machine IN FORCE, not a fetch of its own - a posed run installs its own
-      // (../../seams/nativeBuild), so a posed sim/staged upload sends nothing real.
-      const response = await nativeBuild().putBinary(uploadUrl, buffer);
-
-      if (!response.ok) {
-        const responseText = await response.text();
-        throw new Error(`Server responded with ${response.status}: ${responseText}`);
-      }
-
-      return;
-    } catch (error: any) {
-      attempt++;
-
-      if (attempt === MAX_RETRIES) {
-        throwError({
-          type: 'unexpected',
-          error: new Error(
-            `Failed to upload ${PLATFORM_LABEL[platform]} ${label} after ${MAX_RETRIES} attempts. ` +
-              `Last error (${error.code}): ${error.message}`
-          ),
-        });
-      }
-    }
-  }
+  // The machine IN FORCE, not a fetch of its own - a posed run installs its own
+  // (../../seams/nativeBuild), so a posed sim/staged upload sends nothing real.
+  await putWithRetries({
+    what: `${PLATFORM_LABEL[platform]} ${label}`,
+    uploadUrl,
+    buildData: buffer,
+    effects: { putBinary: (url, data) => nativeBuild().putBinary(url, data) },
+  });
 }

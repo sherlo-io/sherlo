@@ -160,6 +160,9 @@ export type Workstation = {
    */
   storybookLoader(projectRoot: string): StorybookLoader;
 
+  /** The app's resolved Expo config as JSON text, from Expo's own command; rejects when it fails. */
+  readExpoConfig(projectRoot: string): Promise<string>;
+
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
 
@@ -314,6 +317,9 @@ export const liveWorkstation: Workstation = {
 
   storybookLoader: (projectRoot) =>
     createRequire(path.join(projectRoot, 'package.json'))('storybook/internal/common'),
+
+  readExpoConfig: (projectRoot) =>
+    runShellCommand({ command: 'npx expo config --json --type public', projectRoot }),
 
   /**
    * Is there a human at the keyboard who could actually press Enter? `isTTY` alone is not enough:
@@ -688,6 +694,9 @@ export function posedWorkstation(
     // A posed project has no installed packages, so the pose's main config is loaded by the
     // Storybook this repository installs: the same loader, reading the pose's real files.
     storybookLoader: () => createRequire(__filename)('storybook/internal/common'),
+
+    // A pose runs no Expo command: init then keeps today's devices.
+    readExpoConfig: () => Promise.reject(new Error('the pose runs no Expo command')),
 
     // A pose that says Enter was pressed or the terminal closed says somebody was asked, so the
     // prompt prints and `enter` below decides what they did. `nobody` is the run with no keyboard
