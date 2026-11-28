@@ -10,6 +10,12 @@ export const CAPTURED_STORY: StoryOfDiffScope = {
   record: {
     reason: 'looksDifferent',
     test: 7,
+    outcome: 'captured',
+    verdictCause: 'nativeCallNotInRecording',
+    unansweredReads: [
+      { kind: 'not in the recording', count: 2 },
+      { kind: 'blind road', count: 1 },
+    ],
     comparedWithTest: 6,
     changedFiles: ['src/Button.tsx'],
     reachedThrough: ['src/Button.stories.tsx', 'src/Button.tsx'],
@@ -35,6 +41,7 @@ export const REUSED_STORY: StoryOfDiffScope = {
   record: {
     reason: 'looksSame',
     test: 7,
+    outcome: 'reused',
     comparedWithTest: 6,
     changedFiles: [],
     checks: [

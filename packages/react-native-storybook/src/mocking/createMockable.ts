@@ -7,29 +7,21 @@ import {
   resolveMockExports,
 } from './registry';
 import { recordThrownByStandIn } from './mockDeclaration';
-import { hasOwn, isObjectOrFunction, overlay, writeUndoably } from './overlay';
+import {
+  callableTarget,
+  descriptionTargetAllows,
+  hasOwn,
+  isObjectOrFunction,
+  keysTargetAllows,
+} from '../safeWrapping';
+import { overlay, writeUndoably } from './overlay';
 import { ModuleExports, MOCKED_MODULE_KEY } from './types';
 
-// A Proxy must keep every non-configurable own key of its target in its ownKeys answer and report
-// that key's real descriptor, or the engine throws. The stand-in targets below are meant to own
-// no such key, but a runtime may give one, so both shims stay honest about whatever their target
-// fixes.
-const fixedKeysOf = (target: ModuleExports): Array<string | symbol> =>
-  Reflect.ownKeys(target).filter(
-    (key) => !Reflect.getOwnPropertyDescriptor(target, key)?.configurable
-  );
-
-// The descriptor a shim reports for `prop`: the target's own when it is fixed there, else the
-// wanted one claimed configurable (the targets hold nothing, so a configurable claim is legal).
-function reportDescriptor(
-  target: ModuleExports,
-  prop: PropertyKey,
-  wanted: PropertyDescriptor | undefined
-): PropertyDescriptor | undefined {
-  const own = Reflect.getOwnPropertyDescriptor(target, prop);
-  if (own && !own.configurable) return own;
-  return wanted && { ...wanted, configurable: true };
-}
+// A Proxy must keep every fixed own key of its target in its ownKeys answer and report that key's
+// real descriptor, or the engine throws. The stand-in targets below are meant to own no such key,
+// but a runtime may give one, so both shims report keys and descriptions as their target allows
+// (../safeWrapping): a key the target fixes as it has it, any other as wanted, claimed
+// configurable (the targets hold nothing, so a configurable claim is legal).
 
 // A fixed property cannot be promised: the stand-in holds nothing, so it is refused by name.
 function refuseFixedProperty(key: string, prop: PropertyKey, descriptor: PropertyDescriptor): void {
@@ -49,12 +41,11 @@ function refuseFixedProperty(key: string, prop: PropertyKey, descriptor: Propert
 // Primitive defaults (string, number, ...) cannot be forwarded, so they are served as they are.
 function createForwardingDefault(key: string, realModule: ModuleExports): ModuleExports {
   const realDefault = realModule.default as ModuleExports;
-  // A callable default needs a callable target (a bound function, as for the shim delegate in
-  // createMockable); an object default gets a plain object so it still compares like one.
+  // A callable default needs a callable target; an object default gets a plain object so it still
+  // compares like one.
   const delegate =
     typeof realDefault === 'function'
-      ? // eslint-disable-next-line no-extra-bind
-        (function sherloDefaultDelegate() {}.bind(null) as unknown as ModuleExports)
+      ? (callableTarget(realDefault) as unknown as ModuleExports)
       : {};
 
   const activeDefault = (): ModuleExports => {
@@ -67,10 +58,13 @@ function createForwardingDefault(key: string, realModule: ModuleExports): Module
   return new Proxy(delegate, {
     get: (_target, prop) => activeDefault()[prop],
     has: (_target, prop) => prop in activeDefault(),
-    ownKeys: (target) =>
-      Array.from(new Set([...Reflect.ownKeys(activeDefault()), ...fixedKeysOf(target)])),
+    ownKeys: (target) => keysTargetAllows(target, Reflect.ownKeys(activeDefault())),
     getOwnPropertyDescriptor: (target, prop) =>
-      reportDescriptor(target, prop, Reflect.getOwnPropertyDescriptor(activeDefault(), prop)),
+      descriptionTargetAllows(
+        target,
+        prop,
+        Reflect.getOwnPropertyDescriptor(activeDefault(), prop)
+      ),
     // Writes land on the active default object itself (its own methods read `this`, so an
     // override layer beside it would never be seen by them) and are undone when the story ends.
     set: (_target, prop, value) =>
@@ -201,14 +195,9 @@ function buildMockable<T extends ModuleExports>(
   // mockable at runtime. Read by the FG-03 declared-but-unshimmed tripwire.
   registerShimmedKey(key);
 
-  // A BOUND function, deliberately. It is callable AND constructable (so the apply/construct
-  // traps are valid) yet - unlike a plain function - it has no own `prototype` property. A plain
-  // function's `prototype` is a NON-configurable own property, which the ownKeys and
-  // getOwnPropertyDescriptor traps below would then be forced to report (or would illegally hide),
-  // tripping the Proxy invariants. A bound function's only own props (`length`, `name`) are
-  // configurable, so hiding them is legal and the trap behavior stays identical to a plain object.
-  // eslint-disable-next-line no-extra-bind
-  const delegate = function sherloMockableDelegate() {}.bind(null) as unknown as ModuleExports;
+  // Callable, so the apply and construct traps are valid, and owning no fixed key, so the ownKeys
+  // and getOwnPropertyDescriptor traps below behave as on a plain object.
+  const delegate = callableTarget() as unknown as ModuleExports;
 
   // Made on the first read of `default`, once the real module is in hand.
   let forwardingDefault: ModuleExports | undefined;
@@ -267,12 +256,11 @@ function buildMockable<T extends ModuleExports>(
         Reflect.ownKeys(mock).forEach((mockKey) => keys.add(mockKey));
       }
       getOverrides(key)?.forEach((_descriptor, written) => keys.add(written as string | symbol));
-      fixedKeysOf(target).forEach((fixed) => keys.add(fixed));
-      return Array.from(keys);
+      return keysTargetAllows(target, Array.from(keys));
     },
 
     getOwnPropertyDescriptor: (target, prop) =>
-      reportDescriptor(target, prop, currentDescriptor(prop)),
+      descriptionTargetAllows(target, prop, currentDescriptor(prop)),
 
     // Writes. The delegate target must never receive one: a plain set would define the property on
     // it as non-configurable, and the traps above would then contradict it (every later read or

@@ -1,5 +1,6 @@
 import { ModuleMockDeclaration } from './mockDeclaration';
 import { MockDefinition } from './types';
+import { installReplacement, restoreOriginal } from './replacedGlobals';
 
 // No real module is ever imported under this key, so a random declaration can never collide
 // with a module mock - it rides the same declaration channel `mock` uses, then activateStoryMocks
@@ -25,8 +26,6 @@ export function mockRandom(seed: number): ModuleMockDeclaration {
   };
 }
 
-let realRandom: (() => number) | undefined;
-
 // mulberry32 - a small, fast seeded generator. Re-seeding it from the same seed always
 // reproduces the same sequence, which is the whole point of naming one.
 function mulberry32(seed: number): () => number {
@@ -41,13 +40,10 @@ function mulberry32(seed: number): () => number {
 
 // Replaces Math.random with a generator seeded from `seed`, re-seeding it on every activation.
 export function installRandom(seed: number): void {
-  realRandom = realRandom ?? Math.random;
-  Math.random = mulberry32(seed);
+  installReplacement(Math, 'random', mulberry32(seed));
 }
 
 // Restores the real Math.random, if a seed was ever installed.
 export function restoreRandom(): void {
-  if (!realRandom) return;
-  Math.random = realRandom;
-  realRandom = undefined;
+  restoreOriginal(Math, 'random');
 }

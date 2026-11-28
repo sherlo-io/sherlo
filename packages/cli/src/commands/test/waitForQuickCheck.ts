@@ -4,8 +4,10 @@
  * status until no platform is running one, then prints the test's row and the lines under it from
  * the finished answer.
  *
- * It waits for no more than {@link QUICK_CHECK_WAIT_LIMIT_SECONDS}; a quick check still running
- * then is the service's to finish, and the row prints from the last answer it gave.
+ * It ends only when no platform runs a quick check or {@link QUICK_CHECK_WAIT_LIMIT_SECONDS} is
+ * reached, never on one failed or timed-out read: that read is asked again on the next turn, as
+ * the wait for the result does. A quick check still running at the limit is the service's to
+ * finish, and the row prints from the last answer it gave.
  */
 import type { Platform } from '@sherlo/api-types';
 import type { BuildStatus } from '../../helpers/buildStatusRequest';
@@ -27,8 +29,8 @@ const SECONDS_BETWEEN_ASKS = 3;
 /**
  * Asks for the test's status until no platform runs a quick check, and returns the last answer.
  * Returns at once, showing nothing and asking nothing, when the open answer names no platform
- * running a quick check (`NOT_NEEDED`, or no field). A read that fails ends the wait: the row then
- * prints from what the open answer said.
+ * running a quick check (`NOT_NEEDED`, or no field). A read that fails is asked again on the next
+ * turn; only the limit ends the wait then, and the row prints from what the open answer said.
  */
 export async function waitForQuickCheck({
   openBuildReturn,
@@ -63,8 +65,10 @@ export async function waitForQuickCheck({
               boundedRead: true,
             })) ?? lastAnswer;
         } catch {
-          // The row is cosmetic beside the run itself: a read that fails ends the wait, never the test.
-          return lastAnswer;
+          // A bounded read that fails or times out is a network blip, as in the wait for the
+          // result: the quick check may still finish in time, so it is asked again after the sleep.
+          await sleepBeforeNextAsk(waitedSeconds);
+          continue;
         }
         // A check that cleared every story is followed by the service's close, which may land a
         // moment later (the status reads inProgress meanwhile): keep asking until the test is finished.
@@ -74,14 +78,18 @@ export async function waitForQuickCheck({
           ) ||
           (quickCheckClearedEveryStory(lastAnswer) && lastAnswer?.runStatus !== 'finished');
         if (!stillRunning) return lastAnswer;
-        // The last ask is the limit's: nothing is slept after it.
-        if (waitedSeconds + SECONDS_BETWEEN_ASKS < QUICK_CHECK_WAIT_LIMIT_SECONDS) {
-          await surroundings().sleep(SECONDS_BETWEEN_ASKS * 1000);
-        }
+        await sleepBeforeNextAsk(waitedSeconds);
       }
       return lastAnswer;
     }
   );
+}
+
+/** The last ask is the limit's: nothing is slept after it. */
+async function sleepBeforeNextAsk(waitedSeconds: number): Promise<void> {
+  if (waitedSeconds + SECONDS_BETWEEN_ASKS < QUICK_CHECK_WAIT_LIMIT_SECONDS) {
+    await surroundings().sleep(SECONDS_BETWEEN_ASKS * 1000);
+  }
 }
 
 /**

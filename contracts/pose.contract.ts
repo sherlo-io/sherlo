@@ -285,10 +285,21 @@ export type ScriptedCall =
                 /** What stood in the way of the quick check. */
                 obstacles?: Array<{
                   cause: string;
-                  name?: string | null;
                 }> | null;
+                /**
+                 * What became of the story on the device: `captured` or `reused`. Absent when none is
+                 * stored.
+                 */
+                outcome?: string | null;
                 /** The chain of files the change reaches the story through. */
                 reachedThrough?: string[] | null;
+                /** The reads the quick check could not answer, counted by kind, in the order first met. */
+                unansweredReads?: Array<{
+                  count: number;
+                  kind: string;
+                }> | null;
+                /** The code of the cause of the device's verdict. Absent when none is stored. */
+                verdictCause?: string | null;
                 wholeTestFile?: string | null;
                 wholeTestReason?: string | null;
               } | null;

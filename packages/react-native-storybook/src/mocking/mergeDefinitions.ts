@@ -1,3 +1,4 @@
+import { hasOwn } from '../safeWrapping';
 import { MockDefinition, MockSet, ModuleExports } from './types';
 
 /** An object a story wrote as a literal: its parts can be merged, where a class instance's cannot. */
@@ -16,7 +17,7 @@ function mergeParts(earlier: unknown, later: unknown): unknown {
   [earlier, later].forEach((fake) =>
     Reflect.ownKeys(fake).forEach((key) => {
       const descriptor = Object.getOwnPropertyDescriptor(fake, key) as PropertyDescriptor;
-      const named = Object.prototype.hasOwnProperty.call(merged, key);
+      const named = hasOwn(merged, key);
       Object.defineProperty(
         merged,
         key,

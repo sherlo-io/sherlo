@@ -1,5 +1,6 @@
 import { DeviceEventEmitter } from 'react-native';
 import { socketVerdictFor } from './networkRules';
+import { installReplacement, restoreOriginal } from './replacedGlobals';
 
 /**
  * THE WEBSOCKET HALF OF THE INTERCEPTOR - held below the JavaScript class, at the native module
@@ -14,8 +15,9 @@ import { socketVerdictFor } from './networkRules';
  *
  * The module object is one shared JavaScript object in both architectures: the legacy bridge's
  * NativeModules entry, or a TurboModule's cached JS representation (a plain object whose prototype
- * is the host object). `Object.defineProperty` gives it an own `connect` and `close`; with no
- * story's mocks in effect they call the real ones, so the socket is exactly the app's own.
+ * is the host object). The replacing helper (./replacedGlobals) gives it an own `connect` and
+ * `close`; with no story's mocks in effect they call the real ones, so the socket is exactly the
+ * app's own.
  *
  * A held socket stays in the app's own class, CONNECTING; it never reaches the network.
  */
@@ -81,18 +83,10 @@ export function holdNativeSockets(
     DeviceEventEmitter.emit('websocketClosed', { id: socketId, code, reason });
   }
 
-  replaceCall(nativeSockets, 'connect', connect);
-  replaceCall(nativeSockets, 'close', close);
+  installReplacement(nativeSockets, 'connect', connect);
+  installReplacement(nativeSockets, 'close', close);
   return () => {
-    replaceCall(nativeSockets, 'connect', realConnect);
-    replaceCall(nativeSockets, 'close', realClose);
+    restoreOriginal(nativeSockets, 'connect');
+    restoreOriginal(nativeSockets, 'close');
   };
-}
-
-/**
- * An own property, defined rather than assigned: assigning to a TurboModule's JS representation a
- * name it has not cached yet would reach its host object prototype, which refuses writes.
- */
-function replaceCall(target: object, name: string, call: unknown): void {
-  Object.defineProperty(target, name, { value: call, writable: true, configurable: true });
 }

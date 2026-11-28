@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { builtPolyfillSource } from '../builtPolyfill';
 import { enterBundlingProcess } from '../bundlingProcess';
 
 const { getDefaultConfig } = require('metro-config');
@@ -149,11 +150,28 @@ export async function sherloMetroConfig(
     const baseConfig = await fixtureMetroConfig(root);
     const modulesOfLatestBuild = recordBundledModules(baseConfig);
     const config = withStorybook(baseConfig, storybookOptions);
+    servePolyfillAsBuilt(config, root);
     return { config, modulesOfLatestBuild };
   } finally {
     leaveBundlingProcess();
     process.chdir(savedCwd);
   }
+}
+
+/**
+ * Makes `config` serve Sherlo's polyfill as it ships, written into the fixture at `root`: Metro
+ * pastes a polyfill as its file holds it, and the SDK's source of it requires the rules it shares
+ * with the mock layer, which only the package's build inlines.
+ */
+function servePolyfillAsBuilt(config: any, root: string): void {
+  const sourcePath = path.join(PACKAGE_ROOT, 'metro/polyfill.js');
+  const builtPath = path.join(root, 'sherloPolyfill.js');
+  fs.writeFileSync(builtPath, builtPolyfillSource(), 'utf8');
+  const polyfillsOf = config.serializer.getPolyfills;
+  config.serializer.getPolyfills = (context: unknown): string[] =>
+    polyfillsOf(context).map((polyfill: string) =>
+      polyfill === sourcePath ? builtPath : polyfill
+    );
 }
 
 /**

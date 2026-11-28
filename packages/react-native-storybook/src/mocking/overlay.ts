@@ -1,14 +1,10 @@
+import { callableTarget, isObjectOrFunction } from '../safeWrapping';
+import { undoOfWrite } from './exactUndo';
 import { isPlainObject } from './mergeDefinitions';
 import { partialFake } from './mergeMocks';
 import { recordUndo } from './registry';
 import { staysReal } from './stillReal';
 import { ModuleExports } from './types';
-
-export const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
-  Object.prototype.hasOwnProperty.call(obj, prop);
-
-export const isObjectOrFunction = (value: unknown): value is ModuleExports =>
-  (typeof value === 'object' && value !== null) || typeof value === 'function';
 
 // Writes to a real object made while a story is active are undone when its mocks end; with no
 // story active the write stays, as it would without the shim.
@@ -17,14 +13,9 @@ export function writeUndoably(
   prop: PropertyKey,
   write: () => boolean
 ): boolean {
-  const before = Reflect.getOwnPropertyDescriptor(object, prop);
+  const undo = undoOfWrite(object, prop);
   const done = write();
-  if (done) {
-    recordUndo(() => {
-      if (before) Reflect.defineProperty(object, prop, before);
-      else Reflect.deleteProperty(object, prop);
-    });
-  }
+  if (done) recordUndo(undo);
   return done;
 }
 
@@ -88,12 +79,11 @@ function layerOver(fake: ModuleExports, real: () => unknown, realIsInHand: boole
   const partOf = (prop: PropertyKey) => (): unknown => realObject()?.[prop];
 
   // Callable when either side is: a Proxy carries `apply` and `construct` only on a callable target.
-  // A BOUND function, as in createMockable: it has no own `prototype`, so no fixed key to report.
   const callable =
     typeof fake === 'function' || (realIsInHand && typeof realObject() === 'function');
+  // The function wrapped: the fake when it is one, else the real, which is then in hand.
   const delegate = callable
-    ? // eslint-disable-next-line no-extra-bind
-      (function sherloLayerDelegate() {}.bind(null) as unknown as ModuleExports)
+    ? (callableTarget(typeof fake === 'function' ? fake : realObject()) as unknown as ModuleExports)
     : {};
 
   // A fake function's prototype is its own, even none: an arrow faking a class component must not

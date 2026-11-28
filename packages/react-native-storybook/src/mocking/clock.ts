@@ -1,5 +1,6 @@
 import { ModuleMockDeclaration } from './mockDeclaration';
 import { MockDefinition } from './types';
+import { appsOwn, installReplacement, restoreOriginal } from './replacedGlobals';
 
 // No real module is ever imported under this key, so a clock declaration can never collide
 // with a module mock - it rides the same declaration channel `mock` uses, then activateStoryMocks
@@ -25,16 +26,14 @@ export function mockClock(moment: string | number | Date): ModuleMockDeclaration
   };
 }
 
-let RealDate: DateConstructor | undefined;
 let frozenMoment: number;
 
 // Replaces global.Date with a subclass whose no-argument construction and Date.now() read the
 // frozen moment; construction with arguments still builds a real Date. The moment is stored once,
 // so it does not advance while the story is active.
 export function installClock(moment: string | number | Date): void {
-  RealDate = RealDate ?? global.Date;
-  frozenMoment = new RealDate(moment).getTime();
-  const OriginalDate = RealDate;
+  const OriginalDate = appsOwn(global, 'Date') as DateConstructor;
+  frozenMoment = new OriginalDate(moment).getTime();
 
   class FrozenDate extends OriginalDate {
     constructor(...args: unknown[]) {
@@ -51,12 +50,10 @@ export function installClock(moment: string | number | Date): void {
     }
   }
 
-  global.Date = FrozenDate as DateConstructor;
+  installReplacement(global, 'Date', FrozenDate);
 }
 
 // Restores the real Date, if a clock was ever installed.
 export function restoreClock(): void {
-  if (!RealDate) return;
-  global.Date = RealDate;
-  RealDate = undefined;
+  restoreOriginal(global, 'Date');
 }

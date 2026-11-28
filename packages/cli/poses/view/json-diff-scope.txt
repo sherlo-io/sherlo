@@ -72,6 +72,18 @@
           "record": {
             "reason": "looksDifferent",
             "test": 7,
+            "outcome": "captured",
+            "verdictCause": "nativeCallNotInRecording",
+            "unansweredReads": [
+              {
+                "kind": "not in the recording",
+                "count": 2
+              },
+              {
+                "kind": "blind road",
+                "count": 1
+              }
+            ],
             "comparedWithTest": 6,
             "changedFiles": [
               "Card.stories.tsx"
@@ -121,6 +133,7 @@
           "record": {
             "reason": "notReached",
             "test": 7,
+            "outcome": "reused",
             "comparedWithTest": 6,
             "changedFiles": [],
             "checks": [

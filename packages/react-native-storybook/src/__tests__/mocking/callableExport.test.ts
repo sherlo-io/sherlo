@@ -84,4 +84,16 @@ describe('createMockable - callable-export modules (B1)', () => {
     const instance = new Mockable();
     expect((instance as { kind: string }).kind).toBe('mock');
   });
+
+  it('carries the name and the length of the real function, read plainly or through its description', () => {
+    function realAdd(a: number, b: number) {
+      return a + b;
+    }
+    const mockable = createMockable('pkg/callable-named', realAdd as never) as typeof realAdd;
+    const described = (key: string) => Object.getOwnPropertyDescriptor(mockable, key)?.value;
+
+    expect([mockable.name, mockable.length]).toEqual(['realAdd', 2]);
+    expect([described('name'), described('length')]).toEqual(['realAdd', 2]);
+    expect([Function.prototype.bind.call(mockable, null).name]).toEqual(['bound realAdd']);
+  });
 });

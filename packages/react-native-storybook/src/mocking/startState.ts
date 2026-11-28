@@ -1,5 +1,6 @@
+import { hasOwn, isObjectOrFunction } from '../safeWrapping';
 import { isPlainObject } from './mergeDefinitions';
-import { hasOwn, isObjectOrFunction, writeUndoably } from './overlay';
+import { writeUndoably } from './overlay';
 import { DeepPartial, ModuleExports } from './types';
 
 /**

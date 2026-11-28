@@ -3,6 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { apiLevelOf, catalogDevice } from './catalogDevice';
 import { installDeviceState, posedDeviceState } from '../deviceState';
 import { readLocalDevice } from '../localDevice';
 
@@ -23,6 +24,9 @@ function simulatorOf(model: string, runtime: string) {
   });
 }
 
+const pixel7 = catalogDevice('pixel.7');
+const ipadAir = catalogDevice('ipad.air.11.m2');
+
 describe('the local device', () => {
   let undo: (() => void) | undefined;
   afterEach(() => {
@@ -31,22 +35,22 @@ describe('the local device', () => {
   });
 
   it('a simulator whose model and system Sherlo has is named by its Sherlo device', async () => {
-    undo = simulatorOf('iPad Air 11-inch (M2)', 'iOS-17-5');
+    undo = simulatorOf(ipadAir.emuName, `iOS-${ipadAir.held}-5`);
 
     const device = await readLocalDevice({ platform: 'ios', udid: 'SIM-1' });
 
-    expect(device).toEqual({ deviceId: expect.stringContaining('ipad'), os: 'iOS 17.5' });
+    expect(device).toEqual({ deviceId: 'ipad.air.11.m2', os: `iOS ${ipadAir.held}.5` });
   });
 
   it('a simulator Sherlo does not have is named by its model and system as a local simulator', async () => {
-    undo = simulatorOf('iPad Air 11-inch (M2)', 'iOS-18-2');
+    undo = simulatorOf(ipadAir.emuName, `iOS-${ipadAir.lacking}-2`);
 
     const device = await readLocalDevice({ platform: 'ios', udid: 'SIM-1' });
 
-    expect(device).toEqual({ local: true, model: 'iPad Air 11-inch (M2)', os: 'iOS 18.2' });
+    expect(device).toEqual({ local: true, model: ipadAir.emuName, os: `iOS ${ipadAir.lacking}.2` });
   });
 
-  it('an emulator is matched by its device name and API level', async () => {
+  it('an emulator is matched by its device name and API level, and one at an API level the catalog lacks for that device stays local', async () => {
     const avdHome = fs.mkdtempSync(path.join(os.tmpdir(), 'avd-home-'));
     process.env.ANDROID_AVD_HOME = avdHome;
     fs.mkdirSync(path.join(avdHome, 'Pixel_7_API_33.avd'));
@@ -60,10 +64,17 @@ describe('the local device', () => {
       run: async () => 'Pixel_7_API_33\nOK\n',
     });
     try {
-      writeConfig('pixel_7', 33);
+      writeConfig(pixel7.emuName, apiLevelOf(pixel7.held));
       expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5554' })).toEqual({
-        deviceId: expect.stringContaining('pixel'),
-        os: 'Android 13',
+        deviceId: 'pixel.7',
+        os: `Android ${pixel7.held}`,
+      });
+
+      writeConfig(pixel7.emuName, apiLevelOf(pixel7.lacking));
+      expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5554' })).toEqual({
+        local: true,
+        model: pixel7.emuName,
+        os: `Android ${pixel7.lacking}`,
       });
 
       // A name no phone maker ships, so no list Sherlo grows can ever offer it.
@@ -82,7 +93,7 @@ describe('the local device', () => {
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'avd-own-'));
     fs.writeFileSync(
       path.join(folder, 'config.ini'),
-      'hw.device.name=pixel_xl\nimage.sysdir.1=system-images/android-31/default/arm64-v8a/\n'
+      `hw.device.name=${pixel7.emuName}\nimage.sysdir.1=system-images/android-${apiLevelOf(pixel7.lacking)}/default/arm64-v8a/\n`
     );
     vi.stubEnv('ANDROID_AVD_HOME', path.join(folder, 'nowhere'));
     try {
@@ -93,8 +104,8 @@ describe('the local device', () => {
       });
       expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5554' })).toEqual({
         local: true,
-        model: 'pixel_xl',
-        os: 'Android 12',
+        model: pixel7.emuName,
+        os: `Android ${pixel7.lacking}`,
       });
 
       fs.rmSync(path.join(folder, 'config.ini'));
@@ -113,7 +124,7 @@ describe('the local device', () => {
     fs.mkdirSync(path.join(avdHome, 'Pixel_7_API_33.avd'));
     fs.writeFileSync(
       path.join(avdHome, 'Pixel_7_API_33.avd', 'config.ini'),
-      'hw.device.name=pixel_7\nimage.sysdir.1=system-images/android-33/google_apis/arm64-v8a/\n'
+      `hw.device.name=${pixel7.emuName}\nimage.sysdir.1=system-images/android-${apiLevelOf(pixel7.held)}/google_apis/arm64-v8a/\n`
     );
     undo = installDeviceState({
       ...posedDeviceState(),
@@ -122,8 +133,8 @@ describe('the local device', () => {
     });
     try {
       expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5584' })).toEqual({
-        deviceId: expect.stringContaining('pixel'),
-        os: 'Android 13',
+        deviceId: 'pixel.7',
+        os: `Android ${pixel7.held}`,
       });
     } finally {
       vi.unstubAllEnvs();
@@ -135,7 +146,7 @@ describe('the local device', () => {
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'avd-own-'));
     fs.writeFileSync(
       path.join(folder, 'config.ini'),
-      'hw.device.name=pixel_xl\nimage.sysdir.1=system-images/android-31/default/arm64-v8a/\n'
+      `hw.device.name=${pixel7.emuName}\nimage.sysdir.1=system-images/android-${apiLevelOf(pixel7.lacking)}/default/arm64-v8a/\n`
     );
     undo = installDeviceState({
       ...posedDeviceState(),
@@ -144,8 +155,8 @@ describe('the local device', () => {
     try {
       expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5584' })).toEqual({
         local: true,
-        model: 'pixel_xl',
-        os: 'Android 12',
+        model: pixel7.emuName,
+        os: `Android ${pixel7.lacking}`,
       });
     } finally {
       fs.rmSync(folder, { recursive: true, force: true });
